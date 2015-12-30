@@ -169,10 +169,6 @@ versions = s3_list_versions(aws, bucket_name, "key3")
 @test s3_get(aws, bucket_name, "key3") == b"data3.v3"
 
 
-println("AWSS3 ok.")
-
-
-
 
 #==============================================================================#
 # End of file.
