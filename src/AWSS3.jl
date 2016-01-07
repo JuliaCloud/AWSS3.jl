@@ -21,6 +21,7 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
 using AWSCore
 using SymDict
 using Retry
+using XMLDict
 using LightXML
 
 import Requests: format_query_str, data
@@ -187,7 +188,8 @@ s3_delete_bucket(aws, bucket) = s3(aws, "DELETE", bucket)
 
 function s3_list_buckets(aws)
 
-    s3(aws,"GET", headers=Dict("Content-Type" => "application/json"))["Buckets"]["Bucket"]["Name"]
+    r = s3(aws,"GET", headers=Dict("Content-Type" => "application/json"))
+    [b["Name"] for b in r["Buckets"]["Bucket"]]
 end
 
 
@@ -215,14 +217,9 @@ function s3_list_objects(aws, bucket, path = "")
             r = s3(aws, "GET", bucket; query = q)
 
             more = r["IsTruncated"] == "true"
-            for e in get_elements_by_tagname(root(r), "Contents")
-
-                o = Dict()
-                for field in ["Key", "LastModified", "ETag", "Size"]
-                    o[field] = content(find_element(e, field))
-                end
-                push!(objects, o)
-                marker = o["Key"]
+            for object in r["Contents"]
+                push!(objects, xml_dict(object))
+                marker = object["Key"]
             end
 
         catch e
@@ -251,15 +248,10 @@ function s3_list_versions(aws, bucket, path="")
 
         r = s3(aws, "GET", bucket; query = query)
         more = r["IsTruncated"][1] == "true"
-
-        for e in child_elements(root(r))
-
+        for e in child_elements(root(r.x))
             if name(e) in ["Version", "DeleteMarker"]
-
-                version = Dict("state" => name(e))
-                for e in child_elements(e)
-                    version[name(e)] = content(e)               
-                end
+                version = xml_dict(e)
+                version["state"] = name(e)
                 push!(versions, version)
                 marker = version["Key"]
             end
