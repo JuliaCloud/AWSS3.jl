@@ -11,6 +11,19 @@ using Retry
 
 AWSCore.set_debug_level(1)
 
+function test_without_catch(f)
+
+    @protected try
+        f()
+    catch e
+        @ignore if isa(e, Base.Test.Error)
+            e = e.err
+            rethrow(e)
+        end
+    end
+end
+
+
 
 #-------------------------------------------------------------------------------
 # Load credentials...
@@ -29,14 +42,18 @@ aws = AWSCore.aws_config(region="ap-southeast-2")
 for b in s3_list_buckets(aws)
 
     if ismatch(r"^ocaws.jl.test", b)
-        
-        println("Cleaning up old test bucket: " * b)
-        for v in s3_list_versions(aws, b)
-            s3_delete(aws, b, v["Key"]; version = v["VersionId"])
+        @protected try
+            println("Cleaning up old test bucket: " * b)
+            for v in s3_list_versions(aws, b)
+                s3_delete(aws, b, v["Key"]; version = v["VersionId"])
+            end
+            s3_delete_bucket(aws, b)
+        catch e
+            @ignore if e.code == "NoSuchBucket" end
         end
-        s3_delete_bucket(aws, b)
     end
 end
+
 
 # Temporary bucket name...
 
@@ -58,8 +75,6 @@ end
 # Create bucket...
 
 s3_create_bucket(aws, bucket_name)
-#sleep(5)
-
 
 
 @repeat 4 try
@@ -72,15 +87,14 @@ s3_create_bucket(aws, bucket_name)
 
     @test bucket_name in s3_list_buckets(aws)
 
-
-    # Check that our test keys do not exist yet...
-
-    @test !s3_exists(aws, bucket_name, "key1")
-    @test !s3_exists(aws, bucket_name, "key2")
-    @test !s3_exists(aws, bucket_name, "key3")
+    test_without_catch() do
+        # Check that our test keys do not exist yet...
+        @test !s3_exists(aws, bucket_name, "key1")
+        @test !s3_exists(aws, bucket_name, "key2")
+        @test !s3_exists(aws, bucket_name, "key3")
+    end
 
 catch e
-
     @delay_retry if e.code == "NoSuchBucket" end
 end
 
