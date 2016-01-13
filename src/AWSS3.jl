@@ -24,7 +24,7 @@ using Retry
 using XMLDict
 using LightXML
 
-import Requests: format_query_str, data
+import Requests: format_query_str
 
 
 s3_arn(resource) = "arn:aws:s3:::$resource"
