@@ -41,23 +41,51 @@ function s3(aws, verb, bucket="";
             content="",
             return_stream=false)
 
+    # Build query string...
     if version != ""
+        @assert isa(query, Associative)
         query["versionId"] = version
     end
-    query = format_query_str(query)
+    if isa(query, Associative)
+        query = format_query_str(query)
+    end
 
+    # Build URL...
     resource = "/$path$(query == "" ? "" : "?$query")"
+    url = aws_endpoint("s3", "", bucket) * resource
 
-    url = aws_endpoint("s3", aws[:region], bucket) * resource
+    # Build Request...
+    request = @SymDict(service = "s3",
+                       verb,
+                       url,
+                       resource,
+                       headers,
+                       content,
+                       return_stream,
+                       aws...)
 
-    do_request(@SymDict(service = "s3",
-                        verb,
-                        url,
-                        resource,
-                        headers,
-                        content,
-                        return_stream,
-                        aws...))
+    @repeat 2 try
+
+        # Check bucket region cache...
+        try request[:region] = aws[:bucket_region][bucket] end
+
+        do_request(request)
+
+    catch e
+
+        # Update bucket region cache if needed...
+        @retry if typeof(e) == AWSCore.AuthorizationHeaderMalformed &&
+                  haskey(e.info, "Region")
+
+            if AWSCore.debug_level > 0
+                println("S3 region redirect $bucket -> $(e.info["Region"])")
+            end
+            if !haskey(aws, :bucket_region)
+                aws[:bucket_region] = Dict()
+            end
+            aws[:bucket_region][bucket] = e.info["Region"]
+        end
+    end
 end
 
 
@@ -82,10 +110,14 @@ function s3_get_file(aws, bucket, path, filename; version="")
                                     version = version,
                                     return_stream = true)
 
-    open(filename, "w") do file
-        while !eof(stream)
-            write(file, readavailable(stream))
+    try
+        open(filename, "w") do file
+            while !eof(stream)
+                write(file, readavailable(stream))
+            end
         end
+    finally
+        close(stream)
     end
 end
 
@@ -98,7 +130,7 @@ function s3_get_meta(aws, bucket, path; version="")
              version = version)
     return res.headers
 end
-    
+
 
 function s3_exists(aws, bucket, path; version="")
 
@@ -136,7 +168,7 @@ function s3_copy(aws, bucket, path; to_bucket=bucket, to_path="")
                    headers = Dict("x-amz-copy-source" => "/$bucket/$path"))
 end
 
- 
+
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
 
 function s3_create_bucket(aws, bucket)
@@ -173,8 +205,8 @@ function s3_enable_versioning(aws, bucket)
     s3(aws, "PUT", bucket;
        query = Dict("versioning" => ""),
        content = """
-       <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"> 
-           <Status>Enabled</Status> 
+       <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+           <Status>Enabled</Status>
        </VersioningConfiguration>""")
 end
 
@@ -279,7 +311,8 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 
-function s3_put(aws, bucket, path, data, data_type="")
+function s3_put(aws, bucket, path, data::Union{AbstractString,Vector{UInt8}},
+                                   data_type="")
 
     if data_type == ""
         data_type = "application/octet-stream"
