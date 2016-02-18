@@ -104,7 +104,7 @@ function s3_get(aws, bucket, path; version="")
 end
 
 
-function s3_get_file(aws, bucket, path, filename; version="")
+function s3_get_file(aws, bucket::AbstractString, path, filename; version="")
 
     stream = s3(aws, "GET", bucket; path = path,
                                     version = version,
@@ -118,6 +118,21 @@ function s3_get_file(aws, bucket, path, filename; version="")
         end
     finally
         close(stream)
+    end
+end
+
+
+function s3_get_file(aws, buckets::Vector, path, filename; version="")
+
+    i = start(buckets)
+
+    @repeat length(buckets) try
+
+        bucket, i = next(buckets, i)
+        s3_get_file(aws, bucket, path, filename; version=version);
+
+    catch e
+        @retry if e.code in ["NoSuchKey", "AccessDenied"] end
     end
 end
 
