@@ -7,9 +7,10 @@
 #==============================================================================#
 
 
-module AWSS3
-
 __precompile__()
+
+
+module AWSS3
 
 export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_create_bucket,
