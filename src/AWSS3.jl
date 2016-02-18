@@ -149,7 +149,7 @@ end
 
 function s3_exists(aws, bucket, path; version="")
 
-    @repeat 3 try
+    @repeat 2 try
 
         s3(aws, "GET", bucket; path = path,
                                headers = Dict("Range" => "bytes=0-0"),
