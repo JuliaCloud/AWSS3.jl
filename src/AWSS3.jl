@@ -177,7 +177,7 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
 
-function s3_copy(aws, bucket, path; to_bucket=bucket, to_path="")
+function s3_copy(aws, bucket, path; to_bucket=bucket, to_path=path)
 
     s3(aws, "PUT", to_bucket;
                    path = to_path,
