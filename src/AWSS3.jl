@@ -257,7 +257,7 @@ function s3_list_objects(aws, bucket, path = "")
             q["prefix"] = path
         end
         if marker != ""
-            q["key-marker"] = marker
+            q["marker"] = marker
         end
 
         @repeat 4 try
