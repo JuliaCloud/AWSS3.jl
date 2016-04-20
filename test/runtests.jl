@@ -9,6 +9,8 @@ using AWSS3
 using Base.Test
 using Retry
 
+using Compat.readstring
+
 AWSCore.set_debug_level(1)
 
 function test_without_catch(f)
@@ -124,7 +126,7 @@ s3_copy(aws, bucket_name, "key1";
 url = s3_sign_url(aws, bucket_name, "key1")
 curl_output = ""
 @repeat 3 try
-    curl_output = readall(`curl -s -o - $url`)
+    curl_output = readstring(`curl -s -o - $url`)
 catch e
     @delay_retry if true end
 end
@@ -140,7 +142,7 @@ catch e
     sleep(1)
     @retry if true end
 end
-@test readall(fn) == "data1.v1"
+@test readstring(fn) == "data1.v1"
 rm(fn)
 
 
