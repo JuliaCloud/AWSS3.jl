@@ -18,6 +18,7 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_list_objects, s3_list_versions, s3_get_meta, s3_purge_versions,
        s3_sign_url
 
+import HttpCommon: Response
 
 using AWSCore
 using SymDict
@@ -34,25 +35,24 @@ s3_arn(bucket, path) = s3_arn("$bucket/$path")
 
 # S3 REST API request.
 
-function s3(aws, verb, bucket="";
-            headers=Dict(),
-            path="",
-            query=Dict(),
-            version="",
+function s3(aws::SymbolDict,
+            verb::ASCIIString,
+            bucket::ASCIIString="";
+            headers::Dict{ASCIIString,ASCIIString}=Dict{ASCIIString,ASCIIString}(),
+            path::ASCIIString="",
+            query::Dict{ASCIIString,ASCIIString}=Dict{ASCIIString,ASCIIString}(),
+            version::ASCIIString="",
             content="",
-            return_stream=false)
+            return_stream::Bool=false)
 
     # Build query string...
     if version != ""
-        @assert isa(query, Associative)
         query["versionId"] = version
     end
-    if isa(query, Associative)
-        query = format_query_str(query)
-    end
+    query_str = format_query_str(query)
 
     # Build URL...
-    resource = "/$path$(query == "" ? "" : "?$query")"
+    resource = "/$path$(query_str == "" ? "" : "?$query_str")"
     url = aws_endpoint("s3", "", bucket) * resource
 
     # Build Request...
@@ -70,7 +70,7 @@ function s3(aws, verb, bucket="";
         # Check bucket region cache...
         try request[:region] = aws[:bucket_region][bucket] end
 
-        do_request(request)
+        return do_request(request)
 
     catch e
 
@@ -87,16 +87,20 @@ function s3(aws, verb, bucket="";
             aws[:bucket_region][bucket] = e.info["Region"]
         end
     end
+
+    assert(false) # Unreachable.
 end
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
 
-function s3_get(aws, bucket, path; version="")
+function s3_get(aws::SymbolDict, bucket::ASCIIString, path::ASCIIString;
+                version::ASCIIString="")
 
     @repeat 4 try
 
         r = s3(aws, "GET", bucket; path = path, version = version)
+        r::Response
         return data(r)
 
     catch e
@@ -243,7 +247,7 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
 
-function s3_list_objects(aws, bucket, path = "")
+function s3_list_objects(aws, bucket::ASCIIString, path::ASCIIString = "")
 
     more = true
     objects = []
@@ -251,7 +255,7 @@ function s3_list_objects(aws, bucket, path = "")
 
     while more
 
-        q = Dict()
+        q = Dict{ASCIIString,ASCIIString}()
         if path != ""
             q["delimiter"] = "/"
             q["prefix"] = path
