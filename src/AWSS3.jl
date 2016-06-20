@@ -50,6 +50,7 @@ function s3(aws::SymbolDict,
         query["versionId"] = version
     end
     query_str = format_query_str(query)
+    query_str::ASCIIString
 
     # Build URL...
     resource = "/$path$(query_str == "" ? "" : "?$query_str")"
