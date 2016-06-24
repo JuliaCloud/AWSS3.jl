@@ -270,9 +270,13 @@ function s3_list_objects(aws, bucket::ASCIIString, path::ASCIIString = "")
             r = s3(aws, "GET", bucket; query = q)
 
             more = r["IsTruncated"] == "true"
-            for object in r["Contents"]
-                push!(objects, xml_dict(object))
-                marker = object["Key"]
+
+            if haskey(r, "Contents")
+                l = isa(r["Contents"], Vector) ? r["Contents"] : [r["Contents"]]
+                for object in l
+                    push!(objects, xml_dict(object))
+                    marker = object["Key"]
+                end
             end
 
         catch e
