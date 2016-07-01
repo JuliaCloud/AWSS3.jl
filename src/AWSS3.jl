@@ -14,6 +14,7 @@ module AWSS3
 
 export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_create_bucket,
+       s3_put_cors,
        s3_enable_versioning, s3_delete_bucket, s3_list_buckets,
        s3_list_objects, s3_list_versions, s3_get_meta, s3_purge_versions,
        s3_sign_url
@@ -216,6 +217,14 @@ function s3_create_bucket(aws, bucket)
     catch e
         @ignore if e.code == "BucketAlreadyOwnedByYou" end
     end
+end
+
+
+
+# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html
+
+function s3_put_cors(aws, bucket, cors_config)
+    s3(aws, "PUT", bucket, path = "?cors", content = cors_config)
 end
 
 
