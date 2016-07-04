@@ -20,14 +20,19 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_sign_url
 
 import HttpCommon: Response
+import Requests: mimetype
 
 using AWSCore
 using SymDict
 using Retry
 using XMLDict
 using LightXML
+using Compat
+import Compat: String
 
 import Requests: format_query_str
+
+typealias SSDict Dict{String,String}
 
 
 s3_arn(resource) = "arn:aws:s3:::$resource"
@@ -36,22 +41,21 @@ s3_arn(bucket, path) = s3_arn("$bucket/$path")
 
 # S3 REST API request.
 
-function s3(aws::SymbolDict,
-            verb::ASCIIString,
-            bucket::ASCIIString="";
-            headers::Dict{ASCIIString,ASCIIString}=Dict{ASCIIString,ASCIIString}(),
-            path::ASCIIString="",
-            query::Dict{ASCIIString,ASCIIString}=Dict{ASCIIString,ASCIIString}(),
-            version::ASCIIString="",
+function s3(aws::AWSConfig,
+            verb,
+            bucket="";
+            headers=SSDict(),
+            path="",
+            query=SSDict(),
+            version="",
             content="",
-            return_stream::Bool=false)
+            return_stream=false)
 
     # Build query string...
     if version != ""
         query["versionId"] = version
     end
     query_str = format_query_str(query)
-    query_str::ASCIIString
 
     # Build URL...
     resource = "/$path$(query_str == "" ? "" : "?$query_str")"
@@ -71,7 +75,6 @@ function s3(aws::SymbolDict,
 
         # Check bucket region cache...
         try request[:region] = aws[:bucket_region][bucket] end
-
         return do_request(request)
 
     catch e
@@ -84,7 +87,7 @@ function s3(aws::SymbolDict,
                 println("S3 region redirect $bucket -> $(e.info["Region"])")
             end
             if !haskey(aws, :bucket_region)
-                aws[:bucket_region] = Dict()
+                aws[:bucket_region] = SSDict()
             end
             aws[:bucket_region][bucket] = e.info["Region"]
         end
@@ -96,22 +99,19 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
 
-function s3_get(aws::SymbolDict, bucket::ASCIIString, path::ASCIIString;
-                version::ASCIIString="")
+function s3_get(aws::AWSConfig, bucket, path; version="", retry=true)
 
     @repeat 4 try
 
-        r = s3(aws, "GET", bucket; path = path, version = version)
-        r::Response
-        return data(r)
+        return s3(aws, "GET", bucket; path = path, version = version)
 
     catch e
-        @delay_retry if e.code in ["NoSuchBucket", "NoSuchKey"] end
+        @delay_retry if retry && e.code in ["NoSuchBucket", "NoSuchKey"] end
     end
 end
 
 
-function s3_get_file(aws, bucket::AbstractString, path, filename; version="")
+function s3_get_file(aws::AWSConfig, bucket, path, filename; version="")
 
     stream = s3(aws, "GET", bucket; path = path,
                                     version = version,
@@ -129,7 +129,7 @@ function s3_get_file(aws, bucket::AbstractString, path, filename; version="")
 end
 
 
-function s3_get_file(aws, buckets::Vector, path, filename; version="")
+function s3_get_file(aws::AWSConfig, buckets::Vector, path, filename; version="")
 
     i = start(buckets)
 
@@ -144,22 +144,19 @@ function s3_get_file(aws, buckets::Vector, path, filename; version="")
 end
 
 
-function s3_get_meta(aws, bucket, path; version="")
+function s3_get_meta(aws::AWSConfig, bucket, path; version="")
 
-    res = s3(aws, "GET", bucket;
-             path = path,
-             headers = Dict("Range" => "bytes=0-0"),
-             version = version)
+    res = s3(aws, "HEAD", bucket; path = path, version = version)
     return res.headers
 end
 
 
-function s3_exists(aws, bucket, path; version="")
+function s3_exists(aws::AWSConfig, bucket, path; version="")
 
     @repeat 2 try
 
         s3(aws, "GET", bucket; path = path,
-                               headers = Dict("Range" => "bytes=0-0"),
+                               headers = SSDict("Range" => "bytes=0-0"),
                                version = version)
         return true
 
@@ -175,7 +172,7 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
 
-function s3_delete(aws, bucket, path; version="")
+function s3_delete(aws::AWSConfig, bucket, path; version="")
 
     s3(aws, "DELETE", bucket; path = path, version = version)
 end
@@ -183,17 +180,17 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
 
-function s3_copy(aws, bucket, path; to_bucket=bucket, to_path=path)
+function s3_copy(aws::AWSConfig, bucket, path; to_bucket=bucket, to_path=path)
 
     s3(aws, "PUT", to_bucket;
                    path = to_path,
-                   headers = Dict("x-amz-copy-source" => "/$bucket/$path"))
+                   headers = SSDict("x-amz-copy-source" => "/$bucket/$path"))
 end
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
 
-function s3_create_bucket(aws, bucket)
+function s3_create_bucket(aws::AWSConfig, bucket)
 
     println("""Creating Bucket "$bucket"...""")
 
@@ -206,7 +203,7 @@ function s3_create_bucket(aws, bucket)
         else
 
             s3(aws, "PUT", bucket;
-                headers = Dict("Content-Type" => "text/plain"),
+                headers = SSDict("Content-Type" => "text/plain"),
                 content = """
                 <CreateBucketConfiguration
                              xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
@@ -223,17 +220,17 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html
 
-function s3_put_cors(aws, bucket, cors_config)
+function s3_put_cors(aws::AWSConfig, bucket, cors_config)
     s3(aws, "PUT", bucket, path = "?cors", content = cors_config)
 end
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html
 
-function s3_enable_versioning(aws, bucket)
+function s3_enable_versioning(aws::AWSConfig, bucket)
 
     s3(aws, "PUT", bucket;
-       query = Dict("versioning" => ""),
+       query = SSDict("versioning" => ""),
        content = """
        <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
            <Status>Enabled</Status>
@@ -243,21 +240,21 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
 
-s3_delete_bucket(aws, bucket) = s3(aws, "DELETE", bucket)
+s3_delete_bucket(aws::AWSConfig, bucket) = s3(aws, "DELETE", bucket)
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
 
-function s3_list_buckets(aws)
+function s3_list_buckets(aws::AWSConfig)
 
-    r = s3(aws,"GET", headers=Dict("Content-Type" => "application/json"))
+    r = s3(aws,"GET", headers=SSDict("Content-Type" => "application/json"))
     [b["Name"] for b in r["Buckets"]["Bucket"]]
 end
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
 
-function s3_list_objects(aws, bucket::ASCIIString, path::ASCIIString = "")
+function s3_list_objects(aws::AWSConfig, bucket, path="")
 
     more = true
     objects = []
@@ -265,7 +262,7 @@ function s3_list_objects(aws, bucket::ASCIIString, path::ASCIIString = "")
 
     while more
 
-        q = Dict{ASCIIString,ASCIIString}()
+        q = SSDict()
         if path != ""
             q["delimiter"] = "/"
             q["prefix"] = path
@@ -299,7 +296,7 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html
 
-function s3_list_versions(aws, bucket, path="")
+function s3_list_versions(aws::AWSConfig, bucket, path="")
 
     more = true
     versions = []
@@ -307,7 +304,7 @@ function s3_list_versions(aws, bucket, path="")
 
     while more
 
-        query = Dict("versions" => "", "prefix" => path)
+        query = SSDict("versions" => "", "prefix" => path)
         if marker != ""
             query["key-marker"] = marker
         end
@@ -328,10 +325,10 @@ end
 
 
 import Base.ismatch
-ismatch(pattern::AbstractString,s::AbstractString) = ismatch(Regex(pattern), s)
+ismatch(pattern::AbstractString, s::AbstractString) = ismatch(Regex(pattern), s)
 
 
-function s3_purge_versions(aws, bucket, path="", pattern="")
+function s3_purge_versions(aws::AWSConfig, bucket, path="", pattern="")
 
     for v in s3_list_versions(aws, bucket, path)
         if pattern == "" || ismatch(pattern, v["Key"])
@@ -345,8 +342,8 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 
-function s3_put(aws, bucket, path, data::Union{AbstractString,Vector{UInt8}},
-                                   data_type="")
+function s3_put(aws::AWSConfig, bucket, path, data::Union{String,Vector{UInt8}},
+                                              data_type="")
 
     if data_type == ""
         data_type = "application/octet-stream"
@@ -368,7 +365,7 @@ function s3_put(aws, bucket, path, data::Union{AbstractString,Vector{UInt8}},
 
     s3(aws, "PUT", bucket;
        path=path,
-       headers=Dict("Content-Type" => data_type),
+       headers=SSDict("Content-Type" => data_type),
        content=data)
 end
 
@@ -376,9 +373,9 @@ end
 import Nettle: digest
 
 
-function s3_sign_url(aws, bucket, path, seconds = 3600)
+function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
 
-    query = Dict("AWSAccessKeyId" =>  aws[:creds].access_key_id,
+    query = SSDict("AWSAccessKeyId" =>  aws[:creds].access_key_id,
                  "x-amz-security-token" => get(aws, "token", ""),
                  "Expires" => string(round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)),
                  "response-content-disposition" => "attachment")
