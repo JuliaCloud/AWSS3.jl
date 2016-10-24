@@ -3,7 +3,7 @@
 #
 # S3 API. See http://docs.aws.amazon.com/AmazonS3/latest/API/APIRest.html
 #
-# Copyright Sam O'Connor 2014 - All rights reserved
+# Copyright OC Technology Pty Ltd 2014 - All rights reserved
 #==============================================================================#
 
 
