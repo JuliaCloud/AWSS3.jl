@@ -1,4 +1,4 @@
-The OCAWS.jl package is licensed under the MIT "Expat" License:
+The AWSS3.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2014: OC Technology Pty Ltd
 >
