@@ -393,7 +393,7 @@ function s3_upload_part(aws, env, part_number, part_data)
   response.headers["ETag"]
 end
 
-function s3_complete_multipart_upload(aws, env, parts :: Array{ASCIIString})
+function s3_complete_multipart_upload(aws, env, parts :: Array{String})
   doc = XMLDocument()
   root = create_root(doc, "CompleteMultipartUpload")
   for (i, etag) in enumerate(parts)
