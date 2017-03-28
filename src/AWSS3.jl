@@ -17,7 +17,8 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_put_cors,
        s3_enable_versioning, s3_delete_bucket, s3_list_buckets,
        s3_list_objects, s3_list_versions, s3_get_meta, s3_purge_versions,
-       s3_sign_url
+       s3_sign_url, s3_begin_multipart_upload, s3_upload_part,
+       s3_complete_multipart_upload, s3_multipart_upload
 
 import HttpCommon: Response
 import Requests: mimetype
@@ -371,6 +372,65 @@ end
 
 
 import Nettle: digest
+
+function s3_begin_multipart_upload(aws, bucket, path, data_type = "application/octet-stream")
+  response = s3(aws, "POST", bucket;
+                path=path, query="uploads")
+  if typeof(response) != XMLDict.XMLDictElement
+    response = parse_xml(bytestring(response))
+  end
+  response
+end
+
+function s3_upload_part(aws, env, part_number, part_data)
+  path = env["Key"]
+  bucket = env["Bucket"]
+  md5 = base64encode(digest("md5", part_data))
+  q = Dict("partNumber" => part_number,
+           "uploadId" => env["UploadId"])
+  response = s3(aws, "PUT", bucket;
+                path=path, query=q,
+                headers = Dict("Content-MD5" => md5),
+                content = part_data)
+  response.headers["ETag"]
+end
+
+function s3_complete_multipart_upload(aws, env, parts :: Array{ASCIIString})
+  doc = XMLDocument()
+  root = create_root(doc, "CompleteMultipartUpload")
+  for (i, etag) in enumerate(parts)
+    xchild = new_child(root, "Part")
+    xpartnumber = new_child(xchild, "PartNumber")
+    xetag = new_child(xchild, "ETag")
+    add_text(xpartnumber, string(i))
+    add_text(xetag, etag)
+  end
+  q = Dict("uploadId" => env["UploadId"])
+  bucket = env["Bucket"]
+  path = env["Key"]
+  response = s3(aws, "POST", bucket;
+                path=path, query=q,
+                content=string(doc))
+  free(doc)
+  response
+end
+
+function s3_multipart_upload(aws, bucket, path, data :: IOStream, chunk_size = 50)
+  #convert the chunk size to megabytes
+  chunk_size = chunk_size * 1024 * 1024
+  env = s3_begin_multipart_upload(aws, bucket, path)
+  tags = Array{ASCIIString}(0)
+  part_data = Vector{UInt8}(chunk_size)
+  while (n = readbytes!(data, part_data, chunk_size)) > 0
+    if n < chunk_size
+      part_data = part_data[1:n]
+    end
+    push!(tags, s3_upload_part(aws, env, length(tags) + 1, part_data))
+  end
+  s3_complete_multipart_upload(aws, env, tags)
+end
+
+
 
 
 function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
