@@ -9,8 +9,6 @@ using AWSS3
 using Base.Test
 using Retry
 
-using Compat.readstring
-
 AWSCore.set_debug_level(1)
 
 function test_without_catch(f)

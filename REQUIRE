@@ -1,8 +1,9 @@
 julia 0.5
-AWSCore
+AWSCore 0.1
 HttpCommon
 Requests
 SymDict
 Retry
 XMLDict
 LightXML
+Nettle
