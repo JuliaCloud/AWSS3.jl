@@ -28,8 +28,6 @@ using SymDict
 using Retry
 using XMLDict
 using LightXML
-using Compat
-import Compat: String
 
 import Requests: format_query_str
 
