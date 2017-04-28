@@ -105,7 +105,9 @@ function s3_get(aws::AWSConfig, bucket, path; version="", retry=true)
         return s3(aws, "GET", bucket; path = path, version = version)
 
     catch e
-        @delay_retry if retry && e.code in ["NoSuchBucket", "NoSuchKey"] end
+        #@delay_retry if retry && e.code in ["NoSuchBucket", "NoSuchKey", "RequestTimeout", "SlowDown"] end
+        # whatever the error is, just retry
+        @delay_retry if retry end 
     end
 end
 
