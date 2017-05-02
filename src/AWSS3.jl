@@ -98,15 +98,22 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
 
-function s3_get(aws::AWSConfig, bucket, path; version="", retry=true)
-
-    @repeat 4 try
-
-        return s3(aws, "GET", bucket; path = path, version = version)
-
-    catch e
-        @delay_retry if retry && e.code in ["NoSuchBucket", "NoSuchKey"] end
-    end
+function s3_get(aws::AWSConfig, bucket, path; version="")
+    delay = 0.05
+    for i in 1:4
+        try 
+            return s3(aws, "GET", bucket; path=path, version=version)
+        catch e
+            println("catch an error while geting files: $(e)")
+            @show e.code 
+            if e.code in ["NoSuchKey", "NoSuchBucket"]
+                rethrow()
+            end
+            if i < 4
+                continue
+            end
+        end 
+    end 
 end
 
 
@@ -341,31 +348,46 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 
-function s3_put(aws::AWSConfig, bucket, path, data::Union{String,Vector{UInt8}},
-                                              data_type="")
-
-    if data_type == ""
-        data_type = "application/octet-stream"
-        for (e, t) in [
-            (".pdf",  "application/pdf"),
-            (".csv",  "text/csv"),
-            (".txt",  "text/plain"),
-            (".log",  "text/plain"),
-            (".dat",  "application/octet-stream"),
-            (".gz",   "application/octet-stream"),
-            (".bz2",  "application/octet-stream"),
-        ]
-            if ismatch(e * "\$", path)
-                data_type = t
-                break
-            end
+function s3_put(aws::AWSConfig, bucket, path, 
+                data::Union{String,Vector{UInt8}},
+                data_type="application/octet-stream", 
+                content_encoding = "")
+    
+    for (e, t) in [
+        (".pdf",  "application/pdf"),
+        (".csv",  "text/csv"),
+        (".txt",  "text/plain"),
+        (".log",  "text/plain"),
+        (".dat",  "application/octet-stream"),
+        (".gz",   "application/octet-stream"),
+        (".bz2",  "application/octet-stream"),
+    ]
+        if ismatch(e * "\$", path)
+            data_type = t
+            break
         end
     end
-
-    s3(aws, "PUT", bucket;
-       path=path,
-       headers=SSDict("Content-Type" => data_type),
-       content=data)
+    
+    local headers
+    if content_encoding == ""
+        headers = SSDict(   "Content-Type"  => data_type )
+    else
+        headers = SSDict(  "Content-Type"      => data_type,
+                        "Content-Encoding"  => content_encoding)
+    end
+    
+    delay = 0.05
+    for i in 1:4
+        try 
+            return s3(aws, "PUT", bucket; path=path, headers=headers, content=data)
+        catch e 
+            println("catch an error while putting data: $e")
+            @show e.code
+            if i < 4
+                continue
+            end 
+        end 
+    end 
 end
 
 
