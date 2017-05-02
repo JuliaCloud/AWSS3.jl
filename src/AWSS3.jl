@@ -368,11 +368,14 @@ function s3_put(aws::AWSConfig, bucket, path,
         headers = SSDict(  "Content-Type"      => data_type,
                         "Content-Encoding"  => content_encoding)
     end
-
-    s3(aws, "PUT", bucket;
-       path=path,
-       headers= headers,
-       content=data)
+    
+    @repeat 4 try 
+        return s3(aws, "PUT", bucket; path=path, headers= headers, content=data)
+    catch e 
+        @delay_retry if true end 
+        @show e 
+        @show typeof(e)
+    end 
 end
 
 
