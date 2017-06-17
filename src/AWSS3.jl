@@ -342,7 +342,7 @@ end
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 
 function s3_put(aws::AWSConfig, bucket, path, data::Union{String,Vector{UInt8}},
-                                              data_type="")
+                                              data_type=""; metadata::SSDict = SSDict())
 
     if data_type == ""
         data_type = "application/octet-stream"
@@ -361,10 +361,14 @@ function s3_put(aws::AWSConfig, bucket, path, data::Union{String,Vector{UInt8}},
             end
         end
     end
+    headers = SSDict("Content-Type" => data_type)
+    for (key, val) in metadata
+        headers["x-amz-meta-$key"] = val
+    end
 
     s3(aws, "PUT", bucket;
        path=path,
-       headers=SSDict("Content-Type" => data_type),
+       headers=headers,
        content=data)
 end
 
