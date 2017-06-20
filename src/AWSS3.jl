@@ -341,31 +341,41 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 
-function s3_put(aws::AWSConfig, bucket, path, data::Union{String,Vector{UInt8}},
-                                              data_type="")
+function s3_put(aws::AWSConfig, bucket, path, 
+                data::Union{String,Vector{UInt8}},
+                data_type="application/octet-stream", 
+                content_encoding = "")
 
-    if data_type == ""
-        data_type = "application/octet-stream"
-        for (e, t) in [
-            (".pdf",  "application/pdf"),
-            (".csv",  "text/csv"),
-            (".txt",  "text/plain"),
-            (".log",  "text/plain"),
-            (".dat",  "application/octet-stream"),
-            (".gz",   "application/octet-stream"),
-            (".bz2",  "application/octet-stream"),
-        ]
-            if ismatch(e * "\$", path)
-                data_type = t
-                break
-            end
+    for (e, t) in [
+        (".pdf",  "application/pdf"),
+        (".csv",  "text/csv"),
+        (".txt",  "text/plain"),
+        (".log",  "text/plain"),
+        (".dat",  "application/octet-stream"),
+        (".gz",   "application/octet-stream"),
+        (".bz2",  "application/octet-stream"),
+    ]
+        if ismatch(e * "\$", path)
+            data_type = t
+            break
         end
     end
-
-    s3(aws, "PUT", bucket;
-       path=path,
-       headers=SSDict("Content-Type" => data_type),
-       content=data)
+    
+    local headers
+    if content_encoding == ""
+        headers = SSDict(   "Content-Type"  => data_type )
+    else
+        headers = SSDict(  "Content-Type"      => data_type,
+                        "Content-Encoding"  => content_encoding)
+    end
+    
+    @repeat 4 try 
+        return s3(aws, "PUT", bucket; path=path, headers= headers, content=data)
+    catch e 
+        @delay_retry if true end 
+        @show e 
+        @show typeof(e)
+    end 
 end
 
 
