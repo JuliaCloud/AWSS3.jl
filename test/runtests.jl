@@ -106,13 +106,14 @@ s3_put(aws, bucket_name, "key 1", "data1.v1")
 s3_put(bucket_name, "key2", "data2.v1")
 s3_put(aws, bucket_name, "key3", "data3.v1")
 s3_put(aws, bucket_name, "key3", "data3.v2")
-s3_put(aws, bucket_name, "key3", "data3.v3")
+s3_put(aws, bucket_name, "key3", "data3.v3"; metadata = Dict("foo" => "bar"))
 
 # Check that test objects have expected content...
 
 @test s3_get(aws, bucket_name, "key 1") == b"data1.v1"
 @test s3_get(aws, bucket_name, "key2") == b"data2.v1"
 @test s3_get(bucket_name, "key3") == b"data3.v3"
+@test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
 # Check object copy function...
 

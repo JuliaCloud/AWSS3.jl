@@ -389,18 +389,15 @@ function s3_put(aws::AWSConfig,
             end
         end
     end
-    headers = SSDict("Content-Type" => data_type)
-    for (key, val) in metadata
-        headers["x-amz-meta-$key"] = val
-    end
 
     s3(aws, "PUT", bucket;
-       path=path,
-       headers=headers,
-       content=data)
+       path = path,
+       headers = SSDict("Content-Type" => data_type,
+                   Pair["x-amz-meta-$k" => v for (k, v) in metadata]...),
+       content = data)
 end
 
-s3_put(a...) = s3_put(default_aws_config(), a...)
+s3_put(a...; b...) = s3_put(default_aws_config(), a...; b...)
 
 
 import Nettle: digest
