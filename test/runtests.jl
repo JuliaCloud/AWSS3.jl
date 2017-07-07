@@ -89,7 +89,7 @@ s3_create_bucket(aws, bucket_name)
 
     test_without_catch() do
         # Check that our test keys do not exist yet...
-        @test !s3_exists(aws, bucket_name, "key1")
+        @test !s3_exists(aws, bucket_name, "key 1")
         @test !s3_exists(aws, bucket_name, "key2")
         @test !s3_exists(aws, bucket_name, "key3")
     end
@@ -101,7 +101,7 @@ end
 
 # Create test objects...
 
-s3_put(aws, bucket_name, "key1", "data1.v1")
+s3_put(aws, bucket_name, "key 1", "data1.v1")
 s3_put(aws, bucket_name, "key2", "data2.v1")
 s3_put(aws, bucket_name, "key3", "data3.v1")
 s3_put(aws, bucket_name, "key3", "data3.v2")
@@ -109,19 +109,19 @@ s3_put(aws, bucket_name, "key3", "data3.v3")
 
 # Check that test objects have expected content...
 
-@test s3_get(aws, bucket_name, "key1") == b"data1.v1"
+@test s3_get(aws, bucket_name, "key 1") == b"data1.v1"
 @test s3_get(aws, bucket_name, "key2") == b"data2.v1"
 @test s3_get(aws, bucket_name, "key3") == b"data3.v3"
 
 # Check object copy function...
 
-s3_copy(aws, bucket_name, "key1";
-        to_bucket = bucket_name, to_path = "key1.copy")
+s3_copy(aws, bucket_name, "key 1";
+        to_bucket = bucket_name, to_path = "key 1.copy")
 
-@test s3_get(aws, bucket_name, "key1.copy") == b"data1.v1"
+@test s3_get(aws, bucket_name, "key 1.copy") == b"data1.v1"
 
 
-url = s3_sign_url(aws, bucket_name, "key1")
+url = s3_sign_url(aws, bucket_name, "key 1")
 curl_output = ""
 @repeat 3 try
     curl_output = readstring(`curl -s -o - $url`)
@@ -135,7 +135,7 @@ if isfile(fn)
     rm(fn)
 end
 @repeat 3 try
-    s3_get_file(aws, bucket_name, "key1", fn)
+    s3_get_file(aws, bucket_name, "key 1", fn)
 catch e
     sleep(1)
     @retry if true end
@@ -146,20 +146,20 @@ rm(fn)
 
 # Check exists and list objects functions...
 
-for key in ["key1", "key2", "key3", "key1.copy"]
+for key in ["key 1", "key2", "key3", "key 1.copy"]
     @test s3_exists(aws, bucket_name, key)
     @test key in [o["Key"] for o in s3_list_objects(aws, bucket_name)]
 end
 
 # Check delete...
 
-s3_delete(aws, bucket_name, "key1.copy")
+s3_delete(aws, bucket_name, "key 1.copy")
 
-@test !("key1.copy" in [o["Key"] for o in s3_list_objects(aws, bucket_name)])
+@test !("key 1.copy" in [o["Key"] for o in s3_list_objects(aws, bucket_name)])
 
 # Check metadata...
 
-meta = s3_get_meta(aws, bucket_name, "key1")
+meta = s3_get_meta(aws, bucket_name, "key 1")
 @test meta["ETag"] == "\"68bc8898af64159b72f349b391a7ae35\""
 
 

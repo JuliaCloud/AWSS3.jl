@@ -28,6 +28,7 @@ using SymDict
 using Retry
 using XMLDict
 using LightXML
+using URIParser
 
 import Requests: format_query_str
 
@@ -57,8 +58,9 @@ function s3(aws::AWSConfig,
     query_str = format_query_str(query)
 
     # Build URL...
-    resource = "/$path$(query_str == "" ? "" : "?$query_str")"
-    url = aws_endpoint("s3", "", bucket) * resource
+    resource = string("/", AWSCore.escape_path(path),
+                      query_str == "" ? "" : "?$query_str")
+    url = string(aws_endpoint("s3", "", bucket), resource)
 
     # Build Request...
     request = @SymDict(service = "s3",
@@ -70,7 +72,7 @@ function s3(aws::AWSConfig,
                        return_stream,
                        aws...)
 
-    @repeat 2 try
+    @repeat 3 try
 
         # Check bucket region cache...
         try request[:region] = aws[:bucket_region][bucket] end
@@ -433,6 +435,8 @@ end
 
 function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
 
+    path = AWSCore.escape_path(path)
+
     query = SSDict("AWSAccessKeyId" =>  aws[:creds].access_key_id,
                  "x-amz-security-token" => get(aws, "token", ""),
                  "Expires" => string(round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)),
@@ -440,7 +444,8 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
 
     to_sign = "GET\n\n\n$(query["Expires"])\n" *
               "x-amz-security-token:$(query["x-amz-security-token"])\n" *
-              "/$bucket/$path?response-content-disposition=attachment"
+              "/$bucket/$path?" *
+              "response-content-disposition=attachment"
 
     key = aws[:creds].secret_key
     query["Signature"] = digest("sha1", key, to_sign) |> base64encode |> strip
