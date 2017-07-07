@@ -369,7 +369,8 @@ s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 
 function s3_put(aws::AWSConfig,
-                bucket, path, data::Union{String,Vector{UInt8}}, data_type="";
+                bucket, path, data::Union{String,Vector{UInt8}},
+                data_type="", encoding="";
                 metadata::SSDict = SSDict())
 
     if data_type == ""
@@ -390,10 +391,16 @@ function s3_put(aws::AWSConfig,
         end
     end
 
+    headers = SSDict("Content-Type" => data_type,
+                     Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
+
+    if encoding != ""
+        headers["Content-Encoding"] = encoding
+    end
+
     s3(aws, "PUT", bucket;
        path = path,
-       headers = SSDict("Content-Type" => data_type,
-                   Pair["x-amz-meta-$k" => v for (k, v) in metadata]...),
+       headers = headers,
        content = data)
 end
 
