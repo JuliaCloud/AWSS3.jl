@@ -111,6 +111,8 @@ function s3_get(aws::AWSConfig, bucket, path; version="", retry=true)
     end
 end
 
+s3_get(a...; b...) = s3_get(default_aws_config(), a...; b...)
+
 
 function s3_get_file(aws::AWSConfig, bucket, path, filename; version="")
 
@@ -128,6 +130,8 @@ function s3_get_file(aws::AWSConfig, bucket, path, filename; version="")
         close(stream)
     end
 end
+
+s3_get_file(a...; b...) = s3_get_file(default_aws_config(), a...; b...)
 
 
 function s3_get_file(aws::AWSConfig, buckets::Vector, path, filename; version="")
@@ -151,6 +155,8 @@ function s3_get_meta(aws::AWSConfig, bucket, path; version="")
     return res.headers
 end
 
+s3_get_meta(a...; b...) = s3_get_meta(default_aws_config(), a...; b...)
+
 
 function s3_exists(aws::AWSConfig, bucket, path; version="")
 
@@ -170,6 +176,8 @@ function s3_exists(aws::AWSConfig, bucket, path; version="")
     end
 end
 
+s3_exists(a...; b...) = s3_exists(default_aws_config(), a...; b...)
+
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
 
@@ -177,6 +185,8 @@ function s3_delete(aws::AWSConfig, bucket, path; version="")
 
     s3(aws, "DELETE", bucket; path = path, version = version)
 end
+
+s3_delete(a...; b...) = s3_delete(default_aws_config(), a...; b...)
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
@@ -187,6 +197,8 @@ function s3_copy(aws::AWSConfig, bucket, path; to_bucket=bucket, to_path=path)
                    path = to_path,
                    headers = SSDict("x-amz-copy-source" => "/$bucket/$path"))
 end
+
+s3_copy(a...; b...) = s3_copy(default_aws_config(), a...; b...)
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
@@ -217,6 +229,7 @@ function s3_create_bucket(aws::AWSConfig, bucket)
     end
 end
 
+s3_create_bucket(a) = s3_create_bucket(default_aws_config(), a)
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html
@@ -224,6 +237,8 @@ end
 function s3_put_cors(aws::AWSConfig, bucket, cors_config)
     s3(aws, "PUT", bucket, path = "?cors", content = cors_config)
 end
+
+s3_put_cors(a...) = s3_put_cors(default_aws_config(), a...)
 
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html
@@ -238,15 +253,19 @@ function s3_enable_versioning(aws::AWSConfig, bucket)
        </VersioningConfiguration>""")
 end
 
+s3_enable_versioning(a) = s3_enable_versioning(default_aws_config(), a)
+
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
 
 s3_delete_bucket(aws::AWSConfig, bucket) = s3(aws, "DELETE", bucket)
 
+s3_delete_bucket(a) = s3_delete_bucket(default_aws_config(), a)
+
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
 
-function s3_list_buckets(aws::AWSConfig)
+function s3_list_buckets(aws::AWSConfig = default_aws_config())
 
     r = s3(aws,"GET", headers=SSDict("Content-Type" => "application/json"))
     [b["Name"] for b in r["Buckets"]["Bucket"]]
@@ -294,6 +313,8 @@ function s3_list_objects(aws::AWSConfig, bucket, path="")
     return objects
 end
 
+s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
+
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html
 
@@ -324,6 +345,8 @@ function s3_list_versions(aws::AWSConfig, bucket, path="")
     return versions
 end
 
+s3_list_versions(a...) = s3_list_versions(default_aws_config(), a...)
+
 
 import Base.ismatch
 ismatch(pattern::AbstractString, s::AbstractString) = ismatch(Regex(pattern), s)
@@ -340,11 +363,13 @@ function s3_purge_versions(aws::AWSConfig, bucket, path="", pattern="")
     end
 end
 
+s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
+
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
 
-function s3_put(aws::AWSConfig, bucket, path, data::Union{String,Vector{UInt8}},
-                                              data_type="")
+function s3_put(aws::AWSConfig,
+                bucket, path, data::Union{String,Vector{UInt8}}, data_type="")
 
     if data_type == ""
         data_type = "application/octet-stream"
@@ -370,77 +395,96 @@ function s3_put(aws::AWSConfig, bucket, path, data::Union{String,Vector{UInt8}},
        content=data)
 end
 
+s3_put(a...) = s3_put(default_aws_config(), a...)
+
 
 import Nettle: digest
 
-function s3_begin_multipart_upload(aws, bucket, path, data_type = "application/octet-stream")
-  response = s3(aws, "POST", bucket;
-                path=path, query="uploads")
-  if typeof(response) != XMLDict.XMLDictElement
-    response = parse_xml(bytestring(response))
-  end
-  response
-end
 
-function s3_upload_part(aws, env, part_number, part_data)
-  path = env["Key"]
-  bucket = env["Bucket"]
-  md5 = base64encode(digest("md5", part_data))
-  q = Dict("partNumber" => part_number,
-           "uploadId" => env["UploadId"])
-  response = s3(aws, "PUT", bucket;
-                path=path, query=q,
-                headers = Dict("Content-MD5" => md5),
-                content = part_data)
-  response.headers["ETag"]
-end
+function s3_begin_multipart_upload(aws::AWSConfig,
+                                   bucket, path,
+                                   data_type = "application/octet-stream")
 
-function s3_complete_multipart_upload(aws, env, parts :: Array{String})
-  doc = XMLDocument()
-  root = create_root(doc, "CompleteMultipartUpload")
-  for (i, etag) in enumerate(parts)
-    xchild = new_child(root, "Part")
-    xpartnumber = new_child(xchild, "PartNumber")
-    xetag = new_child(xchild, "ETag")
-    add_text(xpartnumber, string(i))
-    add_text(xetag, etag)
-  end
-  q = Dict("uploadId" => env["UploadId"])
-  bucket = env["Bucket"]
-  path = env["Key"]
-  response = s3(aws, "POST", bucket;
-                path=path, query=q,
-                content=string(doc))
-  free(doc)
-  response
-end
+    response = s3(aws, "POST", bucket; path=path, query="uploads")
 
-function s3_multipart_upload(aws, bucket, path, data :: IOStream, chunk_size = 50)
-  #convert the chunk size to megabytes
-  chunk_size = chunk_size * 1024 * 1024
-  env = s3_begin_multipart_upload(aws, bucket, path)
-  tags = Array{ASCIIString}(0)
-  part_data = Vector{UInt8}(chunk_size)
-  while (n = readbytes!(data, part_data, chunk_size)) > 0
-    if n < chunk_size
-      part_data = part_data[1:n]
+    if typeof(response) != XMLDict.XMLDictElement
+        response = parse_xml(bytestring(response))
     end
-    push!(tags, s3_upload_part(aws, env, length(tags) + 1, part_data))
-  end
-  s3_complete_multipart_upload(aws, env, tags)
+
+    response
 end
 
 
+function s3_upload_part(aws::AWSConfig,
+                        env, part_number, part_data)
+
+    md5 = base64encode(digest("md5", part_data))
+
+    response = s3(aws, "PUT", env["Bucket"];
+                  path = env["Key"],
+                  query = Dict("partNumber" => part_number,  
+                               "uploadId" => env["UploadId"]),
+                  headers = Dict("Content-MD5" => md5),
+                  content = part_data)
+
+    response.headers["ETag"]
+end
+
+
+function s3_complete_multipart_upload(aws::AWSConfig,
+                                      env, parts :: Array{String})
+    doc = XMLDocument()
+    root = create_root(doc, "CompleteMultipartUpload")
+
+    for (i, etag) in enumerate(parts)
+
+        xchild = new_child(root, "Part")
+        xpartnumber = new_child(xchild, "PartNumber")
+        xetag = new_child(xchild, "ETag")
+        add_text(xpartnumber, string(i))
+        add_text(xetag, etag)
+    end
+
+    response = s3(aws, "POST", env["Bucket"];
+                  path = env["Key"],
+                  query = Dict("uploadId" => env["UploadId"]),
+                  content = string(doc))
+    free(doc)
+
+    response
+end
+
+
+function s3_multipart_upload(aws::AWSConfig,
+                             bucket, path, data :: IOStream, chunk_size = 50)
+
+    #convert the chunk size to megabytes
+    chunk_size = chunk_size * 1024 * 1024
+    env = s3_begin_multipart_upload(aws, bucket, path)
+    tags = Array{ASCIIString}(0)
+    part_data = Vector{UInt8}(chunk_size)
+
+    while (n = readbytes!(data, part_data, chunk_size)) > 0
+        if n < chunk_size
+            part_data = part_data[1:n]
+        end
+        push!(tags, s3_upload_part(aws, env, length(tags) + 1, part_data))
+    end
+
+    s3_complete_multipart_upload(aws, env, tags)
+end
 
 
 function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
 
     path = AWSCore.escape_path(path)
 
+    expires = round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)
+
     query = SSDict("AWSAccessKeyId" =>  aws[:creds].access_key_id,
-                 "x-amz-security-token" => get(aws, "token", ""),
-                 "Expires" => string(round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)),
-                 "response-content-disposition" => "attachment")
+                   "x-amz-security-token" => get(aws, "token", ""),
+                   "Expires" => string(expires),
+                   "response-content-disposition" => "attachment")
 
     to_sign = "GET\n\n\n$(query["Expires"])\n" *
               "x-amz-security-token:$(query["x-amz-security-token"])\n" *
@@ -453,6 +497,9 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
     endpoint=aws_endpoint("s3", aws[:region], bucket)
     return "$endpoint/$path?$(format_query_str(query))"
 end
+
+s3_sign_url(a...) = s3_put(default_aws_config(), a...)
+
 
 
 end #module AWSS3

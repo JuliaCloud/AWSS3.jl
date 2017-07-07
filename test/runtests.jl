@@ -29,7 +29,8 @@ end
 # Load credentials...
 #-------------------------------------------------------------------------------
 
-aws = AWSCore.aws_config(region="ap-southeast-2")
+aws = AWSCore.default_aws_config()
+aws[:region] = "ap-southeast-2"
 
 
 
@@ -39,7 +40,7 @@ aws = AWSCore.aws_config(region="ap-southeast-2")
 
 # Delete old test files...
 
-for b in s3_list_buckets(aws)
+for b in s3_list_buckets()
 
     if ismatch(r"^ocaws.jl.test", b)
         @protected try
@@ -102,7 +103,7 @@ end
 # Create test objects...
 
 s3_put(aws, bucket_name, "key 1", "data1.v1")
-s3_put(aws, bucket_name, "key2", "data2.v1")
+s3_put(bucket_name, "key2", "data2.v1")
 s3_put(aws, bucket_name, "key3", "data3.v1")
 s3_put(aws, bucket_name, "key3", "data3.v2")
 s3_put(aws, bucket_name, "key3", "data3.v3")
@@ -111,11 +112,11 @@ s3_put(aws, bucket_name, "key3", "data3.v3")
 
 @test s3_get(aws, bucket_name, "key 1") == b"data1.v1"
 @test s3_get(aws, bucket_name, "key2") == b"data2.v1"
-@test s3_get(aws, bucket_name, "key3") == b"data3.v3"
+@test s3_get(bucket_name, "key3") == b"data3.v3"
 
 # Check object copy function...
 
-s3_copy(aws, bucket_name, "key 1";
+s3_copy(bucket_name, "key 1";
         to_bucket = bucket_name, to_path = "key 1.copy")
 
 @test s3_get(aws, bucket_name, "key 1.copy") == b"data1.v1"
@@ -147,7 +148,7 @@ rm(fn)
 # Check exists and list objects functions...
 
 for key in ["key 1", "key2", "key3", "key 1.copy"]
-    @test s3_exists(aws, bucket_name, key)
+    @test s3_exists(bucket_name, key)
     @test key in [o["Key"] for o in s3_list_objects(aws, bucket_name)]
 end
 
