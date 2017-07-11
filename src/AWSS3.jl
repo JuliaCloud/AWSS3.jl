@@ -465,10 +465,10 @@ end
 
 
 function s3_multipart_upload(aws::AWSConfig,
-                             bucket, path, data :: IOStream, chunk_size = 50)
+                             bucket, path, data :: IOStream, chunk_size_mb = 50)
 
     #convert the chunk size to megabytes
-    chunk_size = chunk_size * 1024 * 1024
+    chunk_size = chunk_size_mb * 1024 * 1024
     env = s3_begin_multipart_upload(aws, bucket, path)
     tags = Array{ASCIIString}(0)
     part_data = Vector{UInt8}(chunk_size)
