@@ -414,7 +414,7 @@ function s3_begin_multipart_upload(aws::AWSConfig,
                                    bucket, path,
                                    data_type = "application/octet-stream")
 
-    response = s3(aws, "POST", bucket; path=path, query="uploads")
+    response = s3(aws, "POST", bucket; path=path, query = SSDict("uploads"=>""))
 
     if typeof(response) != XMLDict.XMLDictElement
         response = parse_xml(bytestring(response))
