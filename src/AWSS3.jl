@@ -18,10 +18,12 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_enable_versioning, s3_delete_bucket, s3_list_buckets,
        s3_list_objects, s3_list_versions, s3_get_meta, s3_purge_versions,
        s3_sign_url, s3_begin_multipart_upload, s3_upload_part,
-       s3_complete_multipart_upload, s3_multipart_upload
+       s3_complete_multipart_upload, s3_multipart_upload,
+       s3_get_tags, s3_put_tags, s3_delete_tags
 
 import HttpCommon: Response
 import Requests: mimetype
+import DataStructures: OrderedDict
 
 using AWSCore
 using SymDict
@@ -262,6 +264,67 @@ end
 s3_enable_versioning(a) = s3_enable_versioning(default_aws_config(), a)
 
 
+# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTtagging.html
+
+function s3_put_tags(aws::AWSConfig, bucket, tags::SSDict)
+    s3_put_tags(aws, bucket, "", tags)
+end
+
+
+# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUTtagging.html
+
+function s3_put_tags(aws::AWSConfig, bucket, path, tags::SSDict)
+
+    tags = Dict("Tagging" =>
+           Dict("TagSet" =>
+           Dict("Tag" =>
+           [Dict("Key" => k, "Value" => v) for (k,v) in tags])))
+
+    s3(aws, "PUT", bucket;
+       path = path,
+       query = SSDict("tagging" => ""),
+       content = XMLDict.node_xml(tags))
+end
+
+s3_put_tags(a...) = s3_put_tags(default_aws_config(), a...)
+
+
+# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETtagging.html
+# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html
+
+function s3_get_tags(aws::AWSConfig, bucket, path="")
+
+    @protected try
+
+        tags = s3(aws, "GET", bucket; path = path, query = SSDict("tagging" => ""))
+        if isempty(tags["TagSet"])
+            return SSDict()
+        end
+        tags = tags["TagSet"]
+        tags = isa(tags["Tag"], Vector) ? tags["Tag"] : [tags["Tag"]]
+
+        SSDict(x["Key"] => x["Value"] for x in tags)
+
+    catch e
+        @ignore if e.code == "NoSuchTagSet"
+            return SSDict()
+        end
+    end
+end
+
+s3_get_tags(a...) = s3_get_tags(default_aws_config(), a...)
+
+
+# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETEtagging.html
+# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html
+
+function s3_delete_tags(aws::AWSConfig, bucket, path="")
+    s3(aws, "DELETE", bucket; path = path, query = SSDict("tagging" => ""))
+end
+
+s3_delete_tags(a...) = s3_delete_tags(default_aws_config(), a...)
+
+
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
 
 s3_delete_bucket(aws::AWSConfig, bucket) = s3(aws, "DELETE", bucket)
@@ -377,7 +440,8 @@ s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
 function s3_put(aws::AWSConfig,
                 bucket, path, data::Union{String,Vector{UInt8}},
                 data_type="", encoding="";
-                metadata::SSDict = SSDict())
+                metadata::SSDict = SSDict(),
+                tags::SSDict = SSDict())
 
     if data_type == ""
         data_type = "application/octet-stream"
@@ -399,6 +463,10 @@ function s3_put(aws::AWSConfig,
 
     headers = SSDict("Content-Type" => data_type,
                      Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
+
+    if !isempty(tags)
+        headers["x-amz-tagging"] = format_query_str(tags)
+    end
 
     if encoding != ""
         headers["Content-Encoding"] = encoding
@@ -425,7 +493,7 @@ function s3_upload_part(aws::AWSConfig, upload, part_number, part_data)
 
     response = s3(aws, "PUT", upload["Bucket"];
                   path = upload["Key"],
-                  query = Dict("partNumber" => part_number,  
+                  query = Dict("partNumber" => part_number,
                                "uploadId" => upload["UploadId"]),
                   content = part_data)
 

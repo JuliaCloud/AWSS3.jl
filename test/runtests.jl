@@ -100,13 +100,29 @@ catch e
 end
 
 
+# Bucket tagging...
+
+@test isempty(s3_get_tags(aws, bucket_name))
+tags = Dict("A" => "1", "B" => "2", "C" => "3")
+s3_put_tags(aws, bucket_name, tags)
+@test s3_get_tags(aws, bucket_name) == tags
+s3_delete_tags(aws, bucket_name)
+@test isempty(s3_get_tags(aws, bucket_name))
+
 # Create test objects...
 
 s3_put(aws, bucket_name, "key 1", "data1.v1")
-s3_put(bucket_name, "key2", "data2.v1")
+s3_put(bucket_name, "key2", "data2.v1", tags = Dict("Key" => "Value"))
 s3_put(aws, bucket_name, "key3", "data3.v1")
 s3_put(aws, bucket_name, "key3", "data3.v2")
 s3_put(aws, bucket_name, "key3", "data3.v3"; metadata = Dict("foo" => "bar"))
+s3_put_tags(aws, bucket_name, "key3", Dict("Left" => "Right"))
+
+@test isempty(s3_get_tags(aws, bucket_name, "key 1"))
+@test s3_get_tags(aws, bucket_name, "key2")["Key"] == "Value"
+@test s3_get_tags(aws, bucket_name, "key3")["Left"] == "Right"
+s3_delete_tags(aws, bucket_name, "key2")
+@test isempty(s3_get_tags(aws, bucket_name, "key2"))
 
 
 # Check that test objects have expected content...
