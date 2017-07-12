@@ -49,7 +49,8 @@ function s3(aws::AWSConfig,
             query=SSDict(),
             version="",
             content="",
-            return_stream=false)
+            return_stream=false,
+            return_raw=false,)
 
     # Build query string...
     if version != ""
@@ -70,6 +71,7 @@ function s3(aws::AWSConfig,
                        headers,
                        content,
                        return_stream,
+                       return_raw,
                        aws...)
 
     @repeat 3 try
@@ -100,11 +102,15 @@ end
 
 # See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
 
-function s3_get(aws::AWSConfig, bucket, path; version="", retry=true)
+function s3_get(aws::AWSConfig, bucket, path; version="",
+                                              retry=true,
+                                              raw=false)
 
     @repeat 4 try
 
-        return s3(aws, "GET", bucket; path = path, version = version)
+        return s3(aws, "GET", bucket; path = path,
+                                      version = version,
+                                      return_raw = raw)
 
     catch e
         @delay_retry if retry && e.code in ["NoSuchBucket", "NoSuchKey"] end
@@ -407,9 +413,6 @@ end
 s3_put(a...; b...) = s3_put(default_aws_config(), a...; b...)
 
 
-import Nettle: digest
-
-
 function s3_begin_multipart_upload(aws::AWSConfig,
                                    bucket, path,
                                    data_type = "application/octet-stream")
@@ -418,16 +421,12 @@ function s3_begin_multipart_upload(aws::AWSConfig,
 end
 
 
-function s3_upload_part(aws::AWSConfig,
-                        env, part_number, part_data)
+function s3_upload_part(aws::AWSConfig, upload, part_number, part_data)
 
-    md5 = base64encode(digest("md5", part_data))
-
-    response = s3(aws, "PUT", env["Bucket"];
-                  path = env["Key"],
+    response = s3(aws, "PUT", upload["Bucket"];
+                  path = upload["Key"],
                   query = Dict("partNumber" => part_number,  
-                               "uploadId" => env["UploadId"]),
-                  headers = Dict("Content-MD5" => md5),
+                               "uploadId" => upload["UploadId"]),
                   content = part_data)
 
     response.headers["ETag"]
@@ -435,7 +434,7 @@ end
 
 
 function s3_complete_multipart_upload(aws::AWSConfig,
-                                      env, parts :: Array{String})
+                                      upload, parts::Vector{String})
     doc = XMLDocument()
     root = create_root(doc, "CompleteMultipartUpload")
 
@@ -448,33 +447,36 @@ function s3_complete_multipart_upload(aws::AWSConfig,
         add_text(xetag, etag)
     end
 
-    response = s3(aws, "POST", env["Bucket"];
-                  path = env["Key"],
-                  query = Dict("uploadId" => env["UploadId"]),
+    response = s3(aws, "POST", upload["Bucket"];
+                  path = upload["Key"],
+                  query = Dict("uploadId" => upload["UploadId"]),
                   content = string(doc))
     free(doc)
 
     response
 end
 
+import Nettle: digest
 
-function s3_multipart_upload(aws::AWSConfig,
-                             bucket, path, data :: IOStream, chunk_size_mb = 50)
+function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
+                             part_size_mb = 50)
 
-    #convert the chunk size to megabytes
-    chunk_size = chunk_size_mb * 1024 * 1024
-    env = s3_begin_multipart_upload(aws, bucket, path)
-    tags = Array{String}(0)
-    part_data = Vector{UInt8}(chunk_size)
+    part_size = part_size_mb * 1024 * 1024
 
-    while (n = readbytes!(data, part_data, chunk_size)) > 0
-        if n < chunk_size
-            part_data = part_data[1:n]
+    upload = s3_begin_multipart_upload(aws, bucket, path)
+
+    tags = Vector{String}()
+    buf = Vector{UInt8}(part_size)
+
+    i = 0
+    while (n = readbytes!(io, buf, part_size)) > 0
+        if n < part_size
+            resize!(buf, n)
         end
-        push!(tags, s3_upload_part(aws, env, length(tags) + 1, part_data))
+        push!(tags, s3_upload_part(aws, upload, (i += 1), buf))
     end
 
-    s3_complete_multipart_upload(aws, env, tags)
+    s3_complete_multipart_upload(aws, upload, tags)
 end
 
 
