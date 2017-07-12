@@ -303,7 +303,7 @@ function s3_get_tags(aws::AWSConfig, bucket, path="")
         tags = tags["TagSet"]
         tags = isa(tags["Tag"], Vector) ? tags["Tag"] : [tags["Tag"]]
 
-        SSDict(x["Key"] => x["Value"] for x in tags)
+        return SSDict(x["Key"] => x["Value"] for x in tags)
 
     catch e
         @ignore if e.code == "NoSuchTagSet"
