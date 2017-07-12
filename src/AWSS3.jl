@@ -32,7 +32,7 @@ using URIParser
 
 import Requests: format_query_str
 
-typealias SSDict Dict{String,String}
+const SSDict = Dict{String,String}
 
 
 s3_arn(resource) = "arn:aws:s3:::$resource"
