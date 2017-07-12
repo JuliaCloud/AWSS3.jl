@@ -414,13 +414,7 @@ function s3_begin_multipart_upload(aws::AWSConfig,
                                    bucket, path,
                                    data_type = "application/octet-stream")
 
-    response = s3(aws, "POST", bucket; path=path, query = SSDict("uploads"=>""))
-
-    if typeof(response) != XMLDict.XMLDictElement
-        response = parse_xml(bytestring(response))
-    end
-
-    response
+    s3(aws, "POST", bucket; path=path, query = SSDict("uploads"=>""))
 end
 
 
@@ -470,7 +464,7 @@ function s3_multipart_upload(aws::AWSConfig,
     #convert the chunk size to megabytes
     chunk_size = chunk_size_mb * 1024 * 1024
     env = s3_begin_multipart_upload(aws, bucket, path)
-    tags = Array{ASCIIString}(0)
+    tags = Array{String}(0)
     part_data = Vector{UInt8}(chunk_size)
 
     while (n = readbytes!(data, part_data, chunk_size)) > 0
