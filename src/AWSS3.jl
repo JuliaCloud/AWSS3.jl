@@ -21,8 +21,7 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_complete_multipart_upload, s3_multipart_upload,
        s3_get_tags, s3_put_tags, s3_delete_tags
 
-import HttpCommon: Response
-import Requests: mimetype
+#import HttpCommon: Response
 import DataStructures: OrderedDict
 
 using AWSCore
@@ -31,8 +30,7 @@ using Retry
 using XMLDict
 using LightXML
 using URIParser
-
-import Requests: format_query_str
+using HTTP
 
 const SSDict = Dict{String,String}
 
@@ -58,7 +56,7 @@ function s3(aws::AWSConfig,
     if version != ""
         query["versionId"] = version
     end
-    query_str = format_query_str(query)
+    query_str = HTTP.escape(query)
 
     # Build URL...
     resource = string("/", AWSCore.escape_path(path),
@@ -128,14 +126,10 @@ function s3_get_file(aws::AWSConfig, bucket, path, filename; version="")
                                     version = version,
                                     return_stream = true)
 
-    try
-        open(filename, "w") do file
-            while !eof(stream)
-                write(file, readavailable(stream))
-            end
+    open(filename, "w") do file
+        while !eof(stream)
+            write(file, readavailable(stream))
         end
-    finally
-        close(stream)
     end
 end
 
@@ -465,7 +459,7 @@ function s3_put(aws::AWSConfig,
                      Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
 
     if !isempty(tags)
-        headers["x-amz-tagging"] = format_query_str(tags)
+        headers["x-amz-tagging"] = HTTP.escape(tags)
     end
 
     if encoding != ""
@@ -568,7 +562,7 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
     query["Signature"] = digest("sha1", key, to_sign) |> base64encode |> strip
 
     endpoint=aws_endpoint("s3", aws[:region], bucket)
-    return "$endpoint/$path?$(format_query_str(query))"
+    return "$endpoint/$path?$(HTTP.escape(query))"
 end
 
 s3_sign_url(a...) = s3_put(default_aws_config(), a...)
