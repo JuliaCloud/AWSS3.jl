@@ -37,6 +37,13 @@ import Requests: format_query_str
 const SSDict = Dict{String,String}
 
 
+"""
+    s3_arn(resource)
+    s3_arn(bucket,path)
+
+[Amazon Resource Name](http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html)
+for S3 `resource` or `bucket` and `path`.
+"""
 s3_arn(resource) = "arn:aws:s3:::$resource"
 s3_arn(bucket, path) = s3_arn("$bucket/$path")
 
@@ -102,7 +109,19 @@ function s3(aws::AWSConfig,
 end
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html
+"""
+    s3_get([::AWSConfig], bucket, path; <keyword arguments>)
+
+[Get Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html)
+from `path` in `bucket`.
+
+# Arguments
+- `version=`: version of object to get.
+- `retry=true`: try again on "NoSuchBucket", "NoSuchKey"
+                (common if object was recently created).
+- `raw=false`:  return response as `Vector{UInt8}`
+                (by default return type depends on `Content-Type` header).
+"""
 
 function s3_get(aws::AWSConfig, bucket, path; version="",
                                               retry=true,
@@ -122,6 +141,11 @@ end
 s3_get(a...; b...) = s3_get(default_aws_config(), a...; b...)
 
 
+"""
+    s3_get_file([::AWSConfig], bucket, path, filename; [version=])
+
+Like `s3_get` but streams result directly to `filename`.
+"""
 function s3_get_file(aws::AWSConfig, bucket, path, filename; version="")
 
     stream = s3(aws, "GET", bucket; path = path,
@@ -157,6 +181,13 @@ function s3_get_file(aws::AWSConfig, buckets::Vector, path, filename; version=""
 end
 
 
+"""
+   s3_get_meta([::AWSConfig], bucket, path; [version=])
+
+[HEAD Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html)
+
+Retrieves metadata from an object without returning the object itself.
+"""
 function s3_get_meta(aws::AWSConfig, bucket, path; version="")
 
     res = s3(aws, "HEAD", bucket; path = path, version = version)
@@ -166,6 +197,11 @@ end
 s3_get_meta(a...; b...) = s3_get_meta(default_aws_config(), a...; b...)
 
 
+"""
+    s3_exists([::AWSConfig], bucket, path [version=])
+
+Is there an object in `bucket` at `path`?
+"""
 function s3_exists(aws::AWSConfig, bucket, path; version="")
 
     @repeat 2 try
@@ -187,8 +223,11 @@ end
 s3_exists(a...; b...) = s3_exists(default_aws_config(), a...; b...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html
+"""
+    s3_delete([::AWSConfig], bucket, path; [version=]
 
+[DELETE Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
+"""
 function s3_delete(aws::AWSConfig, bucket, path; version="")
 
     s3(aws, "DELETE", bucket; path = path, version = version)
@@ -197,8 +236,11 @@ end
 s3_delete(a...; b...) = s3_delete(default_aws_config(), a...; b...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html
+"""
+    s3_copy([::AWSConfig], bucket, path; to_bucket=bucket, to_path=path)
 
+[PUT Object - Copy](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html)
+"""
 function s3_copy(aws::AWSConfig, bucket, path; to_bucket=bucket, to_path=path)
 
     s3(aws, "PUT", to_bucket;
@@ -209,7 +251,11 @@ end
 s3_copy(a...; b...) = s3_copy(default_aws_config(), a...; b...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html
+"""
+    s3_create_bucket([:AWSConfig], bucket)
+
+[PUT Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html)
+"""
 
 function s3_create_bucket(aws::AWSConfig, bucket)
 
@@ -240,7 +286,27 @@ end
 s3_create_bucket(a) = s3_create_bucket(default_aws_config(), a)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html
+"""
+    s3_put_cors([::AWSConfig], bucket, cors_config)
+
+[PUT Bucket cors](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html)
+
+```
+s3_put_cors("my_bucket", \"\"\"
+    <?xml version="1.0" encoding="UTF-8"?>
+    <CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+        <CORSRule>
+            <AllowedOrigin>http://my.domain.com</AllowedOrigin>
+            <AllowedOrigin>http://my.other.domain.com</AllowedOrigin>
+            <AllowedMethod>GET</AllowedMethod>
+            <AllowedMethod>HEAD</AllowedMethod>
+            <AllowedHeader>*</AllowedHeader>
+            <ExposeHeader>Content-Range</ExposeHeader>
+        </CORSRule>
+    </CORSConfiguration>
+\"\"\"
+```
+"""
 
 function s3_put_cors(aws::AWSConfig, bucket, cors_config)
     s3(aws, "PUT", bucket, path = "?cors", content = cors_config)
@@ -249,7 +315,11 @@ end
 s3_put_cors(a...) = s3_put_cors(default_aws_config(), a...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html
+"""
+    s3_enable_versioning([::AWSConfig], bucket)
+
+[Enable versioning for `bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html).
+"""
 
 function s3_enable_versioning(aws::AWSConfig, bucket)
 
@@ -264,14 +334,21 @@ end
 s3_enable_versioning(a) = s3_enable_versioning(default_aws_config(), a)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTtagging.html
+"""
+    s3_put_tags([::AWSConfig], bucket, [path,] tags::Dict)
+
+PUT `tags` on 
+[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTtagging.html)
+or
+[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUTtagging.html).
+
+See also `tags=` option on [`s3_put`](@ref).
+"""
 
 function s3_put_tags(aws::AWSConfig, bucket, tags::SSDict)
     s3_put_tags(aws, bucket, "", tags)
 end
 
-
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUTtagging.html
 
 function s3_put_tags(aws::AWSConfig, bucket, path, tags::SSDict)
 
@@ -289,8 +366,14 @@ end
 s3_put_tags(a...) = s3_put_tags(default_aws_config(), a...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETtagging.html
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html
+"""
+    s3_get_tags([::AWSConfig], bucket, [path])
+
+Get tags from
+[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETtagging.html)
+or
+[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html).
+"""
 
 function s3_get_tags(aws::AWSConfig, bucket, path="")
 
@@ -315,8 +398,14 @@ end
 s3_get_tags(a...) = s3_get_tags(default_aws_config(), a...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETEtagging.html
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html
+"""
+    s3_delete_tags([::AWSConfig], bucket, [path])
+
+Delete tags from
+[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETEtagging.html)
+or
+[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html).
+"""
 
 function s3_delete_tags(aws::AWSConfig, bucket, path="")
     s3(aws, "DELETE", bucket; path = path, query = SSDict("tagging" => ""))
@@ -325,25 +414,38 @@ end
 s3_delete_tags(a...) = s3_delete_tags(default_aws_config(), a...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html
+"""
+    s3_delete_bucket([::AWSConfig], "bucket")
+
+[DELETE Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html).
+"""
 
 s3_delete_bucket(aws::AWSConfig, bucket) = s3(aws, "DELETE", bucket)
 
 s3_delete_bucket(a) = s3_delete_bucket(default_aws_config(), a)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html
+"""
+    s3_list_buckets([::AWSConfig])
 
+[List of all buckets owned by the sender of the request](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html).
+"""
 function s3_list_buckets(aws::AWSConfig = default_aws_config())
 
     r = s3(aws,"GET", headers=SSDict("Content-Type" => "application/json"))
-    [b["Name"] for b in r["Buckets"]["Bucket"]]
+    buckets = r["Buckets"]["Bucket"]
+    [b["Name"] for b in (isa(buckets, Vector) ? buckets : [buckets])]
 end
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html
+"""
+    s3_list_objects([::AWSConfig], bucket, [path_prefix])
 
-function s3_list_objects(aws::AWSConfig, bucket, path="")
+[List Objects](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html)
+in `bucket` with optional `path_prefix`.
+"""
+
+function s3_list_objects(aws::AWSConfig, bucket, path_prefix="")
 
     more = true
     objects = []
@@ -352,9 +454,9 @@ function s3_list_objects(aws::AWSConfig, bucket, path="")
     while more
 
         q = SSDict()
-        if path != ""
+        if path_prefix != ""
             q["delimiter"] = "/"
-            q["prefix"] = path
+            q["prefix"] = path_prefix
         end
         if marker != ""
             q["marker"] = marker
@@ -385,9 +487,13 @@ end
 s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
 
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html
+"""
+    s3_list_versions([::AWSConfig], bucket, [path_prefix])
 
-function s3_list_versions(aws::AWSConfig, bucket, path="")
+[List object versions](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html) in `bucket` with optional `path_prefix`.
+"""
+
+function s3_list_versions(aws::AWSConfig, bucket, path_prefix="")
 
     more = true
     versions = []
@@ -395,7 +501,7 @@ function s3_list_versions(aws::AWSConfig, bucket, path="")
 
     while more
 
-        query = SSDict("versions" => "", "prefix" => path)
+        query = SSDict("versions" => "", "prefix" => path_prefix)
         if marker != ""
             query["key-marker"] = marker
         end
@@ -421,6 +527,12 @@ import Base.ismatch
 ismatch(pattern::AbstractString, s::AbstractString) = ismatch(Regex(pattern), s)
 
 
+"""
+    s3_purge_versions([::AWSConfig], bucket, [path [, pattern]])
+
+[DELETE](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
+all object versions except for the latest version.
+"""
 function s3_purge_versions(aws::AWSConfig, bucket, path="", pattern="")
 
     for v in s3_list_versions(aws, bucket, path)
@@ -434,8 +546,19 @@ end
 
 s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
 
+"""
+    s3_put([::AWSConfig], bucket, path, data; <keyword arguments>
 
-# See http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html
+[PUT Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html)
+`data` at `path` in `bucket`.
+
+# Arguments
+- `data_type=`; optional `Content-Type` header.
+- `encoding=`; optional `Content-Encoding` header.
+- `metadata::Dict=`; optional `x-amz-meta-` headers.
+- `tags::Dict=`; optional `x-amz-tagging-` headers
+                 (see also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref)).
+"""
 
 function s3_put(aws::AWSConfig,
                 bucket, path, data::Union{String,Vector{UInt8}},
@@ -548,7 +671,14 @@ function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
 end
 
 
-function s3_sign_url(aws::AWSConfig, bucket, path, seconds = 3600)
+"""
+    s3_sign_url([::AWSConfig], bucket, path, [seconds=3600])
+
+Create a
+[pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
+
+"""
+function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600)
 
     path = AWSCore.escape_path(path)
 
