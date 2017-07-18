@@ -672,13 +672,29 @@ end
 
 
 """
-    s3_sign_url([::AWSConfig], bucket, path, [seconds=3600])
+    s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
+                [verb="GET"], [content_type="application/octet-stream"])
 
 Create a
 [pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
 
+To create an upload URL use `verb="PUT"` and set `content_type` to match
+the type used in the `Content-Type` header of the PUT request.
+
+```
+url = s3_sign_url("my_bucket", "my_file.txt"; verb="PUT")
+Requests.put(URI(url), "Hello!")
+```
+```
+url = s3_sign_url("my_bucket", "my_file.txt";
+                  verb="PUT", content_type="text/plain")
+
+Requests.put(URI(url), "Hello!";
+             headers=Dict("Content-Type" => "text/plain"))
+```
 """
-function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600)
+function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
+                     verb="GET", content_type="application/octet-stream")
 
     path = AWSCore.escape_path(path)
 
@@ -689,7 +705,11 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600)
                    "Expires" => string(expires),
                    "response-content-disposition" => "attachment")
 
-    to_sign = "GET\n\n\n$(query["Expires"])\n" *
+    if verb != "PUT"
+        content_type = ""
+    end
+
+    to_sign = "$verb\n\n$content_type\n$(query["Expires"])\n" *
               "x-amz-security-token:$(query["x-amz-security-token"])\n" *
               "/$bucket/$path?" *
               "response-content-disposition=attachment"
@@ -701,7 +721,7 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600)
     return "$endpoint/$path?$(format_query_str(query))"
 end
 
-s3_sign_url(a...) = s3_put(default_aws_config(), a...)
+s3_sign_url(a...;b...) = s3_sign_url(default_aws_config(), a...;b...)
 
 
 
