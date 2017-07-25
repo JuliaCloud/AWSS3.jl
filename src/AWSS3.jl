@@ -16,7 +16,8 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
        s3_create_bucket,
        s3_put_cors,
        s3_enable_versioning, s3_delete_bucket, s3_list_buckets,
-       s3_list_objects, s3_list_versions, s3_get_meta, s3_purge_versions,
+       s3_list_objects, s3_list_keys, s3_list_versions,
+       s3_get_meta, s3_purge_versions,
        s3_sign_url, s3_begin_multipart_upload, s3_upload_part,
        s3_complete_multipart_upload, s3_multipart_upload,
        s3_get_tags, s3_put_tags, s3_delete_tags
@@ -115,7 +116,7 @@ end
 [Get Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html)
 from `path` in `bucket`.
 
-# Arguments
+# Optional Arguments
 - `version=`: version of object to get.
 - `retry=true`: try again on "NoSuchBucket", "NoSuchKey"
                 (common if object was recently created).
@@ -206,15 +207,15 @@ function s3_exists(aws::AWSConfig, bucket, path; version="")
 
     @repeat 2 try
 
-        s3(aws, "GET", bucket; path = path,
-                               headers = SSDict("Range" => "bytes=0-0"),
-                               version = version)
+        s3_get_meta(aws, bucket, path; version = version)
+
         return true
 
     catch e
-        @delay_retry if e.code in ["NoSuchBucket", "NoSuchKey", "AccessDenied"]
+        @delay_retry if e.code in ["NoSuchBucket", "404",
+                                   "NoSuchKey", "AccessDenied"]
         end
-        @ignore if e.code in ["NoSuchKey", "AccessDenied"]
+        @ignore if e.code in ["404", "NoSuchKey", "AccessDenied"]
             return false
         end
     end
@@ -240,12 +241,18 @@ s3_delete(a...; b...) = s3_delete(default_aws_config(), a...; b...)
     s3_copy([::AWSConfig], bucket, path; to_bucket=bucket, to_path=path)
 
 [PUT Object - Copy](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html)
-"""
-function s3_copy(aws::AWSConfig, bucket, path; to_bucket=bucket, to_path=path)
 
-    s3(aws, "PUT", to_bucket;
-                   path = to_path,
-                   headers = SSDict("x-amz-copy-source" => "/$bucket/$path"))
+# Optional Arguments
+- `metadata::Dict=`; optional `x-amz-meta-` headers.
+"""
+function s3_copy(aws::AWSConfig, bucket, path;
+                 to_bucket=bucket, to_path=path, metadata::SSDict = SSDict())
+
+    headers = SSDict("x-amz-copy-source" => "/$bucket/$path",
+                     "x-amz-metadata-directive" => "REPLACE",
+                     Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
+
+    s3(aws, "PUT", to_bucket; path = to_path, headers = headers)
 end
 
 s3_copy(a...; b...) = s3_copy(default_aws_config(), a...; b...)
@@ -337,7 +344,7 @@ s3_enable_versioning(a) = s3_enable_versioning(default_aws_config(), a)
 """
     s3_put_tags([::AWSConfig], bucket, [path,] tags::Dict)
 
-PUT `tags` on 
+PUT `tags` on
 [`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTtagging.html)
 or
 [object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUTtagging.html).
@@ -443,6 +450,9 @@ end
 
 [List Objects](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html)
 in `bucket` with optional `path_prefix`.
+
+Returns `Vector{Dict}` with keys `Key`, `LastModified`, `ETag`, `Size`,
+`Owner`, `StorageClass`.
 """
 
 function s3_list_objects(aws::AWSConfig, bucket, path_prefix="")
@@ -467,6 +477,7 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix="")
             r = s3(aws, "GET", bucket; query = q)
 
             more = r["IsTruncated"] == "true"
+            # FIXME return an iterator to allow streaming of truncated results!
 
             if haskey(r, "Contents")
                 l = isa(r["Contents"], Vector) ? r["Contents"] : [r["Contents"]]
@@ -485,6 +496,21 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix="")
 end
 
 s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
+
+
+"""
+    s3_list_keys([::AWSConfig], bucket, [path_prefix])
+
+Like [`s3_list_objects`](@ref) but returns object keys as `Vector{String}`.
+"""
+
+function s3_list_keys(aws::AWSConfig, bucket, path_prefix="")
+
+    (o["Key"] for o in s3_list_objects(aws::AWSConfig, bucket, path_prefix))
+end
+
+s3_list_keys(a...) = s3_list_keys(default_aws_config(), a...)
+
 
 
 """
@@ -552,11 +578,11 @@ s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
 [PUT Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html)
 `data` at `path` in `bucket`.
 
-# Arguments
-- `data_type=`; optional `Content-Type` header.
-- `encoding=`; optional `Content-Encoding` header.
-- `metadata::Dict=`; optional `x-amz-meta-` headers.
-- `tags::Dict=`; optional `x-amz-tagging-` headers
+# Optional Arguments
+- `data_type=`; `Content-Type` header.
+- `encoding=`; `Content-Encoding` header.
+- `metadata::Dict=`; `x-amz-meta-` headers.
+- `tags::Dict=`; `x-amz-tagging-` headers
                  (see also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref)).
 """
 
