@@ -88,7 +88,7 @@ function s3(aws::AWSConfig,
 
         # Check bucket region cache...
         try request[:region] = aws[:bucket_region][bucket] end
-        return do_request(request)
+        return AWSCore.do_request(request)
 
     catch e
 
