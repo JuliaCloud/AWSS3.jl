@@ -673,7 +673,6 @@ function s3_complete_multipart_upload(aws::AWSConfig,
     response
 end
 
-import Nettle: digest
 
 function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
                              part_size_mb = 50)
@@ -695,6 +694,9 @@ function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
 
     s3_complete_multipart_upload(aws, upload, tags)
 end
+
+
+using MbedTLS
 
 
 """
@@ -741,7 +743,7 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
               "response-content-disposition=attachment"
 
     key = aws[:creds].secret_key
-    query["Signature"] = digest("sha1", key, to_sign) |> base64encode |> strip
+    query["Signature"] = digest(MD_SHA1, to_sign, key) |> base64encode |> strip
 
     endpoint=aws_endpoint("s3", aws[:region], bucket)
     return "$endpoint/$path?$(format_query_str(query))"
