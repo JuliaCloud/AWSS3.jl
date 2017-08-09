@@ -7,3 +7,5 @@ Retry
 XMLDict
 LightXML
 MbedTLS
+DataStructures
+URIParser
