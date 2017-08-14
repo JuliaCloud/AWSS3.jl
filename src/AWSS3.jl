@@ -150,14 +150,10 @@ function s3_get_file(aws::AWSConfig, bucket, path, filename; version="")
                                     version = version,
                                     return_stream = true)
 
-    try
-        open(filename, "w") do file
-            while !eof(stream)
-                write(file, readavailable(stream))
-            end
+    open(filename, "w") do file
+        while !eof(stream)
+            write(file, readavailable(stream))
         end
-    finally
-        close(stream)
     end
 end
 
