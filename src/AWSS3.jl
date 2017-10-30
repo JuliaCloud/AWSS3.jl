@@ -184,8 +184,7 @@ Retrieves metadata from an object without returning the object itself.
 """
 function s3_get_meta(aws::AWSConfig, bucket, path; version="")
 
-    res = s3(aws, "HEAD", bucket; path = path, version = version)
-    return res.headers
+    s3(aws, "HEAD", bucket; path = path, version = version)
 end
 
 s3_get_meta(a...; b...) = s3_get_meta(default_aws_config(), a...; b...)
@@ -588,6 +587,8 @@ function s3_put(aws::AWSConfig,
     if data_type == ""
         data_type = "application/octet-stream"
         for (e, t) in [
+            (".html", "text/html"),
+            (".js",   "application/javascript"),
             (".pdf",  "application/pdf"),
             (".csv",  "text/csv"),
             (".txt",  "text/plain"),
