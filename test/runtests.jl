@@ -132,6 +132,16 @@ s3_delete_tags(aws, bucket_name, "key2")
 @test s3_get(bucket_name, "key3") == b"data3.v3"
 @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
+@testset "test coroute reading" begin
+    @sync begin 
+        for i in 1:2
+            @async begin 
+                @test s3_get(bucket_name, "key3") == b"data3.v3" 
+                println("success ID: $i")
+            end 
+        end 
+    end 
+end 
 
 # Check raw return of XML object...
 xml = "<?xml version='1.0'?><Doc><Text>Hello</Text></Doc>"
