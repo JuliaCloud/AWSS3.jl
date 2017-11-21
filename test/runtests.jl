@@ -62,7 +62,7 @@ bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC),
                                                         "yyyymmddTHHMMSSZ"))
 
 
-# Test exception code for deleting non existand bucket...
+# Test exception code for deleting non existent bucket...
 
 @protected try
 

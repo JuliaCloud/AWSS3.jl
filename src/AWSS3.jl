@@ -89,7 +89,7 @@ function s3(aws::AWSConfig,
     catch e
 
         # Update bucket region cache if needed...
-        @retry if typeof(e) == AWSCore.AuthorizationHeaderMalformed &&
+        @retry if ecode(e) == "AuthorizationHeaderMalformed" &&
                   haskey(e.info, "Region")
 
             if AWSCore.debug_level > 0
@@ -102,7 +102,7 @@ function s3(aws::AWSConfig,
         end
     end
 
-    assert(false) # Unreachable.
+    @assert false # Unreachable.
 end
 
 
@@ -203,6 +203,7 @@ function s3_exists(aws::AWSConfig, bucket, path; version="")
         return true
 
     catch e
+
         @delay_retry if e.code in ["NoSuchBucket", "404",
                                    "NoSuchKey", "AccessDenied"]
         end
