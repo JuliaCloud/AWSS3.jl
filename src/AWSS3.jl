@@ -131,7 +131,7 @@ function s3_get(aws::AWSConfig, bucket, path; version="",
                                       return_raw = raw)
 
     catch e
-        @delay_retry if retry && e.code in ["NoSuchBucket", "NoSuchKey"] end
+        @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"] end
     end
 end
 
@@ -169,7 +169,7 @@ function s3_get_file(aws::AWSConfig, buckets::Vector, path, filename; version=""
         s3_get_file(aws, bucket, path, filename; version=version);
 
     catch e
-        @retry if e.code in ["NoSuchKey", "AccessDenied"] end
+        @retry if ecode(e) in ["NoSuchKey", "AccessDenied"] end
     end
 end
 
@@ -204,10 +204,10 @@ function s3_exists(aws::AWSConfig, bucket, path; version="")
 
     catch e
 
-        @delay_retry if e.code in ["NoSuchBucket", "404",
+        @delay_retry if ecode(e) in ["NoSuchBucket", "404",
                                    "NoSuchKey", "AccessDenied"]
         end
-        @ignore if e.code in ["404", "NoSuchKey", "AccessDenied"]
+        @ignore if ecode(e) in ["404", "NoSuchKey", "AccessDenied"]
             return false
         end
     end
@@ -278,7 +278,7 @@ function s3_create_bucket(aws::AWSConfig, bucket)
         end
 
     catch e
-        @ignore if e.code == "BucketAlreadyOwnedByYou" end
+        @ignore if ecode(e) == "BucketAlreadyOwnedByYou" end
     end
 end
 
@@ -388,7 +388,7 @@ function s3_get_tags(aws::AWSConfig, bucket, path="")
         return SSDict(x["Key"] => x["Value"] for x in tags)
 
     catch e
-        @ignore if e.code == "NoSuchTagSet"
+        @ignore if ecode(e) == "NoSuchTagSet"
             return SSDict()
         end
     end
@@ -480,7 +480,7 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix="")
             end
 
         catch e
-            @delay_retry if e.code in ["NoSuchBucket"] end
+            @delay_retry if ecode(e) in ["NoSuchBucket"] end
         end
     end
 
