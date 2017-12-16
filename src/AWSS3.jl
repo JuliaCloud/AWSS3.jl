@@ -64,19 +64,12 @@ function s3(aws::AWSConfig,
     end
     query_str = HTTP.escapeuri(query)
 
-    # Build URL...
     resource = string("/", AWSCore.escape_path(path),
                       query_str == "" ? "" : "?$query_str")
-    url = string(aws_endpoint("s3", "", bucket), resource)
-
-    if haskey(aws, :endpoint)
-        url = string(aws[:endpoint], "/", bucket, resource)
-    end
 
     # Build Request...
     request = @SymDict(service = "s3",
                        verb,
-                       url,
                        resource,
                        headers,
                        content,
@@ -87,7 +80,18 @@ function s3(aws::AWSConfig,
     @repeat 3 try
 
         # Check bucket region cache...
-        try request[:region] = aws[:bucket_region][bucket] end
+        if haskey(aws, :bucket_region) &&
+           haskey(aws[:bucket_region], bucket)
+            request[:region] = aws[:bucket_region][bucket]
+        end
+
+        # Build URL...
+        url = string(aws_endpoint("s3", request[:region], bucket), resource)
+        if haskey(aws, :endpoint)
+            url = string(aws[:endpoint], "/", bucket, resource)
+        end
+        request[:url] = url
+
         return AWSCore.do_request(request)
 
     catch e
