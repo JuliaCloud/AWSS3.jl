@@ -50,7 +50,8 @@ for b in s3_list_buckets()
             end
             s3_delete_bucket(aws, b)
         catch e
-            @ignore if e.code == "NoSuchBucket" end
+            @ignore if isa(e, AWSCore.AWSException) &&
+                       e.code == "NoSuchBucket" end
         end
     end
 end
@@ -69,7 +70,8 @@ bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC),
     s3_delete_bucket(aws, bucket_name)
 
 catch e
-     @ignore if e.code == "NoSuchBucket" end
+     @ignore if isa(e, AWSCore.AWSException) &&
+                e.code == "NoSuchBucket" end
 end
 
 
@@ -96,7 +98,8 @@ s3_create_bucket(aws, bucket_name)
     end
 
 catch e
-    @delay_retry if e.code == "NoSuchBucket" end
+    @delay_retry if isa(e, AWSCore.AWSException) &&
+                    e.code == "NoSuchBucket" end
 end
 
 
@@ -132,7 +135,7 @@ s3_delete_tags(aws, bucket_name, "key2")
 @test s3_get(bucket_name, "key3") == b"data3.v3"
 @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
-@testset "test coroute reading" begin
+@testset "test coroutine reading" begin
     @sync begin 
         for i in 1:2
             @async begin 

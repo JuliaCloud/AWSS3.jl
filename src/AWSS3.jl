@@ -62,12 +62,16 @@ function s3(aws::AWSConfig,
     if version != ""
         query["versionId"] = version
     end
-    query_str = HTTP.escape(query)
+    query_str = HTTP.escapeuri(query)
 
     # Build URL...
     resource = string("/", AWSCore.escape_path(path),
                       query_str == "" ? "" : "?$query_str")
     url = string(aws_endpoint("s3", "", bucket), resource)
+
+    if haskey(aws, :endpoint)
+        url = string(aws[:endpoint], "/", bucket, resource)
+    end
 
     # Build Request...
     request = @SymDict(service = "s3",
@@ -608,7 +612,7 @@ function s3_put(aws::AWSConfig,
                      Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
 
     if !isempty(tags)
-        headers["x-amz-tagging"] = HTTP.escape(tags)
+        headers["x-amz-tagging"] = HTTP.escapeuri(tags)
     end
 
     if encoding != ""
@@ -740,7 +744,7 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
     query["Signature"] = digest(MD_SHA1, to_sign, key) |> base64encode |> strip
 
     endpoint=aws_endpoint("s3", aws[:region], bucket)
-    return "$endpoint/$path?$(HTTP.escape(query))"
+    return "$endpoint/$path?$(HTTP.escapeuri(query))"
 end
 
 s3_sign_url(a...;b...) = s3_sign_url(default_aws_config(), a...;b...)
