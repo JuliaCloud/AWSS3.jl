@@ -45,8 +45,8 @@ for b in s3_list_buckets()
     if ismatch(r"^ocaws.jl.test", b)
         @protected try
             println("Cleaning up old test bucket: " * b)
-            for v in s3_list_versions(aws, b)
-                s3_delete(aws, b, v["Key"]; version = v["VersionId"])
+            @sync for v in s3_list_versions(aws, b)
+                @async s3_delete(aws, b, v["Key"]; version = v["VersionId"])
             end
             s3_delete_bucket(aws, b)
         catch e
@@ -136,15 +136,15 @@ s3_delete_tags(aws, bucket_name, "key2")
 @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
 @testset "test coroutine reading" begin
-    @sync begin 
+    @sync begin
         for i in 1:2
-            @async begin 
-                @test s3_get(bucket_name, "key3") == b"data3.v3" 
+            @async begin
+                @test s3_get(bucket_name, "key3") == b"data3.v3"
                 println("success ID: $i")
-            end 
-        end 
-    end 
-end 
+            end
+        end
+    end
+end
 
 # Check raw return of XML object...
 xml = "<?xml version='1.0'?><Doc><Text>Hello</Text></Doc>"
@@ -220,6 +220,34 @@ s3_purge_versions(aws, bucket_name, "key3")
 versions = s3_list_versions(aws, bucket_name, "key3")
 @test length(versions) == 1
 @test s3_get(aws, bucket_name, "key3") == b"data3.v3"
+
+
+# Create objects...
+
+max = 1000
+sz = 10000
+objs = [rand(UInt8(48):UInt8(122), sz) for i in 1:max]
+
+asyncmap(x->AWSS3.s3(aws, "PUT", bucket_name;
+                          path = "obj$(x[1])", content = x[2]),
+         enumerate(objs);
+         ntasks=10)
+
+asyncmap(x->begin
+    stream = AWSS3.s3(aws, "GET", bucket_name;
+                      path = "obj$(x[1])", return_stream = true)
+
+    d = IOBuffer()
+    n = 0
+    while !eof(stream)
+        write(d, read(stream, rand(1:100)))
+        yield()
+    end
+
+    @test take!(d) == x[2]
+end,
+enumerate(objs);
+ntasks=3)
 
 
 
