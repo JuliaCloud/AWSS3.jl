@@ -25,11 +25,12 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
 import DataStructures: OrderedDict
 
 using AWSCore
+using AWSCore.HTTP
+import AWSCore.HTTP
 using SymDict
 using Retry
 using XMLDict
 using LightXML
-using HTTP
 
 const SSDict = Dict{String,String}
 
@@ -533,7 +534,7 @@ function s3_list_versions(aws::AWSConfig, bucket, path_prefix="")
         end
 
         r = s3(aws, "GET", bucket; query = query)
-        more = r["IsTruncated"][1] == "true"
+        more = r["IsTruncated"] == "true"
         for e in child_elements(root(r.x))
             if name(e) in ["Version", "DeleteMarker"]
                 version = xml_dict(e)

@@ -56,6 +56,8 @@ for b in s3_list_buckets()
     end
 end
 
+import AWSS3.HTTP
+HTTP.ConnectionPool.showpool(STDOUT)
 
 # Temporary bucket name...
 
@@ -222,32 +224,29 @@ versions = s3_list_versions(aws, bucket_name, "key3")
 @test s3_get(aws, bucket_name, "key3") == b"data3.v3"
 
 
+HTTP.ConnectionPool.showpool(STDOUT)
+
 # Create objects...
 
 max = 1000
 sz = 10000
-objs = [rand(UInt8(48):UInt8(122), sz) for i in 1:max]
+objs = [rand(UInt8(65):UInt8(75), sz) for i in 1:max]
 
 asyncmap(x->AWSS3.s3(aws, "PUT", bucket_name;
                           path = "obj$(x[1])", content = x[2]),
          enumerate(objs);
-         ntasks=10)
+         ntasks=30)
+HTTP.ConnectionPool.showpool(STDOUT)
 
 asyncmap(x->begin
-    stream = AWSS3.s3(aws, "GET", bucket_name;
-                      path = "obj$(x[1])", return_stream = true)
+    o = AWSS3.s3(aws, "GET", bucket_name; path = "obj$(x[1])")
 
-    d = IOBuffer()
-    n = 0
-    while !eof(stream)
-        write(d, read(stream, rand(1:100)))
-        yield()
-    end
-
-    @test take!(d) == x[2]
+    @test o == x[2]
 end,
 enumerate(objs);
-ntasks=3)
+ntasks=30)
+
+HTTP.ConnectionPool.showpool(STDOUT)
 
 
 
