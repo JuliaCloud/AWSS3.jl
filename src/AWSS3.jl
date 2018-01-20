@@ -65,7 +65,7 @@ function s3(aws::AWSConfig,
     end
     query_str = HTTP.escapeuri(query)
 
-    resource = string("/", AWSCore.escape_path(path),
+    resource = string("/", HTTP.escapepath(path),
                       query_str == "" ? "" : "?$query_str")
 
     # Build Request...
@@ -87,9 +87,16 @@ function s3(aws::AWSConfig,
         end
 
         # Build URL...
-        url = string(aws_endpoint("s3", request[:region], bucket), resource)
         if haskey(aws, :endpoint)
             url = string(aws[:endpoint], "/", bucket, resource)
+        else
+            region = get(request, :region, "")
+            url = string(get(aws, :protocol, "https"), "://",
+                         bucket, bucket == "" ? "" : ".",
+                         "s3",
+                         region == "" ? "" : ".", region,
+                         ".amazonaws.com",
+                         resource)
         end
         request[:url] = url
 
@@ -725,9 +732,10 @@ Requests.put(URI(url), "Hello!";
 ```
 """
 function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
-                     verb="GET", content_type="application/octet-stream")
+                     verb="GET", content_type="application/octet-stream",
+                     protocol="http")
 
-    path = AWSCore.escape_path(path)
+    path = HTTP.escapepath(path)
 
     expires = round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)
 
@@ -748,7 +756,8 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
     key = aws[:creds].secret_key
     query["Signature"] = digest(MD_SHA1, to_sign, key) |> base64encode |> strip
 
-    endpoint=aws_endpoint("s3", aws[:region], bucket)
+    endpoint=string(protocol, "://",
+                    bucket, ".s3.", aws[:region], ".amazonaws.com")
     return "$endpoint/$path?$(HTTP.escapeuri(query))"
 end
 
