@@ -602,6 +602,7 @@ function s3_put(aws::AWSConfig,
 
     if data_type == ""
         data_type = "application/octet-stream"
+        ext = splitext(path)[2]
         for (e, t) in [
             (".html", "text/html"),
             (".js",   "application/javascript"),
@@ -613,7 +614,7 @@ function s3_put(aws::AWSConfig,
             (".gz",   "application/octet-stream"),
             (".bz2",  "application/octet-stream"),
         ]
-            if ismatch(e * "\$", path)
+            if ext == e
                 data_type = t
                 break
             end

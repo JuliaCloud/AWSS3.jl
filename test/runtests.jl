@@ -216,6 +216,38 @@ versions = s3_list_versions(aws, bucket_name, "key3")
       == b"data3.v3")
 
 
+@testset "default Content-Type" begin
+# https://github.com/samoconnor/AWSS3.jl/issues/24
+
+    ctype(key) = s3_get_meta(bucket_name, key)["Content-Type"]
+
+    for k in [
+        "file.foo",
+        "file",
+        "file_html",
+        "file/html",
+        "foobar.html/file.htm"]
+
+        s3_put(aws, bucket_name, k, "x")
+        @test ctype(k) == "application/octet-stream"
+    end
+
+    for (k, t) in [
+        ("foo/bar/file.html",  "text/html"),
+        ("x.y.z.js",           "application/javascript"),
+        ("downalods/foo.pdf",  "application/pdf"),
+        ("data/foo.csv",       "text/csv"),
+        ("this.is.a.file.txt", "text/plain"),
+        ("my.log",             "text/plain"),
+        ("big.dat",            "application/octet-stream"),
+        ("some.tar.gz",        "application/octet-stream"),
+        ("data.bz2",           "application/octet-stream")]
+
+        s3_put(aws, bucket_name, k, "x")
+        @test ctype(k) == t
+    end
+end
+
 # Check pruning of old versions...
 
 s3_purge_versions(aws, bucket_name, "key3")
