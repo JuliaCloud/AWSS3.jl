@@ -87,7 +87,11 @@ function s3(aws::AWSConfig,
         end
 
         # Build URL...
-        if haskey(aws, :endpoint)
+        if haskey(aws, :bucket_endpoint) &&
+           haskey(aws[:bucket_endpoint], bucket)
+            url = string(get(aws, :protocol, "https"), "://",
+                         aws[:bucket_endpoint][bucket], resource)
+        elseif haskey(aws, :endpoint)
             url = string(aws[:endpoint], "/", bucket, resource)
         else
             region = get(request, :region, "")
@@ -100,7 +104,22 @@ function s3(aws::AWSConfig,
         end
         request[:url] = url
 
-        return AWSCore.do_request(request)
+        response = AWSCore.do_request(request)
+
+        # Handle 301 Moved Permanently with missing Location header.
+        # https://github.com/samoconnor/AWSS3.jl/issues/25
+        if response isa XMLDict.XMLDictElement &&
+           get(response, "Code", "") == "PermanentRedirect" &&
+           haskey(response, "Endpoint")
+
+            if !haskey(aws, :bucket_endpoint)
+                aws[:bucket_endpoint] = SSDict()
+            end
+            aws[:bucket_endpoint][bucket] = response["Endpoint"]
+            continue
+        end
+
+        return response
 
     catch e
 
