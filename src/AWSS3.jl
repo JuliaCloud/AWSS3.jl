@@ -87,11 +87,7 @@ function s3(aws::AWSConfig,
         end
 
         # Build URL...
-        if haskey(aws, :bucket_endpoint) &&
-           haskey(aws[:bucket_endpoint], bucket)
-            url = string(get(aws, :protocol, "https"), "://",
-                         aws[:bucket_endpoint][bucket], resource)
-        elseif haskey(aws, :endpoint)
+        if haskey(aws, :endpoint)
             url = string(aws[:endpoint], "/", bucket, resource)
         else
             region = get(request, :region, "")
@@ -112,11 +108,12 @@ function s3(aws::AWSConfig,
            get(response, "Code", "") == "PermanentRedirect" &&
            haskey(response, "Endpoint")
 
-            if !haskey(aws, :bucket_endpoint)
-                aws[:bucket_endpoint] = SSDict()
+            if AWSCore.debug_level > 0
+                println("S3 endpoint redirect $bucket -> $(response["Endpoint"])")
             end
-            aws[:bucket_endpoint][bucket] = response["Endpoint"]
-            continue
+            request[:url] = string(get(aws, :protocol, "https"), "://",
+                                   response["Endpoint"], resource)
+            response = AWSCore.do_request(request)
         end
 
         return response
