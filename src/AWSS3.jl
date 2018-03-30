@@ -88,7 +88,11 @@ function s3(aws::AWSConfig,
 
         # Build URL...
         if haskey(aws, :endpoint)
-            url = string(aws[:endpoint], "/", bucket, resource)
+            if bucket == ""
+                url = string(aws[:endpoint], resource)
+            else
+                url = string(aws[:endpoint], "/", bucket, resource)
+            end
         else
             region = get(request, :region, "")
             url = string(get(aws, :protocol, "https"), "://",
@@ -464,7 +468,11 @@ s3_delete_bucket(a) = s3_delete_bucket(default_aws_config(), a)
 function s3_list_buckets(aws::AWSConfig = default_aws_config())
 
     r = s3(aws,"GET", headers=SSDict("Content-Type" => "application/json"))
-    buckets = r["Buckets"]["Bucket"]
+    buckets = r["Buckets"]
+    if isempty(buckets)
+        return []
+    end
+    buckets = buckets["Bucket"]
     [b["Name"] for b in (isa(buckets, Vector) ? buckets : [buckets])]
 end
 
