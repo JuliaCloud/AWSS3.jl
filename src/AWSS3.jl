@@ -765,7 +765,7 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
     expires = round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)
 
     query = SSDict("AWSAccessKeyId" =>  aws[:creds].access_key_id,
-                   "x-amz-security-token" => get(aws, "token", ""),
+                   "x-amz-security-token" => aws[:creds].token,
                    "Expires" => string(expires),
                    "response-content-disposition" => "attachment")
 
