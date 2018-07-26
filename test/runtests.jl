@@ -6,8 +6,11 @@
 
 
 using AWSS3
-using Base.Test
+using Test
+using Dates
+using AWSCore
 using Retry
+using HTTP
 
 AWSCore.set_debug_level(1)
 
@@ -16,7 +19,7 @@ function test_without_catch(f)
     @protected try
         f()
     catch e
-        @ignore if isa(e, Base.Test.Error)
+        @ignore if isa(e, Test.Error)
             e = e.err
             rethrow(e)
         end
@@ -56,8 +59,7 @@ for b in s3_list_buckets()
     end
 end
 
-import AWSS3.HTTP
-HTTP.ConnectionPool.showpool(STDOUT)
+HTTP.ConnectionPool.showpool(stdout)
 
 # Temporary bucket name...
 
@@ -181,7 +183,7 @@ catch e
     sleep(1)
     @retry if true end
 end
-@test readstring(fn) == "data1.v1"
+@test read(fn, String) == "data1.v1"
 rm(fn)
 
 
@@ -256,7 +258,7 @@ versions = s3_list_versions(aws, bucket_name, "key3")
 @test s3_get(aws, bucket_name, "key3") == b"data3.v3"
 
 
-HTTP.ConnectionPool.showpool(STDOUT)
+HTTP.ConnectionPool.showpool(stdout)
 
 # Create objects...
 
@@ -268,7 +270,7 @@ asyncmap(x->AWSS3.s3(aws, "PUT", bucket_name;
                           path = "obj$(x[1])", content = x[2]),
          enumerate(objs);
          ntasks=30)
-HTTP.ConnectionPool.showpool(STDOUT)
+HTTP.ConnectionPool.showpool(stdout)
 
 asyncmap(x->begin
     o = AWSS3.s3(aws, "GET", bucket_name; path = "obj$(x[1])")
@@ -278,7 +280,7 @@ end,
 enumerate(objs);
 ntasks=30)
 
-HTTP.ConnectionPool.showpool(STDOUT)
+HTTP.ConnectionPool.showpool(stdout)
 
 
 

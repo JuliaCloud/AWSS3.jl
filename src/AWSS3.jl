@@ -25,12 +25,12 @@ export s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_copy,
 import DataStructures: OrderedDict
 
 using AWSCore
-using AWSCore.HTTP
-import AWSCore.HTTP
+using HTTP
 using SymDict
 using Retry
 using XMLDict
 using LightXML
+using Dates
 
 const SSDict = Dict{String,String}
 
@@ -155,7 +155,6 @@ from `path` in `bucket`.
 - `raw=false`:  return response as `Vector{UInt8}`
                 (by default return type depends on `Content-Type` header).
 """
-
 function s3_get(aws::AWSConfig, bucket, path; version="",
                                               retry=true,
                                               raw=false)
@@ -291,7 +290,6 @@ s3_copy(a...; b...) = s3_copy(default_aws_config(), a...; b...)
 
 [PUT Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html)
 """
-
 function s3_create_bucket(aws::AWSConfig, bucket)
 
     println("""Creating Bucket "$bucket"...""")
@@ -342,7 +340,6 @@ s3_put_cors("my_bucket", \"\"\"
 \"\"\"
 ```
 """
-
 function s3_put_cors(aws::AWSConfig, bucket, cors_config)
     s3(aws, "PUT", bucket, path = "?cors", content = cors_config)
 end
@@ -355,7 +352,6 @@ s3_put_cors(a...) = s3_put_cors(default_aws_config(), a...)
 
 [Enable versioning for `bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html).
 """
-
 function s3_enable_versioning(aws::AWSConfig, bucket)
 
     s3(aws, "PUT", bucket;
@@ -379,7 +375,6 @@ or
 
 See also `tags=` option on [`s3_put`](@ref).
 """
-
 function s3_put_tags(aws::AWSConfig, bucket, tags::SSDict)
     s3_put_tags(aws, bucket, "", tags)
 end
@@ -409,7 +404,6 @@ Get tags from
 or
 [object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html).
 """
-
 function s3_get_tags(aws::AWSConfig, bucket, path="")
 
     @protected try
@@ -441,7 +435,6 @@ Delete tags from
 or
 [object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html).
 """
-
 function s3_delete_tags(aws::AWSConfig, bucket, path="")
     s3(aws, "DELETE", bucket; path = path, query = SSDict("tagging" => ""))
 end
@@ -454,7 +447,6 @@ s3_delete_tags(a...) = s3_delete_tags(default_aws_config(), a...)
 
 [DELETE Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html).
 """
-
 s3_delete_bucket(aws::AWSConfig, bucket) = s3(aws, "DELETE", bucket)
 
 s3_delete_bucket(a) = s3_delete_bucket(default_aws_config(), a)
@@ -486,7 +478,6 @@ in `bucket` with optional `path_prefix`.
 Returns `Vector{Dict}` with keys `Key`, `LastModified`, `ETag`, `Size`,
 `Owner`, `StorageClass`.
 """
-
 function s3_list_objects(aws::AWSConfig, bucket, path_prefix="")
 
     more = true
@@ -535,7 +526,6 @@ s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
 
 Like [`s3_list_objects`](@ref) but returns object keys as `Vector{String}`.
 """
-
 function s3_list_keys(aws::AWSConfig, bucket, path_prefix="")
 
     (o["Key"] for o in s3_list_objects(aws::AWSConfig, bucket, path_prefix))
@@ -550,7 +540,6 @@ s3_list_keys(a...) = s3_list_keys(default_aws_config(), a...)
 
 [List object versions](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html) in `bucket` with optional `path_prefix`.
 """
-
 function s3_list_versions(aws::AWSConfig, bucket, path_prefix="")
 
     more = true
@@ -580,9 +569,6 @@ end
 
 s3_list_versions(a...) = s3_list_versions(default_aws_config(), a...)
 
-
-import Base.ismatch
-ismatch(pattern::AbstractString, s::AbstractString) = ismatch(Regex(pattern), s)
 
 
 """
@@ -617,7 +603,6 @@ s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
 - `tags::Dict=`; `x-amz-tagging-` headers
                  (see also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref)).
 """
-
 function s3_put(aws::AWSConfig,
                 bucket, path, data::Union{String,Vector{UInt8}},
                 data_type="", encoding="";
@@ -717,7 +702,7 @@ function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
     upload = s3_begin_multipart_upload(aws, bucket, path)
 
     tags = Vector{String}()
-    buf = Vector{UInt8}(part_size)
+    buf = Vector{UInt8}(undef, part_size)
 
     i = 0
     while (n = readbytes!(io, buf, part_size)) > 0
