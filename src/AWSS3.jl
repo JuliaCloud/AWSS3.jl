@@ -29,7 +29,7 @@ using HTTP
 using SymDict
 using Retry
 using XMLDict
-using LightXML
+using EzXML
 using Dates
 
 const SSDict = Dict{String,String}
@@ -555,10 +555,10 @@ function s3_list_versions(aws::AWSConfig, bucket, path_prefix="")
 
         r = s3(aws, "GET", bucket; query = query)
         more = r["IsTruncated"] == "true"
-        for e in child_elements(root(r.x))
-            if name(e) in ["Version", "DeleteMarker"]
+        for e in eachelement(root(r.x))
+            if nodename(e) in ["Version", "DeleteMarker"]
                 version = xml_dict(e)
-                version["state"] = name(e)
+                version["state"] = nodename(e)
                 push!(versions, version)
                 marker = version["Key"]
             end
@@ -673,22 +673,18 @@ end
 function s3_complete_multipart_upload(aws::AWSConfig,
                                       upload, parts::Vector{String})
     doc = XMLDocument()
-    root = create_root(doc, "CompleteMultipartUpload")
+    rootnode = setroot!(doc, ElementNode("CompleteMultipartUpload"))
 
     for (i, etag) in enumerate(parts)
-
-        xchild = new_child(root, "Part")
-        xpartnumber = new_child(xchild, "PartNumber")
-        xetag = new_child(xchild, "ETag")
-        add_text(xpartnumber, string(i))
-        add_text(xetag, etag)
+        part = addelement!(rootnode, "Part")
+        addelement!(part, "PartNumber", string(i))
+        addelement!(part, "ETag", etag)
     end
 
     response = s3(aws, "POST", upload["Bucket"];
                   path = upload["Key"],
                   query = Dict("uploadId" => upload["UploadId"]),
                   content = string(doc))
-    free(doc)
 
     response
 end
