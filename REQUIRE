@@ -1,9 +1,9 @@
-julia 0.6
+julia 0.7.0-beta
 AWSCore 0.3.4
 HTTP
 SymDict
 Retry
 XMLDict
-LightXML
+LightXML 0.7.0
 MbedTLS
 DataStructures
