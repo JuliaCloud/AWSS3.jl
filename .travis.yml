@@ -14,9 +14,3 @@ env:
 matrix:
   allow_failures:
     - julia: nightly
-# TODO: Remove this, only here for testing with AWSCore master
-before_script:
-  - julia --color=yes -e "using Pkg; Pkg.clone(pwd(), \"AWSS3\"); Pkg.build(\"AWSS3\")"
-  - julia --color=yes -e "using Pkg; Pkg.add(\"https://github.com/samoconnor/AWSCore.jl\")"
-script:
-  - julia --color=yes -e "using Pkg; Pkg.test(\"AWSS3\", coverage=true)"
