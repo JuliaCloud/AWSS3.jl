@@ -45,7 +45,7 @@ aws[:region] = "ap-southeast-2"
 
 for b in s3_list_buckets()
 
-    if ismatch(r"^ocaws.jl.test", b)
+    if occursin(r"^ocaws.jl.test", b)
         @protected try
             println("Cleaning up old test bucket: " * b)
             @sync for v in s3_list_versions(aws, b)
@@ -167,7 +167,7 @@ s3_copy(bucket_name, "key 1";
 url = s3_sign_url(aws, bucket_name, "key 1")
 curl_output = ""
 @repeat 3 try
-    curl_output = readstring(`curl -s -o - $url`)
+    global curl_output = read(`curl -s -o - $url`, String)
 catch e
     @delay_retry if true end
 end

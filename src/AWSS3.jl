@@ -31,6 +31,7 @@ using Retry
 using XMLDict
 using EzXML
 using Dates
+using Base64
 
 const SSDict = Dict{String,String}
 
@@ -580,7 +581,7 @@ all object versions except for the latest version.
 function s3_purge_versions(aws::AWSConfig, bucket, path="", pattern="")
 
     for v in s3_list_versions(aws, bucket, path)
-        if pattern == "" || ismatch(pattern, v["Key"])
+        if pattern == "" || occursin(pattern, v["Key"])
             if v["IsLatest"] != "true"
                 s3_delete(aws, bucket, v["Key"]; version = v["VersionId"])
             end
