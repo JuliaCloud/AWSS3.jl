@@ -234,7 +234,9 @@ function s3_exists(aws::AWSConfig, bucket, path; version="")
 
     @repeat 2 try
 
-        s3_get_meta(aws, bucket, path; version = version)
+        s3(aws, "GET", bucket; path = path,
+                               headers = SSDict("Range" => "bytes=0-0"),
+                               version = version)
 
         return true
 
