@@ -4,12 +4,18 @@ os:
   - osx
 julia:
   - 1.0
+matrix:
+  allow_failures:
+    - julia: nightly
+branches:
+  only:
+    - master
+    - staging
+    - trying
+    - /^v[0-9]+\.[0-9]+\.[0-9]+$/  # version tags
 notifications:
   email: false
 env:
   global:
   - secure: rm8A4Rn9AyNFU2I7r9aKyBuTC5iYt60xWRnE+OafLyKXtxmJcC+IcceiG2oNHLM7aGb2F/OF9kCHRFPH8afueB4f/aS6SxukOCX496U++lDcqHVrbIiUNXmERe089GGwe1NtNr3pTpqkIPRvBEw3cPB3yg5uDyb1nI1nHXkJ9whvx3kEp8VO9nEmMl5cEUt8604PINMaDJ7nj3asgavYwXn+aI0HiO++X7mRi9qDNdZXJvrYVJ5hPmCa4Dk9eg/3+GiMzrhCWaISk/J/l/1RgYf68dOhzynTF6rQUK12zBSRm5QFtGWjC8yMuweKdQ22zoTlOWeeOemZbWw2zQLu0MCBtbA9EdJCeVfFNEnxEk4S0XS+jSjvYc1CB7X2prym8of6GL9jFbMy8SmGfSYTnE9Weqz1Ed4tZagypGCT5PmNoEh4LjED3vtYAdmLhlrkr0lifaQgatmCqrx613SCyYgetIhAdPJpjQAxPL4QI7Kk3YmJsqBFsEX5dYid2m4wDyegVIr6OFa9GX2Ssh5Kq7sQjTmt8WUOmBEW96Ca6jhtif/PFiRMSLW2QLqGfvLzPzpZWvLAzb4DABkveIJe+P1p5auhB0oIrr3JcDB9UDruhZVXUtgw9oLjCAvPI0OTUihP7n/uaZU3onvZiO49P3lCST1gVADgqSKdc2otS/M=
   - secure: DxvlTtq5POKja4FKOeMJLnYRcW0TJCBBTD6CAO2HNpQMOnaYskDOXnxso+8DN+KMggv69EneKiUMG0S3ek37WoJSNuZLj7j2GCE0QT8lLq5MtEZTOIxd8wz9q5I6N0iplooW13nYMRoHKpR/1qBAxtF9VjRpbw1mI1USSnzlG+7gNLpo6vAaO6WnrTXuDKhMBMSXWpCBABdJ1ozX4eXt8g5WXvGo1aMbLGIKH7OhmQBsjIalipqLP8cQm5Ux2y1edjxEQCObT1pBM7Je2cbJbOtg4duHLVKkqZKmhoJuwxJDHfBDwGfq043T5Wpjx27cUVVABf/CVqsb+siG3zgQQqB2njxXKzW2YzUFW42RTsavYt99UtctO+Ct4quqRlui2Rx8ITji+MtZgE1b3Cb923nlz0IrjFq2xsJj6ysB93YKrEzawWn4o8wDQLHJpsrtfn2vMVb7qcJhZRrc+7GK0O0nb5GkL9Jdt/Z79yQ3bog/oxpSdOQe5Jt27IILAaizdM512afoZKr6tU76H9WxldLQ4z1soHgzQYD2P1QlnsxajTimfhHnRVMjIm6rkEbIon5dpM6PxUCIlK4ZFotifHBeymHxewE1fADU6mvrHk+DKcuhIUEWP10cFmoPwjeAKOtbVdiuJqqdhfXtkS0GUKGL8PkkJ/bKyx5DibhThpw=
-matrix:
-  allow_failures:
-    - julia: nightly
