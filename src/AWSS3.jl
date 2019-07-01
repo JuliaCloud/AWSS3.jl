@@ -600,6 +600,8 @@ s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
 # Optional Arguments
 - `data_type=`; `Content-Type` header.
 - `encoding=`; `Content-Encoding` header.
+- `access_permissions=`; 'x-amz-acl' header for setting access permissions with canned config.
+    See [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl).
 - `metadata::Dict=`; `x-amz-meta-` headers.
 - `tags::Dict=`; `x-amz-tagging-` headers
                  (see also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref)).
@@ -607,6 +609,7 @@ s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
 function s3_put(aws::AWSConfig,
                 bucket, path, data::Union{String,Vector{UInt8}},
                 data_type="", encoding="";
+                access_permissions::AbstractString="",
                 metadata::SSDict = SSDict(),
                 tags::SSDict = SSDict())
 
@@ -636,6 +639,10 @@ function s3_put(aws::AWSConfig,
 
     if !isempty(tags)
         headers["x-amz-tagging"] = HTTP.escapeuri(tags)
+    end
+
+    if !isempty(access_permissions)
+        headers["x-amz-acl"] = access_permissions
     end
 
     if encoding != ""
