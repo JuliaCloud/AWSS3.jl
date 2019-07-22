@@ -172,7 +172,7 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
             else
                 error(
                     "The parent of $fp does not exist. " *
-                    "Pass recursive=true to create it."
+                    "Pass `recursive=true` to create it."
                 )
             end
         end
