@@ -167,17 +167,17 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
         !exist_ok && error("$fp already exists.")
     else
         if hasparent(fp) && !exists(parent(fp))
-			if recursive
-				mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
-			else
-				error(
-					"The parent of $fp does not exist. " *
-					"Pass recursive=true to create it."
-				)
-			end
+            if recursive
+                mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
+            else
+                error(
+                    "The parent of $fp does not exist. " *
+                    "Pass recursive=true to create it."
+                )
+            end
         end
 
-		write(fp, "")
+        write(fp, "")
     end
 end
 
