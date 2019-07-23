@@ -86,19 +86,19 @@ function Base.join(prefix::S3Path, pieces::AbstractString...)
     )
 end
 
-function parents(fp::S3Path)
+function parents(fp::T) where {T <: AbstractPath}
     if hasparent(fp)
         return map(1:length(fp.segments)-1) do i
             S3Path(fp.segments[1:i], fp.root, fp.drive, true, fp.config)
         end
+    elseif fp.segments == tuple(".") || isempty(fp.segments)
+        return [fp]
     else
-        error("$fp has no parents")
+        return [isempty(fp.root) ? Path(fp, tuple(".")) : Path(fp, ())]
     end
 end
 
 FilePathsBase.ispathtype(::Type{S3Path}, str::AbstractString) = startswith(str, "s3://")
-FilePathsBase.isabs(fp::S3Path) = !isempty(fp.drive) && !isempty(fp.root)
-FilePathsBase.expanduser(fp::S3Path) = fp
 FilePathsBase.exists(fp::S3Path) = s3_exists(fp.config, fp.bucket, fp.key)
 Base.isfile(fp::S3Path) = !fp.dir && exists(fp)
 function FilePathsBase.isdir(fp::S3Path)
