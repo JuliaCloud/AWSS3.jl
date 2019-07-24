@@ -2,7 +2,7 @@ struct S3Path <: AbstractPath
     segments::Tuple{Vararg{String}}
     root::String
     drive::String
-    dir::Bool
+    isdirectory::Bool
     config::AWSConfig
 end
 
@@ -22,11 +22,11 @@ end
 
 function S3Path(str::AbstractString; config::AWSConfig=aws_config())
     str = String(str)
+    startswith(str, "s3://") || throw(ArgumentError("$str doesn't start with s://"))
     root = ""
     path = ()
-    dir = true
+    isdirectory = true
 
-    @assert startswith(str, "s3://")
     tokenized = split(str, "/")
     bucket = strip(tokenized[3], '/')
     drive = "s3://$bucket"
@@ -34,11 +34,11 @@ function S3Path(str::AbstractString; config::AWSConfig=aws_config())
     if length(tokenized) > 3
         root = "/"
         # If the last tokenized element is an empty string then we've parsed a directory
-        dir = isempty(last(tokenized))
+        isdirectory = isempty(last(tokenized))
         path = tuple(filter!(!isempty, tokenized[4:end])...)
     end
 
-    return S3Path(path, root, drive, dir, config)
+    return S3Path(path, root, drive, isdirectory, config)
 end
 
 Base.print(io::IO, fp::S3Path) = print(io, fp.anchor * fp.key)
@@ -50,19 +50,15 @@ function Base.:(==)(a::S3Path, b::S3Path)
 end
 
 function Base.getproperty(fp::S3Path, attr::Symbol)
-    if isdefined(fp, attr)
-        return getfield(fp, attr)
-    elseif attr === :anchor
+    if attr === :anchor
         return fp.drive * fp.root
     elseif attr === :separator
         return "/"
     elseif attr === :bucket
         return split(fp.drive, "//")[2]
     elseif attr === :key
-        return fp.dir ? join(fp.segments, '/') * "/" : join(fp.segments, '/')
+        return fp.isdirectory ? join(fp.segments, '/') * "/" : join(fp.segments, '/')
     else
-        # Call getfield even though we know it'll error
-        # so the message is consistent.
         return getfield(fp, attr)
     end
 end
@@ -71,7 +67,7 @@ end
 # directories correctly
 function Base.join(prefix::S3Path, pieces::AbstractString...)
     segments = String[prefix.segments...]
-    dir = endswith(last(pieces), "/")
+    isdirectory = endswith(last(pieces), "/")
 
     for p in pieces
         push!(segments, filter!(!isempty, split(p, "/"))...)
@@ -81,12 +77,12 @@ function Base.join(prefix::S3Path, pieces::AbstractString...)
         tuple(segments...),
         prefix.root,
         prefix.drive,
-        dir,
+        isdirectory,
         prefix.config,
     )
 end
 
-function parents(fp::T) where {T <: AbstractPath}
+function FilePathsBase.parents(fp::S3Path)
     if hasparent(fp)
         return map(1:length(fp.segments)-1) do i
             S3Path(fp.segments[1:i], fp.root, fp.drive, true, fp.config)
@@ -100,14 +96,14 @@ end
 
 FilePathsBase.ispathtype(::Type{S3Path}, str::AbstractString) = startswith(str, "s3://")
 FilePathsBase.exists(fp::S3Path) = s3_exists(fp.config, fp.bucket, fp.key)
-Base.isfile(fp::S3Path) = !fp.dir && exists(fp)
-function FilePathsBase.isdir(fp::S3Path)
+Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
+function Base.isdir(fp::S3Path)
     # Note: objects "s3://bucket/a" and "s3://bucket/a/b" can co-exist. If both of these
     # objects exist listing the keys for "s3://bucket/a" returns ["s3://bucket/a"] while
     # "s3://bucket/a/" returns ["s3://bucket/a/b"].
     if isempty(fp.segments)
         key = ""
-    elseif fp.dir
+    elseif fp.isdirectory
         key = fp.key
     else
         return false
@@ -117,8 +113,11 @@ function FilePathsBase.isdir(fp::S3Path)
     return !isempty(objects)
 end
 
+# TODO: Add link to FilePathsBase docs when those are available.
+# https://github.com/rofinn/FilePathsBase.jl/issues/36
 Base.real(fp::S3Path) = fp
-function FilePathsBase.stat(fp::S3Path)
+
+function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
     # ownership and permission settings
     m = Mode(user=(READ + WRITE), group=(READ + WRITE), other=(READ + WRITE))
@@ -144,7 +143,8 @@ function FilePathsBase.stat(fp::S3Path)
 end
 
 # TODO: FilePathsBase should default to calling stat?
-FilePathsBase.lstat(fp::S3Path) = stat(fp)
+# https://github.com/rofinn/FilePathsBase.jl/issues/37
+Base.lstat(fp::S3Path) = stat(fp)
 FilePathsBase.mode(fp::S3Path) = stat(fp).mode
 Base.size(fp::S3Path) = stat(fp).size
 FilePathsBase.created(fp::S3Path) = stat(fp).ctime
@@ -161,7 +161,7 @@ Base.isreadable(fp::S3Path) = true
 Base.iswritable(fp::S3Path) = true
 
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
-    fp.dir || throw(ArgumentError("S3Path folders must end with '/': $fp"))
+    fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
 
     if exists(fp)
         !exist_ok && error("$fp already exists.")
@@ -179,6 +179,8 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
 
         write(fp, "")
     end
+
+    return fp
 end
 
 function Base.rm(fp::S3Path; recursive=false, kwargs...)
@@ -205,25 +207,24 @@ function Base.readdir(fp::S3Path)
         objects = s3_list_objects(fp.config, fp.bucket, k; delimiter="")
 
         # Only list the basename and not the full key
-        basenames = Set(s3_get_name(k, string(o["Key"])) for o in objects)
+        basenames = unique(s3_get_name(k, string(o["Key"])) for o in objects)
 
         # Lexographically sort the results
-        return sort!(filter!(!isempty, collect(basenames)))
+        return sort!(filter!(!isempty, basenames))
     else
         throw(ArgumentError("\"$fp\" is not a directory"))
     end
 end
 
 Base.read(fp::S3Path) = s3_get(fp.config, fp.bucket, fp.key)
-Base.read(fp::S3Path, ::Type{String}) = String(read(fp))
+
 function Base.write(fp::S3Path, content::Union{String, Vector{UInt8}})
     s3_put(fp.config, fp.bucket, fp.key, content)
 end
 
 function FilePathsBase.mktmpdir(parent::S3Path)
     fp = parent / string(uuid4(), "/")
-    mkdir(fp)
-    return fp
+    return mkdir(fp)
 end
 
 # Given a full key return just the file or directory name w/o the prefix or suffix keys
