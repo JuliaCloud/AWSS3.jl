@@ -55,7 +55,7 @@ function S3Path(str::AbstractString; config::AWSConfig=aws_config())
         root = "/"
         # If the last tokenized element is an empty string then we've parsed a directory
         isdirectory = isempty(last(tokenized))
-        path = tuple(filter!(!isempty, tokenized[4:end])...)
+        path = Tuple(filter!(!isempty, tokenized[4:end]))
     end
 
     return S3Path(path, root, drive, isdirectory, config)
@@ -66,7 +66,8 @@ Base.print(io::IO, fp::S3Path) = print(io, fp.anchor * fp.key)
 function Base.:(==)(a::S3Path, b::S3Path)
     return a.segments == b.segments &&
         a.root == b.root &&
-        a.drive == b.drive
+        a.drive == b.drive &&
+        a.isdirectory == b.isdirectory
 end
 
 function Base.getproperty(fp::S3Path, attr::Symbol)
@@ -77,7 +78,7 @@ function Base.getproperty(fp::S3Path, attr::Symbol)
     elseif attr === :bucket
         return split(fp.drive, "//")[2]
     elseif attr === :key
-        return fp.isdirectory ? join(fp.segments, '/') * "/" : join(fp.segments, '/')
+        return join(fp.segments, '/') * (fp.isdirectory ? "/" : "")
     else
         return getfield(fp, attr)
     end
@@ -92,7 +93,7 @@ function Base.join(prefix::S3Path, pieces::AbstractString...)
     isdirectory = endswith(last(pieces), "/")
 
     for p in pieces
-        push!(segments, filter!(!isempty, split(p, "/"))...)
+        append!(segments, filter!(!isempty, split(p, "/")))
     end
 
     return S3Path(
@@ -161,6 +162,7 @@ end
 FilePathsBase.isexecutable(fp::S3Path) = false
 Base.isreadable(fp::S3Path) = true
 Base.iswritable(fp::S3Path) = true
+Base.ismount(fp::S3Path) = false
 
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
     fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
@@ -247,7 +249,7 @@ function Base.readdir(fp::S3Path)
         objects = s3_list_objects(fp.config, fp.bucket, k; delimiter="")
 
         # Only list the basename and not the full key
-        basenames = unique(s3_get_name(k, string(o["Key"])) for o in objects)
+        basenames = unique!([s3_get_name(k, string(o["Key"])) for o in objects])
 
         # Lexographically sort the results
         return sort!(filter!(!isempty, basenames))

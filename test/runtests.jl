@@ -13,6 +13,7 @@ using Retry
 using HTTP
 using FilePathsBase
 using FilePathsBase.TestPaths
+using LinearAlgebra  # for norm S3Path tests
 
 AWSCore.set_debug_level(1)
 
@@ -260,9 +261,10 @@ versions = s3_list_versions(aws, bucket_name, "key3")
 @test s3_get(aws, bucket_name, "key3") == b"data3.v3"
 
 
+# WARNING: These tests seem to hit a deadlock condition with HTTP
 # HTTP.ConnectionPool.showpool(stdout)
 
-# Create objects...
+# # Create objects...
 
 # max = 1000
 # sz = 10000

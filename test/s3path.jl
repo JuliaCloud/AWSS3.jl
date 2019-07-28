@@ -11,6 +11,23 @@ ps = PathSet(
     false
 )
 
+function test_s3_join(ps::PathSet)
+    @testset "join" begin
+        @test join(ps.root, "bar/") == ps.bar
+        @test ps.root / "foo" / "baz.txt" == ps.baz
+        @test ps.root / "foobaz.txt" == ps.root / "foo" * "baz.txt"
+    end
+end
+
+function test_s3_norm(ps::PathSet)
+    @testset "norm" begin
+        @test norm(ps.bar / ".." / "foo/") == ps.foo
+        @test norm(ps.bar / ".." / "foo") != ps.foo
+        @test norm(ps.bar / "./") == ps.bar
+        @test norm(ps.bar / "../") == ps.root
+    end
+end
+
 function test_s3_mkdir(p::PathSet)
     @testset "mkdir" begin
         garply = p.root / "corge" / "grault" / "garply/"
@@ -89,6 +106,40 @@ function test_s3_sync(p::PathSet)
     end
 end
 
+function test_s3_properties(ps::PathSet)
+    @testset "s3_properties" begin
+        fp1 = p"s3://mybucket/path/to/some/object"
+        fp2 = p"s3://mybucket/path/to/some/prefix/"
+        @test fp1.bucket == "mybucket"
+        @test fp1.key == "path/to/some/object"
+        @test fp2.bucket == "mybucket"
+        @test fp2.key == "path/to/some/prefix/"
+    end
+end
+
+function test_s3_folders_and_files(ps::PathSet)
+    @testset "s3_folders_and_files" begin
+        # In case the ps.root doesn't exist
+        mkdir(ps.root; recursive=true, exist_ok=true)
+
+        # Test that the trailing slash matters
+        @test p"s3://mybucket/path/to/some/prefix/" != p"s3://mybucket/path/to/some/prefix"
+
+        # Test that we can have empty directory names
+        # I'm not sure if we want to support this in the future, but it may require more
+        # overloading of AbstractPath methods to support properly.
+        @test_broken p"s3://mybucket/path/to/some/prefix" != p"s3://mybucket/path//to/some/prefix"
+
+        write(ps.root / "foobar", "I'm an object")
+        mkdir(ps.root / "foobar/")
+        write(ps.root / "foobar" / "car.txt", "I'm a different object")
+
+        @test read(ps.root / "foobar", String) == "I'm an object"
+        @test_throws ArgumentError readpath(ps.root / "foobar")
+        @test readpath(ps.root / "foobar/") == [ps.root / "foobar" / "car.txt"]
+    end
+end
+
 @testset "$(typeof(ps.root))" begin
     testsets = [
         test_constructor,
@@ -98,12 +149,12 @@ end
         test_convert,
         test_components,
         test_parents,
-        test_join,
+        test_s3_join,
         test_basename,
         test_filename,
         test_extensions,
         test_isempty,
-        test_norm,
+        test_s3_norm,
         # test_real, # real doesn't make sense for S3Paths
         test_relative,
         test_abs,
@@ -136,16 +187,16 @@ end
         test_isfifo,
         test_ischardev,
         test_isblockdev,
-        # test_ismount,
+        test_ismount,
         test_isexecutable,
         test_isreadable,
         test_iswritable,
         # test_chown,   # chmod & chown don't make sense for S3Paths
         # test_chmod,
+        test_s3_properties,
+        test_s3_folders_and_files,
     ]
 
     # Run all of the automated tests
     test(ps, testsets)
-
-    # TODO: Copy over specific tests that can't be tested reliably from the general case.
 end

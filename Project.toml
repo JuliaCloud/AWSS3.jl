@@ -19,6 +19,7 @@ XMLDict = "228000da-037f-5747-90a9-8195ccbf91a5"
 
 [compat]
 AWSCore = "0.5, 0.6"
+FilePathsBase = "0.6"
 julia = "1"
 
 [extras]
