@@ -208,7 +208,7 @@ end
 # are handled again.
 function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=false, overwrite=true)
     # Throw an error if the source path doesn't exist at all
-    exists(src) || throw(ArgumentError("$src does not exist"))
+    exists(src) || throw(ArgumentError("Unable to sync from non-existent $src"))
 
     # If the top level source is just a file then try to just sync that
     # without calling walkpath
@@ -225,7 +225,7 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
         end
     elseif isdir(src)
         if exists(dst)
-            isdir(dst) || throw(ArgumentError("$dst is not a directory while $src is"))
+            isdir(dst) || throw(ArgumentError("Unable to sync directory $src to non-directory $dst"))
             # Create an index of all of the source files
             src_paths = collect(walkpath(src))
             index = Dict(
