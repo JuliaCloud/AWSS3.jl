@@ -129,7 +129,7 @@ function Base.isdir(fp::S3Path)
         return false
     end
 
-    objects = s3_list_objects(fp.config, fp.bucket, key; max_items=1)
+    objects = s3_list_objects(Channel, fp.config, fp.bucket, key; max_items=1)
     return !isempty(objects)
 end
 
@@ -246,7 +246,7 @@ function Base.readdir(fp::S3Path)
     if isdir(fp)
         k = fp.key
         # Only list the files and "dirs" within this S3 "dir"
-        objects = s3_list_objects(fp.config, fp.bucket, k; delimiter="")
+        objects = s3_list_objects(Channel, fp.config, fp.bucket, k; delimiter="")
 
         # Only list the basename and not the full key
         basenames = unique!([s3_get_name(k, string(o["Key"])) for o in objects])
