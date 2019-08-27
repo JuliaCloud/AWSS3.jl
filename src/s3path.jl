@@ -206,6 +206,10 @@ end
 
 # We need to special case sync with S3Paths because of how directories
 # are handled again.
+# NOTE: This method signature only makes sense with FilePathsBase 0.6.1, but
+# 1) It'd be odd for other packages to restrict FilePathsBase to a patch release
+# 2) Seems cleaner to have it fallback and error rather than having
+# slightly inconsistent handling of edge cases between the two versions.
 function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=false, overwrite=true)
     # Throw an error if the source path doesn't exist at all
     exists(src) || throw(ArgumentError("Unable to sync from non-existent $src"))
