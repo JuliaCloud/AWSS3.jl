@@ -474,15 +474,20 @@ end
 
 
 """
-    s3_list_objects([::AWSConfig], bucket, [path_prefix]; delimiter="/", max_items=1000)
+    s3_list_objects([::Type{Channel}], [::AWSConfig], bucket, [path_prefix];
+                    delimiter="/", max_items=1000)
 
 [List Objects](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html)
 in `bucket` with optional `path_prefix`.
 
 Returns an iterator of `Dict`s with keys `Key`, `LastModified`, `ETag`, `Size`,
 `Owner`, `StorageClass`.
+
+By default, this will return an `AbstractVector`, but optionally can return the
+`Channel` to which the data was originally fetched.
 """
-function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", max_items=nothing)
+function s3_list_objects(::Type{Channel}, aws::AWSConfig, bucket, path_prefix="";
+                         delimiter="/", max_items=nothing)
     return Channel() do chnl
         more = true
         num_objects = 0
@@ -531,6 +536,11 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", 
             end
         end
     end
+end
+function s3_list_objects(aws::AWSConfig, bucket, path_prefix="";
+                         delimiter="/", max_items=nothing)
+    collect(s3_list_objects(Channel, aws, bucket, path_prefix, delimiter=delimiter,
+                            max_items=max_items))
 end
 
 s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
