@@ -216,7 +216,7 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
         # If the destination exists then we should make sure it is a file and check
         # if we should copy the source over.
         if exists(dst)
-            isfile(dst) || throw(ArgumentError("$dst is not a file"))
+            isfile(dst) || throw(ArgumentError("Unable to sync file $src to non-file $dst"))
             if overwrite && f(src, dst)
                 cp(src, dst; force=true)
             end
