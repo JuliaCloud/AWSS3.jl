@@ -223,31 +223,25 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
         else
             cp(src, dst)
         end
-    else
-        isdir(src) || throw(ArgumentError("$src is neither a file or directory."))
-        if exists(dst) && !isdir(dst)
-            throw(ArgumentError("$dst is not a directory while $src is"))
-        end
-
-        # Create an index of all of the source files
-        src_paths = collect(walkpath(src))
-        index = Dict(
-            Tuple(setdiff(p.segments, src.segments)) => i for (i, p) in enumerate(src_paths)
-        )
-
+    elseif isdir(src)
         if exists(dst)
-            for p in walkpath(dst)
-                k = Tuple(setdiff(p.segments, dst.segments))
+            isdir(dst) || throw(ArgumentError("$dst is not a directory while $src is"))
+            # Create an index of all of the source files
+            src_paths = collect(walkpath(src))
+            index = Dict(
+                Tuple(setdiff(p.segments, src.segments)) => i
+                for (i, p) in enumerate(src_paths)
+            )
+            for dst_path in walkpath(dst)
+                k = Tuple(setdiff(dst_path.segments, dst.segments))
 
                 if haskey(index, k)
-                    src_path = src_paths[index[k]]
-                    if overwrite && f(src_path, p)
-                        cp(src_path, p; force=true)
+                    src_path = src_paths[pop!(index, k)]
+                    if overwrite && f(src_path, dst_path)
+                        cp(src_path, dst_path; force=true)
                     end
-
-                    delete!(index, k)
                 elseif delete
-                    rm(p; recursive=true)
+                    rm(dst_path; recursive=true)
                 end
             end
 
@@ -255,7 +249,7 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
             # But we need to iterate through it in a way that respects the original
             # walkpath order otherwise we may end up trying to copy a file before its parents.
             index_pairs = collect(pairs(index))
-            index_pairs = index_pairs[sortperm(last.(index_pairs))]
+            index_pairs = index_pairs[sortperm(index_pairs; by=last)]
             for (seg, i) in index_pairs
                 new_dst = S3Path(
                     tuple(dst.segments..., seg...),
@@ -270,6 +264,8 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
         else
             cp(src, dst)
         end
+    else
+        throw(ArgumentError("$src is neither a file or directory."))
     end
 end
 
