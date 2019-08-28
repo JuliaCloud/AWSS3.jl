@@ -206,39 +206,70 @@ end
 
 # We need to special case sync with S3Paths because of how directories
 # are handled again.
-function FilePathsBase.sync(src::AbstractPath, dst::S3Path; delete=false)
-    # Create an index of all of the source files
-    index = Dict(Tuple(setdiff(p.segments, src.segments)) => p for p in walkpath(src))
+# NOTE: This method signature only makes sense with FilePathsBase 0.6.2, but
+# 1) It'd be odd for other packages to restrict FilePathsBase to a patch release
+# 2) Seems cleaner to have it fallback and error rather than having
+# slightly inconsistent handling of edge cases between the two versions.
+function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=false, overwrite=true)
+    # Throw an error if the source path doesn't exist at all
+    exists(src) || throw(ArgumentError("Unable to sync from non-existent $src"))
 
-    if exists(dst)
-        for p in walkpath(dst)
-            k = Tuple(setdiff(p.segments, dst.segments))
-
-            if haskey(index, k)
-                if modified(index[k]) > modified(p)
-                    cp(index[k], p; force=true)
-                end
-
-                delete!(index, k)
-            elseif delete
-                rm(p; recursive=true)
+    # If the top level source is just a file then try to just sync that
+    # without calling walkpath
+    if isfile(src)
+        # If the destination exists then we should make sure it is a file and check
+        # if we should copy the source over.
+        if exists(dst)
+            isfile(dst) || throw(ArgumentError("Unable to sync file $src to non-file $dst"))
+            if overwrite && f(src, dst)
+                cp(src, dst; force=true)
             end
+        else
+            cp(src, dst)
         end
-
-        # Finally, copy over files that don't exist at the destination
-        for (seg, p) in index
-            new_dst = S3Path(
-                tuple(dst.segments..., seg...),
-                dst.root,
-                dst.drive,
-                isdir(p),
-                dst.config,
+    elseif isdir(src)
+        if exists(dst)
+            isdir(dst) || throw(ArgumentError("Unable to sync directory $src to non-directory $dst"))
+            # Create an index of all of the source files
+            src_paths = collect(walkpath(src))
+            index = Dict(
+                Tuple(setdiff(p.segments, src.segments)) => i
+                for (i, p) in enumerate(src_paths)
             )
+            for dst_path in walkpath(dst)
+                k = Tuple(setdiff(dst_path.segments, dst.segments))
 
-            cp(p, new_dst; force=true)
+                if haskey(index, k)
+                    src_path = src_paths[pop!(index, k)]
+                    if overwrite && f(src_path, dst_path)
+                        cp(src_path, dst_path; force=true)
+                    end
+                elseif delete
+                    rm(dst_path; recursive=true)
+                end
+            end
+
+            # Finally, copy over files that don't exist at the destination
+            # But we need to iterate through it in a way that respects the original
+            # walkpath order otherwise we may end up trying to copy a file before its parents.
+            index_pairs = collect(pairs(index))
+            index_pairs = index_pairs[sortperm(index_pairs; by=last)]
+            for (seg, i) in index_pairs
+                new_dst = S3Path(
+                    tuple(dst.segments..., seg...),
+                    dst.root,
+                    dst.drive,
+                    isdir(src_paths[i]),
+                    dst.config,
+                )
+
+                cp(src_paths[i], new_dst; force=true)
+            end
+        else
+            cp(src, dst)
         end
     else
-        cp(src, dst)
+        throw(ArgumentError("$src is neither a file or directory."))
     end
 end
 
