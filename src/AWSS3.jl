@@ -277,11 +277,16 @@ s3_delete(a...; b...) = s3_delete(default_aws_config(), a...; b...)
 - `metadata::Dict=`; optional `x-amz-meta-` headers.
 """
 function s3_copy(aws::AWSConfig, bucket, path;
+                 access_permissions::AbstractString="",
                  to_bucket=bucket, to_path=path, metadata::SSDict = SSDict())
 
     headers = SSDict("x-amz-copy-source" => "/$bucket/$path",
                      "x-amz-metadata-directive" => "REPLACE",
                      Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
+
+    if !isempty(access_permissions)
+        headers["x-amz-acl"] = access_permissions
+    end
 
     s3(aws, "PUT", to_bucket; path = to_path, headers = headers)
 end
