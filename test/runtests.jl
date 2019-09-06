@@ -126,6 +126,7 @@ s3_put(bucket_name, "key2", "data2.v1", tags = Dict("Key" => "Value"))
 s3_put(aws, bucket_name, "key3", "data3.v1")
 s3_put(aws, bucket_name, "key3", "data3.v2")
 s3_put(aws, bucket_name, "key3", "data3.v3"; metadata = Dict("foo" => "bar"))
+s3_put(aws, bucket_name, "key4", "data3.v4"; acl="bucket-owner-full-control")
 s3_put_tags(aws, bucket_name, "key3", Dict("Left" => "Right"))
 
 @test isempty(s3_get_tags(aws, bucket_name, "key 1"))
@@ -140,6 +141,7 @@ s3_delete_tags(aws, bucket_name, "key2")
 @test s3_get(aws, bucket_name, "key 1") == b"data1.v1"
 @test s3_get(aws, bucket_name, "key2") == b"data2.v1"
 @test s3_get(bucket_name, "key3") == b"data3.v3"
+@test s3_get(bucket_name, "key4") == b"data3.v4"
 @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
 @testset "test coroutine reading" begin
