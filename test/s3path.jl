@@ -90,6 +90,7 @@ function test_s3_sync(p::PathSet)
         write(p.foo / "test.txt", "New File")
         sync(p.foo, ps.qux / "foo/")
         @test exists(p.qux / "foo" / "test.txt")
+        @test read(p.qux / "foo" / "test.txt") == b"New File"
         @test read(p.qux / "foo" / "test.txt", String) == "New File"
         @test modified(p.qux / "foo" / "baz.txt") == baz_t
         @test modified(p.qux / "foo" / "test.txt") > baz_t
@@ -134,9 +135,11 @@ function test_s3_folders_and_files(ps::PathSet)
         mkdir(ps.root / "foobar/")
         write(ps.root / "foobar" / "car.txt", "I'm a different object")
 
+        @test read(ps.root / "foobar") == b"I'm an object"
         @test read(ps.root / "foobar", String) == "I'm an object"
         @test_throws ArgumentError readpath(ps.root / "foobar")
         @test readpath(ps.root / "foobar/") == [ps.root / "foobar" / "car.txt"]
+        @test read(ps.root / "foobar" / "car.txt", String) == "I'm a different object"
     end
 end
 

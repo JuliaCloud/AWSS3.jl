@@ -289,7 +289,7 @@ function Base.readdir(fp::S3Path)
     end
 end
 
-Base.read(fp::S3Path) = s3_get(fp.config, fp.bucket, fp.key)
+Base.read(fp::S3Path) = Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key))
 
 function Base.write(fp::S3Path, content::Union{String, Vector{UInt8}})
     s3_put(fp.config, fp.bucket, fp.key, content)
