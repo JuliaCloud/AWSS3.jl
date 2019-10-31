@@ -2,7 +2,7 @@
 
 AWS S3 Interface for Julia
 
-[![Build Status](https://travis-ci.org/samoconnor/AWSS3.jl.svg)](https://travis-ci.org/samoconnor/AWSS3.jl)
+[![Build Status](https://travis-ci.org/JuliaCloud/AWSS3.jl.svg?branch=master)](https://travis-ci.org/JuliaCloud/AWSS3.jl)
 
 [Documentation](https://juliacloud.github.io/AWSCore.jl/build/AWSS3.html)
 
