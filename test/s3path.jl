@@ -203,3 +203,64 @@ end
     # Run all of the automated tests
     test(ps, testsets)
 end
+
+@testset "readdir" begin
+    bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+
+    function initialize()
+        """
+        Hierarchy:
+
+        bucket-name
+        |-- test_01.txt
+        |-- emptydir/
+        |-- subdir1/
+        |   |-- test_02.txt
+        |   |-- test_03.txt
+        |   |-- subdir2/
+        |       |-- test_04.txt
+        |       |-- subdir3/
+        """
+        s3_create_bucket(bucket_name)
+        s3_put(bucket_name, "test_01.txt", "test01")
+        s3_put(bucket_name, "emptydir/", "")
+        s3_put(bucket_name, "subdir1/", "")
+        s3_put(bucket_name, "subdir1/test_02.txt", "test02")
+        s3_put(bucket_name, "subdir1/test_03.txt", "test03")
+        s3_put(bucket_name, "subdir1/subdir2/", "")
+        s3_put(bucket_name, "subdir1/subdir2/test_04.txt", "test04")
+        s3_put(bucket_name, "subdir1/subdir2/subdir3/", "")
+    end
+
+    function verify_files(path::S3Path)
+        @test readdir(path) == ["emptydir/", "subdir1/", "test_01.txt"]
+        @test readdir(path / "emptydir/") == []
+        @test readdir(path / "subdir1/") == ["subdir2/", "test_02.txt", "test_03.txt"]
+        @test readdir(path / "subdir1/subdir2/") == ["subdir3/", "test_04.txt"]
+        @test readdir(path / "subdir1/subdir2/subdir3/") == []
+    end
+
+    function verify_files(path::AbstractPath)
+        @test readdir(path) == ["emptydir", "subdir1", "test_01.txt"]
+        @test readdir(path / "emptydir/") == []
+        @test readdir(path / "subdir1/") == ["subdir2", "test_02.txt", "test_03.txt"]
+        @test readdir(path / "subdir1/subdir2/") == ["subdir3", "test_04.txt"]
+        @test readdir(path / "subdir1/subdir2/subdir3/") == []
+    end
+
+    initialize()
+
+    @testset "S3" begin
+        verify_files(S3Path("s3://$bucket_name/"))
+    end
+
+    @testset "Local" begin
+        temp_path = Path(tempdir() * string(uuid4()))
+        mkdir(temp_path)
+
+        sync(S3Path("s3://$bucket_name/"), temp_path)
+        verify_files(temp_path)
+
+        rm(temp_path, force=true, recursive=true)
+     end
+end

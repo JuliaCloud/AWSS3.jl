@@ -14,6 +14,7 @@ using HTTP
 using FilePathsBase
 using FilePathsBase.TestPaths
 using LinearAlgebra  # for norm S3Path tests
+using UUIDs: uuid4
 
 AWSCore.set_debug_level(1)
 
@@ -30,7 +31,6 @@ function test_without_catch(f)
 end
 
 
-
 #-------------------------------------------------------------------------------
 # Load credentials...
 #-------------------------------------------------------------------------------
@@ -44,31 +44,8 @@ aws[:region] = "ap-southeast-2"
 # S3 tests
 #-------------------------------------------------------------------------------
 
-# Delete old test files...
-
-for b in s3_list_buckets()
-
-    if occursin(r"^ocaws.jl.test", b)
-        @protected try
-            println("Cleaning up old test bucket: " * b)
-            @sync for v in s3_list_versions(aws, b)
-                @async s3_delete(aws, b, v["Key"]; version = v["VersionId"])
-            end
-            s3_delete_bucket(aws, b)
-        catch e
-            @ignore if isa(e, AWSCore.AWSException) &&
-                       e.code == "NoSuchBucket" end
-        end
-    end
-end
-
-HTTP.ConnectionPool.showpool(stdout)
-
 # Temporary bucket name...
-
-bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC),
-                                                        "yyyymmddTHHMMSSZ"))
-
+bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
 
 # Test exception code for deleting non existent bucket...
 
@@ -290,6 +267,25 @@ versions = s3_list_versions(aws, bucket_name, "key3")
 
 
 include("s3path.jl")
+
+# Delete old test files...
+
+for b in s3_list_buckets()
+    if occursin(r"^ocaws.jl.test", b)
+        @protected try
+            println("Cleaning up old test bucket: " * b)
+            @sync for v in s3_list_versions(aws, b)
+                @async s3_delete(aws, b, v["Key"]; version = v["VersionId"])
+            end
+            s3_delete_bucket(aws, b)
+        catch e
+            @ignore if isa(e, AWSCore.AWSException) &&
+                       e.code == "NoSuchBucket" end
+        end
+    end
+end
+
+HTTP.ConnectionPool.showpool(stdout)
 
 #==============================================================================#
 # End of file.
