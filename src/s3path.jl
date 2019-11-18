@@ -78,6 +78,10 @@ function Base.getproperty(fp::S3Path, attr::Symbol)
     elseif attr === :bucket
         return split(fp.drive, "//")[2]
     elseif attr === :key
+        if isempty(fp.segments)
+            return ""
+        end
+
         return join(fp.segments, '/') * (fp.isdirectory ? "/" : "")
     else
         return getfield(fp, attr)
