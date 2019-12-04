@@ -538,8 +538,70 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", 
     end
 end
 
-s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
+s3_list_objects(a...; kwargs...) = s3_list_objects(default_aws_config(), a...; kwargs...)
 
+"""
+    s3_list_objects_v2([::AWSConfig], bucket, [path_prefix]; delimiter="/", max_items=1000)
+
+[List Objects](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html)
+in `bucket` with optional `path_prefix`.
+
+Returns an iterator of `Dict`s with keys `Key`, `LastModified`, `ETag`, `Size`,
+`Owner`, `StorageClass`.
+
+This uses the `ListObjectV2` function call.
+"""
+function s3_list_objects_v2(aws::AWSS3.AWSConfig, bucket, path_prefix=""; delimiter="/", max_items=nothing)
+    return Channel() do chnl
+        more = true
+        num_objects = 0
+        contoken = ""
+
+        while more
+            q = Dict{String, String}("list-type"=>"2")
+            if path_prefix != ""
+                q["prefix"] = path_prefix
+            end
+            if delimiter != ""
+                q["delimiter"] = delimiter
+            end
+            if contoken ≠ ""
+                q["continuation-token"] = contoken
+            end
+            if max_items !== nothing
+                q["max-keys"] = string(max_items - num_objects)
+            end
+
+            @repeat 4 try
+                # Request objects
+                r = s3(aws, "GET", bucket; query = q)
+
+                # Add each object from the response and update our object count / marker
+                if haskey(r, "Contents")
+                    l = isa(r["Contents"], Vector) ? r["Contents"] : [r["Contents"]]
+                    for object in l
+                        put!(chnl, xml_dict(object))
+                        num_objects += 1
+                    end
+                # It's possible that the response doesn't have "Contents" and just has a prefix,
+                # in which case we should just save the next marker and iterate.
+                elseif haskey(r, "Prefix")
+                    put!(chnl, Dict("Key" => r["Prefix"]))
+                    num_objects += 1
+                end
+
+                contoken = get(r, "NextContinuationToken", "")
+
+                # Continue looping if the results were truncated and we haven't exceeded out max_items (if specified)
+                more = r["IsTruncated"] == "true" && (max_items === nothing || num_objects < max_items)
+            catch e
+                @delay_retry if ecode(e) in ["NoSuchBucket"] end
+            end
+        end
+    end
+end
+
+s3_list_objects_v2(a...; kwargs...) = s3_list_objects_v2(default_aws_config(), a...; kwargs...)
 
 """
     s3_list_keys([::AWSConfig], bucket, [path_prefix])
