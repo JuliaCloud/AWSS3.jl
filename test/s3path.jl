@@ -1,4 +1,7 @@
+bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+s3_create_bucket(bucket_name)
 root = Path("s3://$bucket_name/pathset-root/")
+
 ps = PathSet(
     root,
     root / "foo/",
@@ -205,8 +208,6 @@ end
 end
 
 @testset "readdir" begin
-    bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
-
     function initialize()
         """
         Hierarchy:
@@ -221,7 +222,6 @@ end
         |       |-- test_04.txt
         |       |-- subdir3/
         """
-        s3_create_bucket(bucket_name)
         s3_put(bucket_name, "test_01.txt", "test01")
         s3_put(bucket_name, "emptydir/", "")
         s3_put(bucket_name, "subdir1/", "")

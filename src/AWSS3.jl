@@ -300,8 +300,9 @@ s3_copy(a...; b...) = s3_copy(default_aws_config(), a...; b...)
 [PUT Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html)
 """
 function s3_create_bucket(aws::AWSConfig, bucket)
-
-    println("""Creating Bucket "$bucket"...""")
+    if AWSCore.debug_level > 0
+        println("""Creating Bucket "$bucket"...""")
+    end
 
     @protected try
 
