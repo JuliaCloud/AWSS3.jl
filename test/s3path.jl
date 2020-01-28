@@ -254,7 +254,7 @@ end
         verify_files(S3Path("s3://$bucket_name/"))
     end
 
-    @testset "Local" begin
+    @test_skip @testset "Local" begin
         temp_path = Path(tempdir() * string(uuid4()))
         mkdir(temp_path)
 
