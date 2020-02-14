@@ -252,6 +252,7 @@ end
 
     @testset "S3" begin
         verify_files(S3Path("s3://$bucket_name/"))
+        @test_throws ArgumentError("$bucket_name doesn't start with s3://") S3Path(bucket_name)
     end
 
     @test_skip @testset "Local" begin

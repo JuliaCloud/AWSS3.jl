@@ -42,7 +42,7 @@ end
 
 function S3Path(str::AbstractString; config::AWSConfig=aws_config())
     str = String(str)
-    startswith(str, "s3://") || throw(ArgumentError("$str doesn't start with s://"))
+    startswith(str, "s3://") || throw(ArgumentError("$str doesn't start with s3://"))
     root = ""
     path = ()
     isdirectory = true
