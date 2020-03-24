@@ -263,7 +263,7 @@ end
         verify_files(temp_path)
 
         rm(temp_path, force=true, recursive=true)
-     end
+    end
 
     @testset "join" begin
         @test (  # test trailing slash on prefix does not matter for join
