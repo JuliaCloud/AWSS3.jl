@@ -102,7 +102,7 @@ function Base.join(prefix::S3Path, pieces::AbstractString...)
 
     return S3Path(
         tuple(segments...),
-        prefix.root,
+        "/",
         prefix.drive,
         isdirectory,
         prefix.config,

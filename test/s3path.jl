@@ -271,7 +271,7 @@ end
             p"s3://foo/bar/" / "baz" ==
             p"s3://foo/bar/baz"
         )
-        @test_broken (  # test trailing slash on root-only prefix in particular does not matter
+        @test (  # test trailing slash on root-only prefix in particular does not matter
             p"s3://foo" / "bar" / "baz" ==
             p"s3://foo/" / "bar" / "baz" ==
             p"s3://foo/bar/baz"
