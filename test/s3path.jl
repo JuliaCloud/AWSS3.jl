@@ -264,4 +264,21 @@ end
 
         rm(temp_path, force=true, recursive=true)
      end
+
+    @testset "join" begin
+        @test (  # test trailing slash on prefix does not matter for join
+            p"s3://foo/bar" / "baz" ==
+            p"s3://foo/bar/" / "baz" ==
+            p"s3://foo/bar/baz"
+        )
+        @test_broken (  # test trailing slash on root-only prefix in particular does not matter
+            p"s3://foo" / "bar" / "baz" ==
+            p"s3://foo/" / "bar" / "baz" ==
+            p"s3://foo/bar/baz"
+        )
+        # test extra leading and trailing slashes do not matter
+        @test p"s3://foo/" / "bar/" / "/baz" == p"s3://foo/bar/baz"
+        # test trailing slash on final piece is included
+        @test p"s3://foo/bar" / "baz/" == p"s3://foo/bar/baz/"
+    end
 end
