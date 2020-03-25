@@ -278,6 +278,9 @@ end
         )
         # test extra leading and trailing slashes do not matter
         @test p"s3://foo/" / "bar/" / "/baz" == p"s3://foo/bar/baz"
+        # test joining `/` and string concatentation `*` play nice as expect
+        @test p"s3://foo" * "/" / "bar" == p"s3://foo" / "/" * "bar" == p"s3://foo" / "bar"
+        @test p"s3://foo" / "bar" * "baz" == p"s3://foo/bar" * "baz"  == p"s3://foo" / "barbaz"
         # test trailing slash on final piece is included
         @test p"s3://foo/bar" / "baz/" == p"s3://foo/bar/baz/"
     end
