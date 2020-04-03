@@ -40,6 +40,36 @@ function S3Path()
     )
 end
 
+function S3Path(
+    bucket::AbstractString,
+    key::AbstractString;
+    isdirectory::Bool=false,
+    config::AWSConfig=aws_config(),
+)
+    return S3Path(
+        Tuple(filter!(!isempty, split(key, "/"))),
+        "/",
+        strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/'),
+        isdirectory,
+        config,
+    )
+end
+
+function S3Path(
+    bucket::AbstractString,
+    key::AbstractPath;
+    isdirectory::Bool=false,
+    config::AWSConfig=aws_config(),
+)
+    return S3Path(
+        key.segments,
+        "/",
+        strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/'),
+        isdirectory,
+        config,
+    )
+end
+
 function S3Path(str::AbstractString; config::AWSConfig=aws_config())
     str = String(str)
     startswith(str, "s3://") || throw(ArgumentError("$str doesn't start with s3://"))
