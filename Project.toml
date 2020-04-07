@@ -19,7 +19,7 @@ XMLDict = "228000da-037f-5747-90a9-8195ccbf91a5"
 
 [compat]
 AWSCore = "0.5, 0.6"
-EzXML = "0.9"
+EzXML = "0.9, 1"
 FilePathsBase = "0.6, 0.7, 0.8"
 HTTP = "0.8"
 MbedTLS = "0.6, 0.7, 1"
