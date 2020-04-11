@@ -38,6 +38,10 @@ end
     @test s3_get(bucket_name, "key3") == b"data3.v3"
     @test s3_get(bucket_name, "key4") == b"data3.v4"
     @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
+
+    s3_put(aws, bucket_name, "subdir/key5", "data5.v1")
+    s3_put(aws, bucket_name, "subdir/key6", "data6.v1")
+
 end
 
 @testset "ASync Get" begin
@@ -94,20 +98,32 @@ end
 end
 
 @testset "Object exists" begin
-    for key in ["key1", "key2", "key3", "key1.copy"]
-        @test s3_exists(bucket_name, key)
+    for key in ["key1", "key2", "key3", "key1.copy", "subdir/key5", "subdir/key6"]
+        @test s3_exists(aws, bucket_name, key)
     end
 end
 
 @testset "List Objects" begin
-    for key in ["key1", "key2", "key3", "key1.copy"]
-        @test key in [o["Key"] for o in s3_list_objects(aws, bucket_name)]
-    end
+    expectedkeys1 = ["key1", "key1.copy", "key2", "key3", "key4"]
+    expectedprefixes1 = ["subdir/"]
+    objects1 = collect(s3_list_objects(aws, bucket_name))
+    @test expectedkeys1 == sort([o["Key"] for o in objects1 if haskey(o, "Key")])
+    @test expectedprefixes1 == sort([o["Prefix"] for o in objects1 if haskey(o, "Prefix")])
+
+    expectedkeys2 = ["key1", "key1.copy", "key2", "key3", "key4", "subdir/key5", "subdir/key6"]
+    objects2 = collect(s3_list_objects(aws, bucket_name, delimiter=""))
+    @test all(map(e -> haskey(e, "Key") && !haskey(e, "Prefix"), objects2))
+    @test expectedkeys2 == sort([o["Key"] for o in objects2])
+
+    expected3 = ["subdir/key5", "subdir/key6"]
+    objects3 = collect(s3_list_objects(aws, bucket_name, "subdir/"))
+    @test all(map(e -> haskey(e, "Key") && !haskey(e, "Prefix"), objects3))
+    @test expected3 == sort([o["Key"] for o in objects3])
 end
 
 @testset "Object Delete" begin
     s3_delete(aws, bucket_name, "key1.copy")
-    @test !("key1.copy" in [o["Key"] for o in s3_list_objects(aws, bucket_name)])
+    @test !("key1.copy" in [o["Key"] for o in s3_list_objects(aws, bucket_name) if haskey(o, "Key")])
 end
 
 @testset "Check Metadata" begin
