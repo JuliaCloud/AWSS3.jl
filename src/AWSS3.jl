@@ -483,8 +483,9 @@ end
 [List Objects](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html)
 in `bucket` with optional `path_prefix`.
 
-Returns an iterator of `Dict`s with keys `Key`, `LastModified`, `ETag`, `Size`,
-`Owner`, `StorageClass`.
+Returns an iterator of `Dict`s.
+Objects have keys `Key`, `LastModified`, `ETag`, `Size`, `Owner`, `StorageClass`.
+If `delimiter` is set CommonPrefixes will contain only a `Prefix`.
 """
 function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", max_items=nothing)
     return Channel() do chnl
@@ -513,19 +514,33 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", 
                 r = s3(aws, "GET", bucket; query = q)
 
                 # Add each object from the response and update our object count / marker
+                marker = nothing
                 if haskey(r, "Contents")
                     l = isa(r["Contents"], Vector) ? r["Contents"] : [r["Contents"]]
                     for object in l
                         put!(chnl, xml_dict(object))
                         num_objects += 1
+                        # Is this necessary, or can we rely on r["NextMarker"]?
                         marker = object["Key"]
                     end
-                # It's possible that the response doesn't have "Contents" and just has a prefix,
+                end
+                if haskey(r, "CommonPrefixes")
+                    prefixes = isa(r["CommonPrefixes"], Vector) ? r["CommonPrefixes"] : [r["CommonPrefixes"]]
+                    for prefix in prefixes
+                        put!(chnl, xml_dict(prefix))
+                        num_objects +=1
+                    end
+                    if haskey(r, "NextMarker")
+                        marker = r["NextMarker"]
+                    end
+                end
+                # It's possible that the response doesn't have "Contents" or
+                # "CommonPrefixes" and just has a prefix,
                 # in which case we should just save the next marker and iterate.
-                elseif haskey(r, "Prefix")
+                if marker === nothing && haskey(r, "Prefix")
                     put!(chnl, Dict("Key" => r["Prefix"]))
                     num_objects +=1
-                    marker = haskey(r, "NextMarker") ? r["NextMarker"] : r["Prefix"]
+                    marker = r["Prefix"]
                 end
 
                 # Continue looping if the results were truncated and we haven't exceeded out max_items (if specified)
