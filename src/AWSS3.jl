@@ -59,7 +59,8 @@ function s3(aws::AWSConfig,
             version="",
             content="",
             return_stream=false,
-            return_raw=false,)
+            return_raw=false,
+            return_headers=false)
 
     # Build query string...
     if version != ""
@@ -106,7 +107,11 @@ function s3(aws::AWSConfig,
         end
         request[:url] = url
 
-        response = AWSCore.do_request(request)
+        if return_headers
+            response, headers = AWSCore.do_request(request; return_headers=return_headers)
+        else
+            response = AWSCore.do_request(request; return_headers=return_headers)
+        end
 
         # Handle 301 Moved Permanently with missing Location header.
         # https://github.com/samoconnor/AWSS3.jl/issues/25
@@ -119,10 +124,10 @@ function s3(aws::AWSConfig,
             end
             request[:url] = string(get(aws, :protocol, "https"), "://",
                                    response["Endpoint"], resource)
-            response = AWSCore.do_request(request)
+            return AWSCore.do_request(request; return_headers=return_headers)
         end
 
-        return response
+        return (return_headers ? (response, headers) : response)
 
     catch e
 
@@ -686,13 +691,14 @@ end
 
 function s3_upload_part(aws::AWSConfig, upload, part_number, part_data)
 
-    response = s3(aws, "PUT", upload["Bucket"];
+    _, headers = s3(aws, "PUT", upload["Bucket"];
                   path = upload["Key"],
                   query = Dict("partNumber" => part_number,
                                "uploadId" => upload["UploadId"]),
-                  content = part_data)
+                  content = part_data,
+                  return_headers = true)
 
-    response.headers["ETag"]
+    return Dict(headers)["ETag"]
 end
 
 
@@ -712,7 +718,7 @@ function s3_complete_multipart_upload(aws::AWSConfig,
                   query = Dict("uploadId" => upload["UploadId"]),
                   content = string(doc))
 
-    response
+    return response
 end
 
 

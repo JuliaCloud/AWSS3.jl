@@ -161,6 +161,20 @@ end
     end
 end
 
+@testset "Multi-Part Upload" begin
+    MIN_S3_CHUNK_SIZE = 5 * 1024 * 1024 # 5 MB
+    key_name = "multi-part-key"
+    upload = s3_begin_multipart_upload(aws, bucket_name, key_name)
+    tags = Vector{String}()
+
+    for part_number in 1:5
+        push!(tags, s3_upload_part(aws, upload, part_number, rand(UInt8, MIN_S3_CHUNK_SIZE)))
+    end
+
+    s3_complete_multipart_upload(aws, upload, tags)
+    @test s3_exists(bucket_name, key_name)
+end
+
 @testset "Empty and Delete Bucket" begin
     for b in s3_list_buckets()
         if occursin(r"^ocaws.jl.test", b)
