@@ -107,7 +107,11 @@ function s3(aws::AWSConfig,
         end
         request[:url] = url
 
-        response = AWSCore.do_request(request; return_headers=return_headers)
+        if return_headers
+            response, headers = AWSCore.do_request(request; return_headers=return_headers)
+        else
+            response = AWSCore.do_request(request; return_headers=return_headers)
+        end
 
         # Handle 301 Moved Permanently with missing Location header.
         # https://github.com/samoconnor/AWSS3.jl/issues/25
@@ -120,10 +124,10 @@ function s3(aws::AWSConfig,
             end
             request[:url] = string(get(aws, :protocol, "https"), "://",
                                    response["Endpoint"], resource)
-            response = AWSCore.do_request(request; return_headers=return_headers)
+            return AWSCore.do_request(request; return_headers=return_headers)
         end
 
-        return response
+        return (return_headers ? (response, headers) : response)
 
     catch e
 
