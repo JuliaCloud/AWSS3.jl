@@ -14,6 +14,17 @@ ps = PathSet(
     false
 )
 
+function test_s3_constructors(ps::PathSet)
+    @test S3Path(bucket_name, "pathset-root/foo/baz.txt") == ps.baz
+    @test S3Path(bucket_name, p"pathset-root/foo/baz.txt") == ps.baz
+    @test S3Path(bucket_name, p"/pathset-root/foo/baz.txt") == ps.baz
+    @test S3Path("s3://$bucket_name", p"/pathset-root/foo/baz.txt") == ps.baz
+    @test S3Path(bucket_name, "pathset-root/bar/qux"; isdirectory=true) == ps.qux
+    @test S3Path(bucket_name, "pathset-root/bar/qux/"; isdirectory=true) == ps.qux
+    @test S3Path(bucket_name, p"pathset-root/bar/qux"; isdirectory=true) == ps.qux
+    @test S3Path(bucket_name, p"/pathset-root/bar/qux"; isdirectory=true) == ps.qux
+end
+
 function test_s3_join(ps::PathSet)
     @testset "join" begin
         @test join(ps.root, "bar/") == ps.bar
@@ -149,6 +160,7 @@ end
 @testset "$(typeof(ps.root))" begin
     testsets = [
         test_constructor,
+        test_s3_constructors,
         test_registration,
         test_show,
         test_parse,
