@@ -64,7 +64,7 @@ function S3Path(
     return S3Path(
         key.segments,
         "/",
-        strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/'),
+        normalize_bucket_name(bucket),
         isdirectory,
         config,
     )
@@ -89,6 +89,10 @@ function S3Path(str::AbstractString; config::AWSConfig=aws_config())
     end
 
     return S3Path(path, root, drive, isdirectory, config)
+end
+
+function normalize_bucket_name(bucket)
+    return strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/')
 end
 
 Base.print(io::IO, fp::S3Path) = print(io, fp.anchor * fp.key)
