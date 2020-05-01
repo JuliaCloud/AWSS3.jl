@@ -25,6 +25,20 @@ function test_s3_constructors(ps::PathSet)
     @test S3Path(bucket_name, p"/pathset-root/bar/qux"; isdirectory=true) == ps.qux
 end
 
+function test_s3_parents(ps::PathSet)
+    @testset "parents" begin
+        @test parent(ps.foo) == ps.root
+        @test parent(ps.qux) == ps.bar
+        @test dirname(ps.foo) == ps.root
+
+        @test hasparent(ps.qux)
+        _parents = parents(ps.qux)
+        @test _parents[end] == ps.bar
+        @test _parents[end - 1] == ps.root
+        @test _parents[1] == Path(ps.root; segments=())
+    end
+end
+
 function test_s3_join(ps::PathSet)
     @testset "join" begin
         @test join(ps.root, "bar/") == ps.bar
@@ -33,12 +47,12 @@ function test_s3_join(ps::PathSet)
     end
 end
 
-function test_s3_norm(ps::PathSet)
+function test_s3_normalize(ps::PathSet)
     @testset "norm" begin
-        @test norm(ps.bar / ".." / "foo/") == ps.foo
-        @test norm(ps.bar / ".." / "foo") != ps.foo
-        @test norm(ps.bar / "./") == ps.bar
-        @test norm(ps.bar / "../") == ps.root
+        @test normalize(ps.bar / ".." / "foo/") == ps.foo
+        @test normalize(ps.bar / ".." / "foo") != ps.foo
+        @test normalize(ps.bar / "./") == ps.bar
+        @test normalize(ps.bar / "../") == ps.root
     end
 end
 
@@ -159,27 +173,30 @@ end
 
 @testset "$(typeof(ps.root))" begin
     testsets = [
-        test_constructor,
         test_s3_constructors,
         test_registration,
         test_show,
         test_parse,
         test_convert,
         test_components,
-        test_parents,
+        test_indexing,
+        test_iteration,
+        test_s3_parents,
+        test_descendants_and_ascendants,
         test_s3_join,
+        test_splitext,
         test_basename,
         test_filename,
         test_extensions,
         test_isempty,
-        test_s3_norm,
-        # test_real, # real doesn't make sense for S3Paths
+        test_s3_normalize,
+        # test_canonicalize, # real doesn't make sense for S3Paths
         test_relative,
-        test_abs,
+        test_absolute,
         test_isdir,
         test_isfile,
         test_stat,
-        test_size,
+        test_filesize,
         test_modified,
         test_created,
         test_cd,
@@ -264,7 +281,7 @@ end
 
     @testset "S3" begin
         verify_files(S3Path("s3://$bucket_name/"))
-        @test_throws ArgumentError("$bucket_name doesn't start with s3://") S3Path(bucket_name)
+        @test_throws ArgumentError("Invalid s3 path string: $bucket_name") S3Path(bucket_name)
     end
 
     @test_skip @testset "Local" begin

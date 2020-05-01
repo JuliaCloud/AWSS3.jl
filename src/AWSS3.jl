@@ -24,6 +24,7 @@ export S3Path, s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_cop
 
 using AWSCore
 using FilePathsBase
+using FilePathsBase: /, join
 using HTTP
 using SymDict
 using Retry

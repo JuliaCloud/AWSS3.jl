@@ -5,8 +5,8 @@ using AWSCore
 using Retry
 using HTTP
 using FilePathsBase
+using FilePathsBase: /, join
 using FilePathsBase.TestPaths
-using LinearAlgebra  # for norm S3Path tests
 using UUIDs: uuid4
 
 AWSCore.set_debug_level(0)
