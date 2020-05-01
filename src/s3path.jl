@@ -70,9 +70,16 @@ function S3Path(
     )
 end
 
+# To avoid a breaking change.
 function S3Path(str::AbstractString; config::AWSConfig=aws_config())
+    result = tryparse(S3Path, str; config=config)
+    result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
+    return result
+end
+
+function Base.tryparse(::Type{S3Path}, str::AbstractString; config::AWSConfig=aws_config())
     str = String(str)
-    startswith(str, "s3://") || throw(ArgumentError("$str doesn't start with s3://"))
+    startswith(str, "s3://") || return nothing
     root = ""
     path = ()
     isdirectory = true
@@ -124,7 +131,7 @@ end
 
 # We need to special case join and parents so that we propagate
 # directories correctly (see type docstring for details)
-function Base.join(prefix::S3Path, pieces::AbstractString...)
+function FilePathsBase.join(prefix::S3Path, pieces::AbstractString...)
     isempty(pieces) && return prefix
 
     segments = String[prefix.segments...]
@@ -145,7 +152,7 @@ end
 
 function FilePathsBase.parents(fp::S3Path)
     if hasparent(fp)
-        return map(1:length(fp.segments)-1) do i
+        return map(0:length(fp.segments)-1) do i
             S3Path(fp.segments[1:i], fp.root, fp.drive, true, fp.config)
         end
     elseif fp.segments == tuple(".") || isempty(fp.segments)
@@ -155,7 +162,6 @@ function FilePathsBase.parents(fp::S3Path)
     end
 end
 
-FilePathsBase.ispathtype(::Type{S3Path}, str::AbstractString) = startswith(str, "s3://")
 FilePathsBase.exists(fp::S3Path) = s3_exists(fp.config, fp.bucket, fp.key)
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
