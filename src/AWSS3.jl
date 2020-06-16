@@ -748,29 +748,7 @@ end
 using MbedTLS
 
 
-"""
-    s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
-                [verb="GET"], [content_type="application/octet-stream"])
-
-Create a
-[pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
-
-To create an upload URL use `verb="PUT"` and set `content_type` to match
-the type used in the `Content-Type` header of the PUT request.
-
-```
-url = s3_sign_url("my_bucket", "my_file.txt"; verb="PUT")
-Requests.put(URI(url), "Hello!")
-```
-```
-url = s3_sign_url("my_bucket", "my_file.txt";
-                  verb="PUT", content_type="text/plain")
-
-Requests.put(URI(url), "Hello!";
-             headers=Dict("Content-Type" => "text/plain"))
-```
-"""
-function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
+function _s3_sign_url_v2(aws::AWSConfig, bucket, path, seconds=3600;
                      verb="GET", content_type="application/octet-stream",
                      protocol="http")
 
@@ -798,6 +776,41 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
     endpoint=string(protocol, "://",
                     bucket, ".s3.", aws[:region], ".amazonaws.com")
     return "$endpoint/$path?$(HTTP.escapeuri(query))"
+end
+
+"""
+    s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
+                [verb="GET"], [content_type="application/octet-stream"], [signature_version="v2"])
+
+Create a
+[pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
+
+To create an upload URL use `verb="PUT"` and set `content_type` to match
+the type used in the `Content-Type` header of the PUT request.
+
+```
+url = s3_sign_url("my_bucket", "my_file.txt"; verb="PUT")
+Requests.put(URI(url), "Hello!")
+```
+```
+url = s3_sign_url("my_bucket", "my_file.txt";
+                  verb="PUT", content_type="text/plain")
+
+Requests.put(URI(url), "Hello!";
+             headers=Dict("Content-Type" => "text/plain"))
+```
+"""
+function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
+                     verb="GET", content_type="application/octet-stream",
+                     protocol="http", signature_version="v2")
+
+    if signature_version == "v2"
+        _s3_sign_url_v2(aws, bucket, path, seconds;
+                     verb = verb, content_type = content_type,
+                     protocol = protocol)
+    else
+        throw(ArgumentError("Unknown signature version $signature_version"))
+    end
 end
 
 s3_sign_url(a...;b...) = s3_sign_url(default_aws_config(), a...;b...)
