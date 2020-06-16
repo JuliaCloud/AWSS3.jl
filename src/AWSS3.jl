@@ -796,7 +796,11 @@ function _s3_sign_url_v4(
     terminator = "aws4_request"
 
     scope = "$date_stamp/$(aws[:region])/$service/$terminator"
-    host = "s3-$(aws[:region]).amazonaws.com"
+    host = if aws[:region] == "us-east-1"
+        "s3.amazonaws.com"
+    else
+        "s3-$(aws[:region]).amazonaws.com"
+    end
 
     headers = OrderedDict{String, String}("Host" => host)
     sort!(headers; by = name -> lowercase(name))
