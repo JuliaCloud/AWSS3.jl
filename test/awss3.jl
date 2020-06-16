@@ -66,31 +66,33 @@ end
 end
 
 @testset "Sign URL" begin
-    url = s3_sign_url(aws, bucket_name, "key1")
-    curl_output = ""
+    for v in ["v2", "v4"]
+        url = s3_sign_url(aws, bucket_name, "key1"; signature_version=v)
+        curl_output = ""
 
-    @repeat 3 try
-        curl_output = read(`curl -s -o - $url`, String)
-    catch e
-        @delay_retry if true end
-    end
+        @repeat 3 try
+            curl_output = read(`curl -s -o - $url`, String)
+        catch e
+            @delay_retry if true end
+        end
 
-    @test curl_output == "data1.v1"
+        @test curl_output == "data1.v1"
 
-    fn = "/tmp/jl_qws_test_key1"
-    if isfile(fn)
+        fn = "/tmp/jl_qws_test_key1"
+        if isfile(fn)
+            rm(fn)
+        end
+
+        @repeat 3 try
+            s3_get_file(aws, bucket_name, "key1", fn)
+        catch e
+            sleep(1)
+            @retry if true end
+        end
+
+        @test read(fn, String) == "data1.v1"
         rm(fn)
     end
-
-    @repeat 3 try
-        s3_get_file(aws, bucket_name, "key1", fn)
-    catch e
-        sleep(1)
-        @retry if true end
-    end
-
-    @test read(fn, String) == "data1.v1"
-    rm(fn)
 end
 
 @testset "Object exists" begin
