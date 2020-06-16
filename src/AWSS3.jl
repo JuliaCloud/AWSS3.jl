@@ -805,7 +805,7 @@ function _s3_sign_url_v4(
     query = OrderedDict{String, String}(
         "X-Amz-Expires" => string(seconds),
         "X-Amz-Algorithm" => "$scheme-$algorithm",
-        "X-Amz-Credential" => "$(aws[:creds].access_key_id)/scope",
+        "X-Amz-Credential" => "$(aws[:creds].access_key_id)/$scope",
         "X-Amz-Date" => datetime_stamp,
         "X-Amz-Security-Token" => aws[:creds].token,
         "X-Amz-SignedHeaders" => canonical_header_names
