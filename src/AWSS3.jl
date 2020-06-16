@@ -749,7 +749,7 @@ using MbedTLS
 
 function _s3_sign_url_v2(
     aws::AWSConfig, bucket, path, seconds=3600;
-    verb="GET", content_type="application/octet-stream", protocol="http"
+    verb="GET", content_type="application/octet-stream", protocol="http",
 )
 
     path = HTTP.escapepath(path)
@@ -781,7 +781,7 @@ end
 
 function _s3_sign_url_v4(
     aws::AWSConfig, bucket, path, seconds=3600;
-    verb="GET", content_type="application/octet-stream", protocol="http"
+    verb="GET", content_type="application/octet-stream", protocol="http",
 )
 
     path = HTTP.escapepath("/$bucket/$path")
@@ -796,7 +796,7 @@ function _s3_sign_url_v4(
     terminator = "aws4_request"
 
     scope = "$date_stamp/$(aws[:region])/$service/$terminator"
-    host = string("s3-", aws[:region], ".amazonaws.com")
+    host = "s3-$(aws[:region]).amazonaws.com"
 
     headers = OrderedDict{String, String}("Host" => host)
     sort!(headers; by = name -> lowercase(name))
@@ -850,7 +850,8 @@ end
 
 """
     s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
-                [verb="GET"], [content_type="application/octet-stream"], [signature_version="v4"])
+                [verb="GET"], [content_type="application/octet-stream"],
+                [protocol="http"], [signature_version="v4"])
 
 Create a
 [pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
@@ -876,18 +877,18 @@ Requests.put(URI(url), "Hello!";
 function s3_sign_url(
     aws::AWSConfig, bucket, path, seconds=3600;
     verb="GET", content_type="application/octet-stream", protocol="http",
-    signature_version="v4"
+    signature_version="v4",
 )
 
     if signature_version == "v2"
         _s3_sign_url_v2(
             aws, bucket, path, seconds;
-            verb = verb, content_type = content_type, protocol = protocol
+            verb=verb, content_type=content_type, protocol=protocol,
         )
     elseif signature_version == "v4"
         _s3_sign_url_v4(
             aws, bucket, path, seconds;
-            verb = verb, content_type = content_type, protocol = protocol
+            verb=verb, content_type=content_type, protocol=protocol,
         )
     else
         throw(ArgumentError("Unknown signature version $signature_version"))
