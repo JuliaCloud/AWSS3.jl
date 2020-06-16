@@ -745,12 +745,13 @@ function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
 end
 
 
+using DataStructures
 using MbedTLS
 
 
 function _s3_sign_url_v2(aws::AWSConfig, bucket, path, seconds=3600;
-                     verb="GET", content_type="application/octet-stream",
-                     protocol="http")
+                         verb="GET", content_type="application/octet-stream",
+                         protocol="http")
 
     path = HTTP.escapepath(path)
 
@@ -777,6 +778,69 @@ function _s3_sign_url_v2(aws::AWSConfig, bucket, path, seconds=3600;
                     bucket, ".s3.", aws[:region], ".amazonaws.com")
     return "$endpoint/$path?$(HTTP.escapeuri(query))"
 end
+
+
+function _s3_sign_url_v4(aws::AWSConfig, bucket, path, seconds=3600;
+                         verb="GET", content_type="application/octet-stream",
+                         protocol="http")
+
+    path = HTTP.escapepath("/" * bucket * "/" * path)
+
+    now_datetime = now(Dates.UTC)
+    datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSSZ")
+    date_stamp = Dates.format(now_datetime, "YYYYmmdd")
+
+    service = "s3"
+    scheme = "AWS4"
+    algorithm = "HMAC-SHA256"
+    terminator = "aws4_request"
+
+    scope = date_stamp * "/" * aws[:region] * "/" * service * "/" * terminator
+    host = string("s3-", aws[:region], ".amazonaws.com")
+
+    headers = OrderedDict{String, String}("Host" => host)
+    sort!(headers; by = name -> lowercase(name))
+    canonical_header_names = join(map(name -> lowercase(name), headers |> keys |> collect), ";")
+
+    query = OrderedDict{String, String}("X-Amz-Expires" => string(seconds),
+                                        "X-Amz-Algorithm" => scheme * "-" * algorithm,
+                                        "X-Amz-Credential" => aws[:creds].access_key_id * "/" * scope,
+                                        "X-Amz-Date" => datetime_stamp,
+                                        "X-Amz-Security-Token" => aws[:creds].token,
+                                        "X-Amz-SignedHeaders" => canonical_header_names)
+
+    if !isempty(aws[:creds].token)
+        query["X-Amz-Security-Token"] = aws[:creds].token
+    end
+
+    sort!(query; by = name -> lowercase(name))
+
+    canonical_headers = join(map(header -> lowercase(header.first) * ":" * lowercase(header.second) * "\n", collect(headers)))
+
+    canonical_request = verb * "\n" *
+                        path * "\n" *
+                        HTTP.escapeuri(query) * "\n" *
+                        canonical_headers * "\n" *
+                        canonical_header_names * "\n" *
+                        "UNSIGNED-PAYLOAD"
+
+    string_to_sign = scheme * "-" * algorithm * "\n" *
+                     datetime_stamp * "\n" *
+                     scope * "\n" *
+                     bytes2hex(digest(MD_SHA256, canonical_request))
+
+    key_secret = scheme * aws[:creds].secret_key
+    key_date = digest(MD_SHA256, date_stamp, key_secret)
+    key_region = digest(MD_SHA256, aws[:region], key_date)
+    key_service = digest(MD_SHA256, service, key_region)
+    key_signing = digest(MD_SHA256, terminator, key_service)
+    signature = digest(MD_SHA256, string_to_sign, key_signing)
+
+    query["X-Amz-Signature"] = bytes2hex(signature)
+
+    return string(protocol, "://", host, path, "?", HTTP.escapeuri(query))
+end
+
 
 """
     s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
@@ -806,8 +870,12 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
 
     if signature_version == "v2"
         _s3_sign_url_v2(aws, bucket, path, seconds;
-                     verb = verb, content_type = content_type,
-                     protocol = protocol)
+                        verb = verb, content_type = content_type,
+                        protocol = protocol)
+    elseif signature_version == "v4"
+        _s3_sign_url_v4(aws, bucket, path, seconds;
+                        verb = verb, content_type = content_type,
+                        protocol = protocol)
     else
         throw(ArgumentError("Unknown signature version $signature_version"))
     end
