@@ -844,13 +844,16 @@ end
 
 """
     s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
-                [verb="GET"], [content_type="application/octet-stream"], [signature_version="v2"])
+                [verb="GET"], [content_type="application/octet-stream"], [signature_version="v4"])
 
 Create a
 [pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
 
 To create an upload URL use `verb="PUT"` and set `content_type` to match
 the type used in the `Content-Type` header of the PUT request.
+
+For compatibility, the signature version 2 signing process can be used by setting `signature_version="v2"`
+but it is [recommended](https://docs.aws.amazon.com/general/latest/gr/signature-version-2.html) that the default version 4 is used.
 
 ```
 url = s3_sign_url("my_bucket", "my_file.txt"; verb="PUT")
@@ -866,7 +869,7 @@ Requests.put(URI(url), "Hello!";
 """
 function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
                      verb="GET", content_type="application/octet-stream",
-                     protocol="http", signature_version="v2")
+                     protocol="http", signature_version="v4")
 
     if signature_version == "v2"
         _s3_sign_url_v2(aws, bucket, path, seconds;
