@@ -23,6 +23,7 @@ export S3Path, s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_cop
        s3_get_tags, s3_put_tags, s3_delete_tags
 
 using AWSCore
+using DataStructures
 using FilePathsBase
 using FilePathsBase: /, join
 using HTTP
@@ -744,35 +745,12 @@ function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
     s3_complete_multipart_upload(aws, upload, tags)
 end
 
-
 using MbedTLS
 
-
-"""
-    s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
-                [verb="GET"], [content_type="application/octet-stream"])
-
-Create a
-[pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
-
-To create an upload URL use `verb="PUT"` and set `content_type` to match
-the type used in the `Content-Type` header of the PUT request.
-
-```
-url = s3_sign_url("my_bucket", "my_file.txt"; verb="PUT")
-Requests.put(URI(url), "Hello!")
-```
-```
-url = s3_sign_url("my_bucket", "my_file.txt";
-                  verb="PUT", content_type="text/plain")
-
-Requests.put(URI(url), "Hello!";
-             headers=Dict("Content-Type" => "text/plain"))
-```
-"""
-function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
-                     verb="GET", content_type="application/octet-stream",
-                     protocol="http")
+function _s3_sign_url_v2(
+    aws::AWSConfig, bucket, path, seconds=3600;
+    verb="GET", content_type="application/octet-stream", protocol="http",
+)
 
     path = HTTP.escapepath(path)
 
@@ -798,6 +776,127 @@ function s3_sign_url(aws::AWSConfig, bucket, path, seconds=3600;
     endpoint=string(protocol, "://",
                     bucket, ".s3.", aws[:region], ".amazonaws.com")
     return "$endpoint/$path?$(HTTP.escapeuri(query))"
+end
+
+
+function _s3_sign_url_v4(
+    aws::AWSConfig, bucket, path, seconds=3600;
+    verb="GET", content_type="application/octet-stream", protocol="http",
+)
+
+    path = HTTP.escapepath("/$bucket/$path")
+
+    now_datetime = now(Dates.UTC)
+    datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSSZ")
+    date_stamp = Dates.format(now_datetime, "YYYYmmdd")
+
+    service = "s3"
+    scheme = "AWS4"
+    algorithm = "HMAC-SHA256"
+    terminator = "aws4_request"
+
+    scope = "$date_stamp/$(aws[:region])/$service/$terminator"
+    host = if aws[:region] == "us-east-1"
+        "s3.amazonaws.com"
+    else
+        "s3-$(aws[:region]).amazonaws.com"
+    end
+
+    headers = OrderedDict{String, String}("Host" => host)
+    sort!(headers; by = name -> lowercase(name))
+    canonical_header_names = join(map(name -> lowercase(name), headers |> keys |> collect), ";")
+
+    query = OrderedDict{String, String}(
+        "X-Amz-Expires" => string(seconds),
+        "X-Amz-Algorithm" => "$scheme-$algorithm",
+        "X-Amz-Credential" => "$(aws[:creds].access_key_id)/$scope",
+        "X-Amz-Date" => datetime_stamp,
+        "X-Amz-Security-Token" => aws[:creds].token,
+        "X-Amz-SignedHeaders" => canonical_header_names
+    )
+
+    if !isempty(aws[:creds].token)
+        query["X-Amz-Security-Token"] = aws[:creds].token
+    end
+
+    sort!(query; by = name -> lowercase(name))
+
+    canonical_headers = join(map(header -> "$(lowercase(header.first)):$(lowercase(header.second))\n", collect(headers)))
+
+    canonical_request = string(
+        "$verb\n",
+        "$path\n",
+        "$(HTTP.escapeuri(query))\n",
+        "$canonical_headers\n",
+        "$canonical_header_names\n",
+        "UNSIGNED-PAYLOAD"
+    )
+
+    string_to_sign = string(
+        "$scheme-$algorithm\n",
+        "$datetime_stamp\n",
+        "$scope\n",
+        digest(MD_SHA256, canonical_request) |> bytes2hex
+    )
+
+    key_secret = string(scheme, aws[:creds].secret_key)
+    key_date = digest(MD_SHA256, date_stamp, key_secret)
+    key_region = digest(MD_SHA256, aws[:region], key_date)
+    key_service = digest(MD_SHA256, service, key_region)
+    key_signing = digest(MD_SHA256, terminator, key_service)
+    signature = digest(MD_SHA256, string_to_sign, key_signing)
+
+    query["X-Amz-Signature"] = signature |> bytes2hex
+
+    return string(protocol, "://", host, path, "?", HTTP.escapeuri(query))
+end
+
+
+"""
+    s3_sign_url([::AWSConfig], bucket, path, [seconds=3600];
+                [verb="GET"], [content_type="application/octet-stream"],
+                [protocol="http"], [signature_version="v4"])
+
+Create a
+[pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
+
+To create an upload URL use `verb="PUT"` and set `content_type` to match
+the type used in the `Content-Type` header of the PUT request.
+
+For compatibility, the signature version 2 signing process can be used by setting
+`signature_version="v2"` but it is [recommended](https://docs.aws.amazon.com/general/latest/gr/signature-version-2.html) that the default version 4 is used.
+
+```
+url = s3_sign_url("my_bucket", "my_file.txt"; verb="PUT")
+Requests.put(URI(url), "Hello!")
+```
+```
+url = s3_sign_url("my_bucket", "my_file.txt";
+                  verb="PUT", content_type="text/plain")
+
+Requests.put(URI(url), "Hello!";
+             headers=Dict("Content-Type" => "text/plain"))
+```
+"""
+function s3_sign_url(
+    aws::AWSConfig, bucket, path, seconds=3600;
+    verb="GET", content_type="application/octet-stream", protocol="http",
+    signature_version="v4",
+)
+
+    if signature_version == "v2"
+        _s3_sign_url_v2(
+            aws, bucket, path, seconds;
+            verb=verb, content_type=content_type, protocol=protocol,
+        )
+    elseif signature_version == "v4"
+        _s3_sign_url_v4(
+            aws, bucket, path, seconds;
+            verb=verb, content_type=content_type, protocol=protocol,
+        )
+    else
+        throw(ArgumentError("Unknown signature version $signature_version"))
+    end
 end
 
 s3_sign_url(a...;b...) = s3_sign_url(default_aws_config(), a...;b...)
