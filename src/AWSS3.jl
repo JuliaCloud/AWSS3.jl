@@ -497,46 +497,58 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", 
     return Channel() do chnl
         more = true
         num_objects = 0
-        marker = ""
+        next_token = ""
 
         while more
             q = Dict{String, String}()
+            q["list-type"] = "2"
+            
             if path_prefix != ""
                 q["prefix"] = path_prefix
             end
             if delimiter != ""
                 q["delimiter"] = delimiter
             end
-            if marker != ""
-                q["marker"] = marker
-            end
             if max_items !== nothing
-                # Note: AWS seems to only return up to 1000 items
+                # Note: AWS only returns up to 1000 items
                 q["max-keys"] = string(max_items - num_objects)
+            end
+
+            if next_token != ""
+                q["continuation-token"] = next_token
             end
 
             @repeat 4 try
                 # Request objects
                 r = s3(aws, "GET", bucket; query = q)
-
-                # Add each object from the response and update our object count / marker
+                
+                # Add each object from the response and update our object count
                 if haskey(r, "Contents")
                     l = isa(r["Contents"], Vector) ? r["Contents"] : [r["Contents"]]
                     for object in l
                         put!(chnl, xml_dict(object))
                         num_objects += 1
-                        marker = object["Key"]
                     end
-                # It's possible that the response doesn't have "Contents" and just has a prefix,
-                # in which case we should just save the next marker and iterate.
-                elseif haskey(r, "Prefix")
-                    put!(chnl, Dict("Key" => r["Prefix"]))
-                    num_objects +=1
-                    marker = haskey(r, "NextMarker") ? r["NextMarker"] : r["Prefix"]
+                end
+
+                # It's possible that the response has a "CommonPrefixes",
+                # in which case we add each prefix from the response and update our count.
+                if haskey(r, "CommonPrefixes")
+                    l = isa(r["CommonPrefixes"], Vector) ? r["CommonPrefixes"] : [r["CommonPrefixes"]]
+                    for prefix in l
+                        put!(chnl, xml_dict(prefix))
+                        num_objects +=1
+                    end
                 end
 
                 # Continue looping if the results were truncated and we haven't exceeded out max_items (if specified)
-                more = r["IsTruncated"] == "true" && (max_items === nothing || num_objects < max_items)
+                if r["IsTruncated"] == "true" && (max_items === nothing || num_objects < max_items)
+                    more = true
+                    next_token = get(r, "NextContinuationToken", "")
+                else
+                    more = false
+                end
+                
             catch e
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
             end
@@ -552,9 +564,11 @@ s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
 
 Like [`s3_list_objects`](@ref) but returns object keys as `Vector{String}`.
 """
-function s3_list_keys(aws::AWSConfig, bucket, path_prefix="")
+function s3_list_keys(aws::AWSConfig, bucket, path_prefix=""; a...)
 
-    (o["Key"] for o in s3_list_objects(aws::AWSConfig, bucket, path_prefix))
+    [coalesce(get(x, "Key", missing), get(x, "Prefix", missing))
+     for x in s3_list_objects(aws, bucket, path_prefix; a...)]
+
 end
 
 s3_list_keys(a...) = s3_list_keys(default_aws_config(), a...)
