@@ -174,7 +174,12 @@ function Base.isdir(fp::S3Path)
     end
 
     objects = s3_list_objects(fp.config, fp.bucket, key; max_items=1)
-    return !isempty(objects)
+
+    # `objects` is a `Channel`, so we call iterate to see if there are any objects that
+    # match our directory key.
+    # NOTE: `iterate` should handle waiting on a value to become available or return `nothing`
+    # if the channel is closed without inserting anything.
+    return iterate(objects) !== nothing
 end
 
 function Base.stat(fp::S3Path)
