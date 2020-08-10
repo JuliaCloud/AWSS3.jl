@@ -5,6 +5,7 @@ os:
 julia:
   - 1.0  # LTS
   - 1    # Latest release
+  - nightly
 notifications:
   email: false
 env:
