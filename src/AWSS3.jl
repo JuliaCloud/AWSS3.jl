@@ -62,16 +62,17 @@ function s3(aws::AWSConfig,
             content="",
             return_stream=false,
             return_raw=false,
-            return_headers=false)
+            return_headers=false,
+            proxy=nothing)
 
     # Build query string...
     if version != ""
         query["versionId"] = version
     end
-    query_str = HTTP.escapeuri(query)
 
-    resource = string("/", HTTP.escapepath(path),
-                      query_str == "" ? "" : "?$query_str")
+    query_str = HTTP.escapeuri(query)
+    resource = string("/", HTTP.escapepath(path), query_str == "" ? "" : "?$query_str")
+    http_options = @SymDict(proxy)
 
     # Build Request...
     request = @SymDict(service = "s3",
@@ -81,6 +82,7 @@ function s3(aws::AWSConfig,
                        content,
                        return_stream,
                        return_raw,
+                       http_options,
                        aws...)
 
     @repeat 3 try
@@ -164,16 +166,9 @@ from `path` in `bucket`.
 - `raw=false`:  return response as `Vector{UInt8}`
                 (by default return type depends on `Content-Type` header).
 """
-function s3_get(aws::AWSConfig, bucket, path; version="",
-                                              retry=true,
-                                              raw=false)
-
+function s3_get(aws::AWSConfig, bucket, path; version="", retry=true, raw=false, kwargs...)
     @repeat 4 try
-
-        return s3(aws, "GET", bucket; path = path,
-                                      version = version,
-                                      return_raw = raw)
-
+        return s3(aws, "GET", bucket; path=path, version=version, return_raw=raw, kwargs...)
     catch e
         @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"] end
     end
@@ -183,11 +178,11 @@ s3_get(a...; b...) = s3_get(default_aws_config(), a...; b...)
 
 
 """
-    s3_get_file([::AWSConfig], bucket, path, filename; [version=])
+    s3_get_file([::AWSConfig], bucket, path, filename; [version=], kwargs...)
 
 Like `s3_get` but streams result directly to `filename`.
 """
-function s3_get_file(aws::AWSConfig, bucket, path, filename; version="")
+function s3_get_file(aws::AWSConfig, bucket, path, filename; version="", kwargs...)
 
     stream = s3(aws, "GET", bucket; path = path,
                                     version = version,
@@ -203,15 +198,12 @@ end
 s3_get_file(a...; b...) = s3_get_file(default_aws_config(), a...; b...)
 
 
-function s3_get_file(aws::AWSConfig, buckets::Vector, path, filename; version="")
-
+function s3_get_file(aws::AWSConfig, buckets::Vector, path, filename; version="", kwargs...)
     i = start(buckets)
 
     @repeat length(buckets) try
-
         bucket, i = next(buckets, i)
-        s3_get_file(aws, bucket, path, filename; version=version);
-
+        s3_get_file(aws, bucket, path, filename; version=version, kwargs...)
     catch e
         @retry if ecode(e) in ["NoSuchKey", "AccessDenied"] end
     end
@@ -219,38 +211,34 @@ end
 
 
 """
-   s3_get_meta([::AWSConfig], bucket, path; [version=])
+   s3_get_meta([::AWSConfig], bucket, path; [version=], kwargs...)
 
 [HEAD Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html)
 
 Retrieves metadata from an object without returning the object itself.
 """
-function s3_get_meta(aws::AWSConfig, bucket, path; version="")
-
-    s3(aws, "HEAD", bucket; path = path, version = version)
+function s3_get_meta(aws::AWSConfig, bucket, path; version="", kwargs...)
+    s3(aws, "HEAD", bucket; path=path, version=version, kwargs...)
 end
 
 s3_get_meta(a...; b...) = s3_get_meta(default_aws_config(), a...; b...)
 
 
 """
-    s3_exists([::AWSConfig], bucket, path [version=])
+    s3_exists([::AWSConfig], bucket, path [version=], kwargs...)
 
 Is there an object in `bucket` at `path`?
 """
-function s3_exists(aws::AWSConfig, bucket, path; version="")
-
+function s3_exists(aws::AWSConfig, bucket, path; version="", kwargs...)
     @repeat 2 try
-
-        s3_get_meta(aws, bucket, path; version = version)
+        s3_get_meta(aws, bucket, path; version=version, kwargs...)
 
         return true
 
     catch e
-
-        @delay_retry if ecode(e) in ["NoSuchBucket", "404",
-                                   "NoSuchKey", "AccessDenied"]
+        @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
         end
+
         @ignore if ecode(e) in ["404", "NoSuchKey", "AccessDenied"]
             return false
         end
@@ -261,20 +249,19 @@ s3_exists(a...; b...) = s3_exists(default_aws_config(), a...; b...)
 
 
 """
-    s3_delete([::AWSConfig], bucket, path; [version=]
+    s3_delete([::AWSConfig], bucket, path; [version=], kwargs...)
 
 [DELETE Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
 """
-function s3_delete(aws::AWSConfig, bucket, path; version="")
-
-    s3(aws, "DELETE", bucket; path = path, version = version)
+function s3_delete(aws::AWSConfig, bucket, path; version="", kwargs...)
+    s3(aws, "DELETE", bucket; path=path, version=version, kwargs...)
 end
 
 s3_delete(a...; b...) = s3_delete(default_aws_config(), a...; b...)
 
 
 """
-    s3_copy([::AWSConfig], bucket, path; to_bucket=bucket, to_path=path)
+    s3_copy([::AWSConfig], bucket, path; to_bucket=bucket, to_path=path, kwargs...)
 
 [PUT Object - Copy](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html)
 
@@ -283,8 +270,7 @@ s3_delete(a...; b...) = s3_delete(default_aws_config(), a...; b...)
 """
 function s3_copy(aws::AWSConfig, bucket, path;
                  acl::AbstractString="",
-                 to_bucket=bucket, to_path=path, metadata::SSDict = SSDict())
-
+                 to_bucket=bucket, to_path=path, metadata::SSDict = SSDict(), kwargs...)
     headers = SSDict("x-amz-copy-source" => "/$bucket/$path",
                      "x-amz-metadata-directive" => "REPLACE",
                      Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
@@ -293,39 +279,35 @@ function s3_copy(aws::AWSConfig, bucket, path;
         headers["x-amz-acl"] = acl
     end
 
-    s3(aws, "PUT", to_bucket; path = to_path, headers = headers)
+    s3(aws, "PUT", to_bucket; path=to_path, headers=headers, kwargs...)
 end
 
 s3_copy(a...; b...) = s3_copy(default_aws_config(), a...; b...)
 
 
 """
-    s3_create_bucket([:AWSConfig], bucket)
+    s3_create_bucket([:AWSConfig], bucket; kwargs...)
 
 [PUT Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html)
 """
-function s3_create_bucket(aws::AWSConfig, bucket)
+function s3_create_bucket(aws::AWSConfig, bucket; kwargs...)
     if AWSCore.debug_level > 0
         println("""Creating Bucket "$bucket"...""")
     end
 
     @protected try
-
         if aws[:region] == "us-east-1"
-
-            s3(aws, "PUT", bucket)
-
+            s3(aws, "PUT", bucket; kwargs...)
         else
-
             s3(aws, "PUT", bucket;
-                headers = SSDict("Content-Type" => "text/plain"),
-                content = """
+                headers=SSDict("Content-Type" => "text/plain"),
+                content="""
                 <CreateBucketConfiguration
                              xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
                     <LocationConstraint>$(aws[:region])</LocationConstraint>
-                </CreateBucketConfiguration>""")
+                </CreateBucketConfiguration>""",
+                kwargs...)
         end
-
     catch e
         @ignore if ecode(e) == "BucketAlreadyOwnedByYou" end
     end
@@ -335,7 +317,7 @@ s3_create_bucket(a) = s3_create_bucket(default_aws_config(), a)
 
 
 """
-    s3_put_cors([::AWSConfig], bucket, cors_config)
+    s3_put_cors([::AWSConfig], bucket, cors_config; kwargs...)
 
 [PUT Bucket cors](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html)
 
@@ -355,33 +337,33 @@ s3_put_cors("my_bucket", \"\"\"
 \"\"\"
 ```
 """
-function s3_put_cors(aws::AWSConfig, bucket, cors_config)
-    s3(aws, "PUT", bucket, path = "?cors", content = cors_config)
+function s3_put_cors(aws::AWSConfig, bucket, cors_config; kwargs...)
+    s3(aws, "PUT", bucket, path="?cors", content=cors_config; kwargs...)
 end
 
-s3_put_cors(a...) = s3_put_cors(default_aws_config(), a...)
+s3_put_cors(a...; b...) = s3_put_cors(default_aws_config(), a...; b...)
 
 
 """
-    s3_enable_versioning([::AWSConfig], bucket)
+    s3_enable_versioning([::AWSConfig], bucket; kwargs...)
 
 [Enable versioning for `bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html).
 """
-function s3_enable_versioning(aws::AWSConfig, bucket)
-
+function s3_enable_versioning(aws::AWSConfig, bucket; kwargs...)
     s3(aws, "PUT", bucket;
-       query = SSDict("versioning" => ""),
-       content = """
+       query=SSDict("versioning" => ""),
+       content="""
        <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
            <Status>Enabled</Status>
-       </VersioningConfiguration>""")
+       </VersioningConfiguration>""",
+       kwargs...)
 end
 
-s3_enable_versioning(a) = s3_enable_versioning(default_aws_config(), a)
+s3_enable_versioning(a; b...) = s3_enable_versioning(default_aws_config(), a; b...)
 
 
 """
-    s3_put_tags([::AWSConfig], bucket, [path,] tags::Dict)
+    s3_put_tags([::AWSConfig], bucket, [path,] tags::Dict; kwargs...)
 
 PUT `tags` on
 [`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTtagging.html)
@@ -390,12 +372,12 @@ or
 
 See also `tags=` option on [`s3_put`](@ref).
 """
-function s3_put_tags(aws::AWSConfig, bucket, tags::SSDict)
-    s3_put_tags(aws, bucket, "", tags)
+function s3_put_tags(aws::AWSConfig, bucket, tags::SSDict; kwargs...)
+    s3_put_tags(aws, bucket, "", tags; kwargs...)
 end
 
 
-function s3_put_tags(aws::AWSConfig, bucket, path, tags::SSDict)
+function s3_put_tags(aws::AWSConfig, bucket, path, tags::SSDict; kwargs...)
 
     tags = Dict("Tagging" =>
            Dict("TagSet" =>
@@ -403,27 +385,26 @@ function s3_put_tags(aws::AWSConfig, bucket, path, tags::SSDict)
            [Dict("Key" => k, "Value" => v) for (k,v) in tags])))
 
     s3(aws, "PUT", bucket;
-       path = path,
-       query = SSDict("tagging" => ""),
-       content = XMLDict.node_xml(tags))
+       path=path,
+       query=SSDict("tagging" => ""),
+       content=XMLDict.node_xml(tags),
+       kwargs...)
 end
 
 s3_put_tags(a...) = s3_put_tags(default_aws_config(), a...)
 
 
 """
-    s3_get_tags([::AWSConfig], bucket, [path])
+    s3_get_tags([::AWSConfig], bucket, [path]; kwargs...)
 
 Get tags from
 [`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETtagging.html)
 or
 [object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html).
 """
-function s3_get_tags(aws::AWSConfig, bucket, path="")
-
+function s3_get_tags(aws::AWSConfig, bucket, path=""; kwargs...)
     @protected try
-
-        tags = s3(aws, "GET", bucket; path = path, query = SSDict("tagging" => ""))
+        tags = s3(aws, "GET", bucket; path=path, query=SSDict("tagging" => ""), kwargs...)
         if isempty(tags["TagSet"])
             return SSDict()
         end
@@ -431,7 +412,6 @@ function s3_get_tags(aws::AWSConfig, bucket, path="")
         tags = isa(tags["Tag"], Vector) ? tags["Tag"] : [tags["Tag"]]
 
         return SSDict(x["Key"] => x["Value"] for x in tags)
-
     catch e
         @ignore if ecode(e) == "NoSuchTagSet"
             return SSDict()
@@ -439,7 +419,7 @@ function s3_get_tags(aws::AWSConfig, bucket, path="")
     end
 end
 
-s3_get_tags(a...) = s3_get_tags(default_aws_config(), a...)
+s3_get_tags(a...; b...) = s3_get_tags(default_aws_config(), a...; b...)
 
 
 """
@@ -450,42 +430,42 @@ Delete tags from
 or
 [object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html).
 """
-function s3_delete_tags(aws::AWSConfig, bucket, path="")
-    s3(aws, "DELETE", bucket; path = path, query = SSDict("tagging" => ""))
+function s3_delete_tags(aws::AWSConfig, bucket, path=""; kwargs...)
+    s3(aws, "DELETE", bucket; path=path, query=SSDict("tagging" => ""), kwargs...)
 end
 
-s3_delete_tags(a...) = s3_delete_tags(default_aws_config(), a...)
+s3_delete_tags(a...; b...) = s3_delete_tags(default_aws_config(), a...; b...)
 
 
 """
-    s3_delete_bucket([::AWSConfig], "bucket")
+    s3_delete_bucket([::AWSConfig], "bucket"; kwargs...)
 
 [DELETE Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html).
 """
-s3_delete_bucket(aws::AWSConfig, bucket) = s3(aws, "DELETE", bucket)
-
-s3_delete_bucket(a) = s3_delete_bucket(default_aws_config(), a)
+s3_delete_bucket(aws::AWSConfig, bucket; kwargs...) = s3(aws, "DELETE", bucket; kwargs...)
+s3_delete_bucket(a; b...) = s3_delete_bucket(default_aws_config(), a; b...)
 
 
 """
-    s3_list_buckets([::AWSConfig])
+    s3_list_buckets([::AWSConfig]; kwargs...)
 
 [List of all buckets owned by the sender of the request](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html).
 """
-function s3_list_buckets(aws::AWSConfig = default_aws_config())
-
-    r = s3(aws,"GET", headers=SSDict("Content-Type" => "application/json"))
+function s3_list_buckets(aws::AWSConfig=default_aws_config(); kwargs...)
+    r = s3(aws,"GET", headers=SSDict("Content-Type" => "application/json"); kwargs...)
     buckets = r["Buckets"]
+
     if isempty(buckets)
         return []
     end
+
     buckets = buckets["Bucket"]
     [b["Name"] for b in (isa(buckets, Vector) ? buckets : [buckets])]
 end
 
 
 """
-    s3_list_objects([::AWSConfig], bucket, [path_prefix]; delimiter="/", max_items=1000)
+    s3_list_objects([::AWSConfig], bucket, [path_prefix]; delimiter="/", max_items=1000, kwargs...)
 
 [List Objects](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html)
 in `bucket` with optional `path_prefix`.
@@ -493,7 +473,7 @@ in `bucket` with optional `path_prefix`.
 Returns an iterator of `Dict`s with keys `Key`, `LastModified`, `ETag`, `Size`,
 `Owner`, `StorageClass`.
 """
-function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", max_items=nothing)
+function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", max_items=nothing, kwargs...)
     return Channel() do chnl
         more = true
         num_objects = 0
@@ -517,7 +497,7 @@ function s3_list_objects(aws::AWSConfig, bucket, path_prefix=""; delimiter="/", 
 
             @repeat 4 try
                 # Request objects
-                r = s3(aws, "GET", bucket; query = q)
+                r = s3(aws, "GET", bucket; query=q, kwargs...)
 
                 # Add each object from the response and update our object count / marker
                 if haskey(r, "Contents")
@@ -548,38 +528,35 @@ s3_list_objects(a...) = s3_list_objects(default_aws_config(), a...)
 
 
 """
-    s3_list_keys([::AWSConfig], bucket, [path_prefix])
+    s3_list_keys([::AWSConfig], bucket, [path_prefix]; kwargs...)
 
 Like [`s3_list_objects`](@ref) but returns object keys as `Vector{String}`.
 """
-function s3_list_keys(aws::AWSConfig, bucket, path_prefix="")
-
-    (o["Key"] for o in s3_list_objects(aws::AWSConfig, bucket, path_prefix))
+function s3_list_keys(aws::AWSConfig, bucket, path_prefix=""; kwargs...)
+    (o["Key"] for o in s3_list_objects(aws::AWSConfig, bucket, path_prefix; kwargs...))
 end
 
-s3_list_keys(a...) = s3_list_keys(default_aws_config(), a...)
+s3_list_keys(a...; b...) = s3_list_keys(default_aws_config(), a...; b...)
 
 
 
 """
-    s3_list_versions([::AWSConfig], bucket, [path_prefix])
+    s3_list_versions([::AWSConfig], bucket, [path_prefix]; kwargs...)
 
 [List object versions](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html) in `bucket` with optional `path_prefix`.
 """
-function s3_list_versions(aws::AWSConfig, bucket, path_prefix="")
-
+function s3_list_versions(aws::AWSConfig, bucket, path_prefix=""; kwargs...)
     more = true
     versions = []
     marker = ""
 
     while more
-
         query = SSDict("versions" => "", "prefix" => path_prefix)
         if marker != ""
             query["key-marker"] = marker
         end
 
-        r = s3(aws, "GET", bucket; query = query)
+        r = s3(aws, "GET", bucket; query=query, kwargs...)
         more = r["IsTruncated"] == "true"
         for e in eachelement(EzXML.root(r.x))
             if nodename(e) in ["Version", "DeleteMarker"]
@@ -590,34 +567,34 @@ function s3_list_versions(aws::AWSConfig, bucket, path_prefix="")
             end
         end
     end
+
     return versions
 end
 
-s3_list_versions(a...) = s3_list_versions(default_aws_config(), a...)
+s3_list_versions(a...; b...) = s3_list_versions(default_aws_config(), a...; b...)
 
 
 
 """
-    s3_purge_versions([::AWSConfig], bucket, [path [, pattern]])
+    s3_purge_versions([::AWSConfig], bucket, [path [, pattern]]; kwargs...)
 
 [DELETE](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
 all object versions except for the latest version.
 """
-function s3_purge_versions(aws::AWSConfig, bucket, path="", pattern="")
-
-    for v in s3_list_versions(aws, bucket, path)
+function s3_purge_versions(aws::AWSConfig, bucket, path="", pattern=""; kwargs...)
+    for v in s3_list_versions(aws, bucket, path; kwargs...)
         if pattern == "" || occursin(pattern, v["Key"])
             if v["IsLatest"] != "true"
-                s3_delete(aws, bucket, v["Key"]; version = v["VersionId"])
+                s3_delete(aws, bucket, v["Key"]; version=v["VersionId"], kwargs...)
             end
         end
     end
 end
 
-s3_purge_versions(a...) = s3_purge_versions(default_aws_config(), a...)
+s3_purge_versions(a...; b...) = s3_purge_versions(default_aws_config(), a...; b...)
 
 """
-    s3_put([::AWSConfig], bucket, path, data; <keyword arguments>
+    s3_put([::AWSConfig], bucket, path, data; <keyword arguments>)
 
 [PUT Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html)
 `data` at `path` in `bucket`.
@@ -636,7 +613,8 @@ function s3_put(aws::AWSConfig,
                 data_type="", encoding="";
                 acl::AbstractString="",
                 metadata::SSDict = SSDict(),
-                tags::SSDict = SSDict())
+                tags::SSDict = SSDict(),
+                kwargs...)
 
     if data_type == ""
         data_type = "application/octet-stream"
@@ -659,8 +637,7 @@ function s3_put(aws::AWSConfig,
         end
     end
 
-    headers = SSDict("Content-Type" => data_type,
-                     Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
+    headers = SSDict("Content-Type" => data_type, Pair["x-amz-meta-$k" => v for (k, v) in metadata]...)
 
     if !isempty(tags)
         headers["x-amz-tagging"] = HTTP.escapeuri(tags)
@@ -675,37 +652,33 @@ function s3_put(aws::AWSConfig,
     end
 
     s3(aws, "PUT", bucket;
-       path = path,
-       headers = headers,
-       content = data)
+       path=path,
+       headers=headers,
+       content=data,
+       kwargs...)
 end
 
 s3_put(a...; b...) = s3_put(default_aws_config(), a...; b...)
 
 
-function s3_begin_multipart_upload(aws::AWSConfig,
-                                   bucket, path,
-                                   data_type = "application/octet-stream")
-
-    s3(aws, "POST", bucket; path=path, query = SSDict("uploads"=>""))
+function s3_begin_multipart_upload(aws::AWSConfig, bucket, path, data_type="application/octet-stream"; kwargs...)
+    s3(aws, "POST", bucket; path=path, query=SSDict("uploads"=>""), kwargs...)
 end
 
 
-function s3_upload_part(aws::AWSConfig, upload, part_number, part_data)
-
+function s3_upload_part(aws::AWSConfig, upload, part_number, part_data, kwargs...)
     _, headers = s3(aws, "PUT", upload["Bucket"];
                   path = upload["Key"],
                   query = Dict("partNumber" => part_number,
                                "uploadId" => upload["UploadId"]),
                   content = part_data,
-                  return_headers = true)
-
+                  return_headers = true,
+                  kwargs...)
     return Dict(headers)["ETag"]
 end
 
 
-function s3_complete_multipart_upload(aws::AWSConfig,
-                                      upload, parts::Vector{String})
+function s3_complete_multipart_upload(aws::AWSConfig, upload, parts::Vector{String}; kwargs...)
     doc = XMLDocument()
     rootnode = setroot!(doc, ElementNode("CompleteMultipartUpload"))
 
@@ -718,19 +691,17 @@ function s3_complete_multipart_upload(aws::AWSConfig,
     response = s3(aws, "POST", upload["Bucket"];
                   path = upload["Key"],
                   query = Dict("uploadId" => upload["UploadId"]),
-                  content = string(doc))
+                  content = string(doc),
+                  kwargs...)
 
     return response
 end
 
 
-function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
-                             part_size_mb = 50)
-
+function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream, part_size_mb=50; kwargs...)
     part_size = part_size_mb * 1024 * 1024
 
     upload = s3_begin_multipart_upload(aws, bucket, path)
-
     tags = Vector{String}()
     buf = Vector{UInt8}(undef, part_size)
 
@@ -739,10 +710,11 @@ function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream,
         if n < part_size
             resize!(buf, n)
         end
-        push!(tags, s3_upload_part(aws, upload, (i += 1), buf))
+
+        push!(tags, s3_upload_part(aws, upload, (i += 1), buf; kwargs...))
     end
 
-    s3_complete_multipart_upload(aws, upload, tags)
+    s3_complete_multipart_upload(aws, upload, tags; kwargs...)
 end
 
 using MbedTLS
