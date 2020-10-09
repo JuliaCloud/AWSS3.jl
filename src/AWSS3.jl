@@ -186,7 +186,8 @@ function s3_get_file(aws::AWSConfig, bucket, path, filename; version="", kwargs.
 
     stream = s3(aws, "GET", bucket; path = path,
                                     version = version,
-                                    return_stream = true)
+                                    return_stream = true,
+                                    kwargs...)
 
     open(filename, "w") do file
         while !eof(stream)
