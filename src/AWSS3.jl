@@ -62,8 +62,7 @@ function s3(aws::AWSConfig,
             content="",
             return_stream=false,
             return_raw=false,
-            return_headers=false,
-            proxy=nothing)
+            return_headers=false)
 
     # Build query string...
     if version != ""
@@ -72,7 +71,6 @@ function s3(aws::AWSConfig,
 
     query_str = HTTP.escapeuri(query)
     resource = string("/", HTTP.escapepath(path), query_str == "" ? "" : "?$query_str")
-    http_options = @SymDict(proxy)
 
     # Build Request...
     request = @SymDict(service = "s3",
@@ -82,7 +80,6 @@ function s3(aws::AWSConfig,
                        content,
                        return_stream,
                        return_raw,
-                       http_options,
                        aws...)
 
     @repeat 3 try
