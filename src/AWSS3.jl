@@ -82,6 +82,7 @@ function s3(aws::AWSConfig,
                        content,
                        return_stream,
                        return_raw,
+                       http_options,
                        aws...)
 
     @repeat 3 try
