@@ -72,7 +72,7 @@ function s3(aws::AWSConfig,
 
     query_str = HTTP.escapeuri(query)
     resource = string("/", HTTP.escapepath(path), query_str == "" ? "" : "?$query_str")
-    http_options = @SymDict(proxy)
+    http_options = proxy === nothing ? Dict{Symbol,Any}() : @SymDict(proxy)
 
     # Build Request...
     request = @SymDict(service = "s3",
