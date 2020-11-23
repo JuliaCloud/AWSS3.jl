@@ -760,7 +760,7 @@ function _s3_sign_url_v4(
     path = HTTP.escapepath("/$bucket/$path")
 
     now_datetime = now(Dates.UTC)
-    datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSSZ")
+    datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSS\\Z")
     date_stamp = Dates.format(now_datetime, "YYYYmmdd")
 
     service = "s3"
