@@ -178,19 +178,11 @@ end
 end
 
 @testset "Empty and Delete Bucket" begin
-    for b in s3_list_buckets()
-        if occursin(r"^ocaws.jl.test", b)
-            @protected try
-                @sync for v in s3_list_versions(aws, b)
-                    @async s3_delete(aws, b, v["Key"]; version = v["VersionId"])
-                end
-                s3_delete_bucket(aws, b)
-            catch e
-                @ignore if isa(e, AWSCore.AWSException) && e.code == "NoSuchBucket" end
-            end
-        end
+    for v in s3_list_versions(aws, bucket_name)
+        s3_delete(aws, bucket_name, v["Key"]; version = v["VersionId"])
     end
 
+    s3_delete_bucket(aws, bucket_name)
     @test !in(bucket_name, s3_list_buckets(aws))
 end
 
