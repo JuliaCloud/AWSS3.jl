@@ -61,9 +61,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         uses: julia-actions/julia-runtest@latest
       - uses: ravsamhq/notify-slack-action@v1
-          if: always()
-          with:
-            status: ${{ job.status }}
-            notify_when: 'failure'
-          env:
-            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # required
+        if: always()
+        with:
+          status: ${{ job.status }}
+          notify_when: 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # required
