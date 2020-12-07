@@ -699,7 +699,7 @@ function s3_complete_multipart_upload(aws::AWSConfig, upload, parts::Vector{Stri
 end
 
 
-function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IOStream, part_size_mb=50; kwargs...)
+function s3_multipart_upload(aws::AWSConfig, bucket, path, io::IO, part_size_mb=50; kwargs...)
     part_size = part_size_mb * 1024 * 1024
 
     upload = s3_begin_multipart_upload(aws, bucket, path)
