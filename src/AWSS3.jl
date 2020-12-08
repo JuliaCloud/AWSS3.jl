@@ -53,6 +53,109 @@ s3_arn(resource) = "arn:aws:s3:::$resource"
 s3_arn(bucket, path) = s3_arn("$bucket/$path")
 
 
+# S3 REST API request.
+
+function s3(aws::AWSConfig,
+            verb,
+            bucket="";
+            headers=SSDict(),
+            path="",
+            query=SSDict(),
+            version="",
+            content="",
+            return_stream=false,
+            return_raw=false,
+            return_headers=false,
+            proxy=nothing)
+
+    # Build query string...
+    if version != ""
+        query["versionId"] = version
+    end
+
+    query_str = HTTP.escapeuri(query)
+    resource = string("/", HTTP.escapepath(path), query_str == "" ? "" : "?$query_str")
+    http_options = proxy === nothing ? Dict{Symbol,Any}() : @SymDict(proxy)
+
+    # Build Request...
+    request = @SymDict(service = "s3",
+                       verb,
+                       resource,
+                       headers,
+                       content,
+                       return_stream,
+                       return_raw,
+                       http_options,
+                       aws...)
+
+    @repeat 3 try
+
+        # Check bucket region cache...
+        if haskey(aws, :bucket_region) &&
+           haskey(aws[:bucket_region], bucket)
+            request[:region] = aws[:bucket_region][bucket]
+        end
+
+        # Build URL...
+        if haskey(aws, :endpoint)
+            if bucket == ""
+                url = string(aws[:endpoint], resource)
+            else
+                url = string(aws[:endpoint], "/", bucket, resource)
+            end
+        else
+            region = get(request, :region, "")
+            url = string(get(aws, :protocol, "https"), "://",
+                         bucket, bucket == "" ? "" : ".",
+                         "s3",
+                         region == "" ? "" : ".", region,
+                         ".amazonaws.com",
+                         resource)
+        end
+        request[:url] = url
+
+        if return_headers
+            response, headers = AWSCore.do_request(request; return_headers=return_headers)
+        else
+            response = AWSCore.do_request(request; return_headers=return_headers)
+        end
+
+        # Handle 301 Moved Permanently with missing Location header.
+        # https://github.com/samoconnor/AWSS3.jl/issues/25
+        if response isa XMLDict.XMLDictElement &&
+           get(response, "Code", "") == "PermanentRedirect" &&
+           haskey(response, "Endpoint")
+
+            if AWSCore.debug_level > 0
+                println("S3 endpoint redirect $bucket -> $(response["Endpoint"])")
+            end
+            request[:url] = string(get(aws, :protocol, "https"), "://",
+                                   response["Endpoint"], resource)
+            return AWSCore.do_request(request; return_headers=return_headers)
+        end
+
+        return (return_headers ? (response, headers) : response)
+
+    catch e
+
+        # Update bucket region cache if needed...
+        @retry if ecode(e) == "AuthorizationHeaderMalformed" &&
+                  haskey(e.info, "Region")
+
+            if AWSCore.debug_level > 0
+                println("S3 region redirect $bucket -> $(e.info["Region"])")
+            end
+            if !haskey(aws, :bucket_region)
+                aws[:bucket_region] = SSDict()
+            end
+            aws[:bucket_region][bucket] = e.info["Region"]
+        end
+    end
+
+    @assert false # Unreachable.
+end
+
+
 """
     s3_get([::AWSConfig], bucket, path; <keyword arguments>)
 
@@ -65,6 +168,11 @@ from `path` in `bucket`.
                 (common if object was recently created).
 - `raw=false`:  return response as `Vector{UInt8}`
                 (by default return type depends on `Content-Type` header).
+- `header::Dict{String,String}`: pass in an HTTP header to the request.
+
+For example, to get a `range` of bytes instead of the whole object, do:
+
+`s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))`
 """
 function s3_get(aws::AWSConfig, bucket, path; version="", retry=true, raw=false, kwargs...)
     @repeat 4 try
@@ -697,7 +805,7 @@ function _s3_sign_url_v4(
     path = HTTP.escapepath("/$bucket/$path")
 
     now_datetime = now(Dates.UTC)
-    datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSSZ")
+    datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSS\\Z")
     date_stamp = Dates.format(now_datetime, "YYYYmmdd")
 
     service = "s3"
