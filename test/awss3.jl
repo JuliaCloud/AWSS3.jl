@@ -1,5 +1,5 @@
-aws = AWSCore.default_aws_config()
-aws[:region] = "us-east-1"
+aws = AWS.global_aws_config()
+aws.region = "us-east-1"
 bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
 
 @testset "Create Bucket" begin
@@ -45,9 +45,6 @@ end
         for i in 1:2
             @async begin
                 @test s3_get(bucket_name, "key3") == b"data3.v3"
-                if AWSCore.debug_level > 0
-                    println("success ID: $i")
-                end
             end
         end
     end
@@ -194,5 +191,5 @@ end
 end
 
 @testset "Delete Non-Existant Bucket" begin
-    @test_throws AWSCore.AWSException s3_delete_bucket(aws, bucket_name)
+    @test_throws AWS.AWSException s3_delete_bucket(aws, bucket_name)
 end
