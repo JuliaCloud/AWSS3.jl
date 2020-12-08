@@ -165,6 +165,11 @@ from `path` in `bucket`.
                 (common if object was recently created).
 - `raw=false`:  return response as `Vector{UInt8}`
                 (by default return type depends on `Content-Type` header).
+- `header::Dict{String,String}`: pass in an HTTP header to the request.
+
+For example, to get a `range` of bytes instead of the whole object, do:
+
+`s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))`
 """
 function s3_get(aws::AWSConfig, bucket, path; version="", retry=true, raw=false, kwargs...)
     @repeat 4 try

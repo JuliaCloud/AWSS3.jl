@@ -60,6 +60,13 @@ end
     @test s3_get(aws, bucket_name, "file.xml")["Text"] == "Hello"
 end
 
+@testset "Get byte range" begin
+    teststr = "123456789"
+    s3_put(aws, bucket_name, "byte_range", teststr)
+    range = 3:6
+    @test String(s3_get(aws, bucket_name, "byte_range"; headers=Dict{String,String}("Range" => "bytes=$(first(range)-1)-$(last(range)-1)"))) == teststr[range]
+end
+
 @testset "Object Copy" begin
     s3_copy(bucket_name, "key1"; to_bucket=bucket_name, to_path="key1.copy")
     @test s3_get(aws, bucket_name, "key1.copy") == b"data1.v1"
