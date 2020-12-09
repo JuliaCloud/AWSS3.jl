@@ -181,7 +181,8 @@ end
 end
 
 @testset "Empty and Delete Bucket" begin
-    s3_nuke_bucket(bucket_name)
+    AWSS3.s3_nuke_bucket(aws, bucket_name)
+    @test !in(bucket_name, s3_list_buckets(aws))
 end
 
 @testset "Delete Non-Existant Bucket" begin

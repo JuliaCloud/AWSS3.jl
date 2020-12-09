@@ -315,4 +315,4 @@ end
     end
 end
 
-s3_nuke_bucket(bucket_name)
+AWSS3.s3_nuke_bucket(aws, bucket_name)
