@@ -10,6 +10,8 @@ using FilePathsBase: /, join
 using FilePathsBase.TestPaths
 using UUIDs: uuid4
 
+aws = AWSConfig()
+
 @testset "AWSS3.jl" begin
     include("s3path.jl")
     include("awss3.jl")

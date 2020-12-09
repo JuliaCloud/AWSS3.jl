@@ -314,3 +314,5 @@ end
         @test p"s3://foo/bar" / "baz/" == p"s3://foo/bar/baz/"
     end
 end
+
+AWSS3.s3_nuke_bucket(aws, bucket_name)

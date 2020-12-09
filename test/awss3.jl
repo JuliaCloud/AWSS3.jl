@@ -1,4 +1,3 @@
-aws = AWS.global_aws_config()
 aws.region = "us-east-1"
 bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
 
@@ -182,11 +181,7 @@ end
 end
 
 @testset "Empty and Delete Bucket" begin
-    for v in s3_list_versions(aws, bucket_name)
-        s3_delete(aws, bucket_name, v["Key"]; version = v["VersionId"])
-    end
-
-    s3_delete_bucket(aws, bucket_name)
+    AWSS3.s3_nuke_bucket(aws, bucket_name)
     @test !in(bucket_name, s3_list_buckets(aws))
 end
 
