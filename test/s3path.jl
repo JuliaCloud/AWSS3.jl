@@ -172,19 +172,10 @@ function test_s3_folders_and_files(ps::PathSet)
 end
 
 function test_large_write(ps::PathSet)
-    teststr = repeat("This is a test string!", round(Int, 1e8))
+    teststr = repeat("This is a test string!", round(Int, 2e5));
     @testset "large write/read" begin
-        open(ps.quux, "w+") do io
-            write(io, teststr)
-            seekstart(io)
-            @test read(io, String) == teststr
-        end
-
-        open(ps.quux, "a+") do io
-            write(io, " Zzzz")
-            seekstart(io)
-            @test read(io, String) == teststr * " Zzzz"
-        end
+        write(ps.quux, teststr; part_size=1, multipart=true)
+        @test read(ps.quux, String) == teststr
     end
 end
 
