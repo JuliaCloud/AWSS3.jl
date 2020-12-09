@@ -344,7 +344,8 @@ Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8
 
 function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=false, other_kwargs...)
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
-    if !multipart || length(content) < 2147483647
+    MAX_HTTP_BYTES = 2147483647
+    if !multipart || length(content) < MAX_HTTP_BYTES
         return s3_put(fp.config, fp.bucket, fp.key, content)
     else
         io = IOBuffer(content)
