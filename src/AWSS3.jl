@@ -827,8 +827,11 @@ s3_sign_url(a...;b...) = s3_sign_url(global_aws_config(), a...;b...)
 """
     s3_nuke_bucket(bucket_name)
 
-This function is NOT exported on purpose.
-It will delete all versions of objects in the given bucket and then the bucket itself.
+This function is NOT exported on purpose. AWS does not officially support this type of action,
+although it is a very nice utility one this is not exported just as a safe measure against
+accidentally blowing up your bucket.
+
+*Warning: It will delete all versions of objects in the given bucket and then the bucket itself.*
 """
 function s3_nuke_bucket(aws::AWSConfig, bucket_name)
     for v in s3_list_versions(aws, bucket_name)
