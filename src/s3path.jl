@@ -340,8 +340,17 @@ end
 
 Base.read(fp::S3Path) = Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key))
 
-function Base.write(fp::S3Path, content::Union{String, Vector{UInt8}})
-    s3_put(fp.config, fp.bucket, fp.key, content)
+Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8}(content); kwargs...)
+
+function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=false, other_kwargs...)
+    # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
+    MAX_HTTP_BYTES = 2147483647
+    if !multipart || length(content) < MAX_HTTP_BYTES
+        return s3_put(fp.config, fp.bucket, fp.key, content)
+    else
+        io = IOBuffer(content)
+        return s3_multipart_upload(fp.config, fp.bucket, fp.key, io, part_size_mb=part_size_mb; other_kwargs...)
+    end
 end
 
 function FilePathsBase.mktmpdir(parent::S3Path)

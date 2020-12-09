@@ -171,6 +171,14 @@ function test_s3_folders_and_files(ps::PathSet)
     end
 end
 
+function test_large_write(ps::PathSet)
+    teststr = repeat("This is a test string!", round(Int, 2e5));
+    @testset "large write/read" begin
+        write(ps.quux, teststr; part_size=1, multipart=true)
+        @test read(ps.quux, String) == teststr
+    end
+end
+
 @testset "$(typeof(ps.root))" begin
     testsets = [
         test_s3_constructors,
@@ -203,6 +211,7 @@ end
         test_s3_readpath,
         test_walkpath,
         test_read,
+        test_large_write,
         test_write,
         test_s3_mkdir,
         # These tests seem to fail due to an eventual consistency issue?
