@@ -214,7 +214,7 @@ Base.iswritable(fp::S3Path) = true
 Base.ismount(fp::S3Path) = false
 
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
-    fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
+    fp = fp.isdirectory ? fp : S3Path(fp.segments, fp.root, fp.drive, true, fp.config)
 
     if exists(fp)
         !exist_ok && error("$fp already exists.")

@@ -63,6 +63,11 @@ function test_s3_mkdir(p::PathSet)
         @test exists(garply)
         rm(p.root / "corge/"; recursive=true)
         @test !exists(garply)
+        garply_noslash = p.root / "corge" / "grault" / "garply"
+        mkdir(garply_noslash; recursive=true)
+        @test exists(garply)
+        rm(p.root / "corge/"; recursive=true)
+        @test !exists(garply)
     end
 end
 
