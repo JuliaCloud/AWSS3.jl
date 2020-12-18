@@ -9,7 +9,7 @@ AWS S3 Interface for Julia
 
 ```julia
 using AWSS3
-using AWS # for global_aws_config
+using AWS # for `global_aws_config`
 
 aws = global_aws_config(; region="us-east-2") # pass keyword arguments to change defaults
 
