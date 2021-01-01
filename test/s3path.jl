@@ -174,7 +174,7 @@ end
 function test_large_write(ps::PathSet)
     teststr = repeat("This is a test string!", round(Int, 2e5));
     @testset "large write/read" begin
-        write(ps.quux, teststr; part_size=1, multipart=true)
+        write(ps.quux, teststr; part_size_mb=1, multipart=true)
         @test read(ps.quux, String) == teststr
     end
 end

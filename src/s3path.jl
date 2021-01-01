@@ -349,7 +349,7 @@ function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipa
         return s3_put(fp.config, fp.bucket, fp.key, content)
     else
         io = IOBuffer(content)
-        return s3_multipart_upload(fp.config, fp.bucket, fp.key, io, part_size_mb=part_size_mb; other_kwargs...)
+        return s3_multipart_upload(fp.config, fp.bucket, fp.key, io, part_size_mb; other_kwargs...)
     end
 end
 
