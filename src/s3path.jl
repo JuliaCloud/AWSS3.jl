@@ -322,17 +322,21 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
     end
 end
 
-function Base.readdir(fp::S3Path)
+function Base.readdir(fp::S3Path; join=false)
     if isdir(fp)
         k = fp.key
         # Only list the files and "dirs" within this S3 "dir"
         objects = s3_list_objects(fp.config, fp.bucket, k; delimiter="")
 
         # Only list the basename and not the full key
-        basenames = unique!([s3_get_name(k, string(o["Key"])) for o in objects])
+        names = unique!([s3_get_name(k, string(o["Key"])) for o in objects])
+
+        if join
+            names = [ FilePathsBase.join(fp, name) for name in names]
+        end
 
         # Lexographically sort the results
-        return sort!(filter!(!isempty, basenames))
+        return sort!(filter!(!isempty, unique!(names)))
     else
         throw(ArgumentError("\"$fp\" is not a directory"))
     end
