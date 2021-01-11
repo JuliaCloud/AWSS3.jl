@@ -336,7 +336,7 @@ function Base.readdir(fp::S3Path; join=false)
         end
 
         # Lexographically sort the results
-        return sort!(filter!(!isempty, unique!(names)))
+        return sort!(filter!(!isempty, names))
     else
         throw(ArgumentError("\"$fp\" is not a directory"))
     end
