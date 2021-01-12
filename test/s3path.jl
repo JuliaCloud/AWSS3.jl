@@ -285,15 +285,15 @@ end
 
     function verify_files(path::AbstractPath)
         @test readdir(path) == ["emptydir", "subdir1", "test_01.txt"]
-        VERSION < v"1.4.0" && @test readdir(path; join=true) == [path / "emptydir", path / "subdir1", path / "test_01.txt"]
+        VERSION >= v"1.4.0" && @test readdir(path; join=true) == [path / "emptydir", path / "subdir1", path / "test_01.txt"]
         @test readdir(path / "emptydir/") == []
-        VERSION < v"1.4.0" && @test readdir(path / "emptydir/"; join=true) == []
+        VERSION >= v"1.4.0" && @test readdir(path / "emptydir/"; join=true) == []
         @test readdir(path / "subdir1/") == ["subdir2", "test_02.txt", "test_03.txt"]
-        VERSION < v"1.4.0" && @test readdir(path / "subdir1/"; join=true) == [path / "subdir1" / "subdir2", path / "subdir1" / "test_02.txt", path / "subdir1/" / "subdir1/test_03.txt"]
+        VERSION >= v"1.4.0" && @test readdir(path / "subdir1/"; join=true) == [path / "subdir1" / "subdir2", path / "subdir1" / "test_02.txt", path / "subdir1/" / "subdir1/test_03.txt"]
         @test readdir(path / "subdir1/subdir2/") == ["subdir3", "test_04.txt"]
-        VERSION < v"1.4.0" && @test readdir(path / "subdir1/subdir2/"; join=true) == [path / "subdir1/subdir2/" / "subdir3", path / "subdir1/subdir2/" / "test_04.txt"]
+        VERSION >= v"1.4.0" && @test readdir(path / "subdir1/subdir2/"; join=true) == [path / "subdir1/subdir2/" / "subdir3", path / "subdir1/subdir2/" / "test_04.txt"]
         @test readdir(path / "subdir1/subdir2/subdir3/") == []
-        VERSION < v"1.4.0" && @test readdir(path / "subdir1/subdir2/subdir3/"; join=true) == []
+        VERSION >= v"1.4.0" && @test readdir(path / "subdir1/subdir2/subdir3/"; join=true) == []
     end
 
     initialize()
