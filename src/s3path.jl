@@ -331,12 +331,14 @@ function Base.readdir(fp::S3Path; join=false)
         # Only list the basename and not the full key
         names = unique!([s3_get_name(k, string(o["Key"])) for o in objects])
 
+        # Lexographically sort the results
+        sort!(filter!(!isempty, names))
+        
         if join
             names = [ FilePathsBase.join(fp, name) for name in names]
         end
 
-        # Lexographically sort the results
-        return sort!(filter!(!isempty, names))
+        return names
     else
         throw(ArgumentError("\"$fp\" is not a directory"))
     end
