@@ -1,14 +1,14 @@
-struct S3Path <: AbstractPath
+struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     segments::Tuple{Vararg{String}}
     root::String
     drive::String
     isdirectory::Bool
-    config::AWSConfig
+    config::A
 end
 
 """
     S3Path()
-    S3Path(str; config::AWSConfig=aws_config())
+    S3Path(str; config::AbstractAWSConfig=aws_config())
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
@@ -44,7 +44,7 @@ function S3Path(
     bucket::AbstractString,
     key::AbstractString;
     isdirectory::Bool=false,
-    config::AWSConfig=global_aws_config(),
+    config::AbstractAWSConfig=global_aws_config(),
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -59,7 +59,7 @@ function S3Path(
     bucket::AbstractString,
     key::AbstractPath;
     isdirectory::Bool=false,
-    config::AWSConfig=global_aws_config(),
+    config::AbstractAWSConfig=global_aws_config(),
 )
     return S3Path(
         key.segments,
@@ -71,13 +71,13 @@ function S3Path(
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::AWSConfig=global_aws_config())
+function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config())
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     return result
 end
 
-function Base.tryparse(::Type{S3Path}, str::AbstractString; config::AWSConfig=global_aws_config())
+function Base.tryparse(::Type{S3Path}, str::AbstractString; config::AbstractAWSConfig=global_aws_config())
     str = String(str)
     startswith(str, "s3://") || return nothing
     root = ""
