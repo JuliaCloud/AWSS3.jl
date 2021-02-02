@@ -83,7 +83,7 @@ function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config
 end
 
 # if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
-function Base.tryparse(::Type{S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
+function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
     str = String(str)
     startswith(str, "s3://") || return nothing
     # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
