@@ -5,10 +5,17 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     isdirectory::Bool
     config::A
 
-    function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                    config::AbstractAWSConfig)
+    # this method ensures that there is proper conversion to Tuple{Vararg{String}} for first arg,
+    # which can be a little tempremental if you don't explicitly handle it
+    function S3Path{A}(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
+                       config::A) where {A<:AbstractAWSConfig}
         new{typeof(config)}(tuple((String(s) for s ∈ segments)...), root, drive, isdirectory, config)
     end
+end
+
+function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
+                config::AbstractAWSConfig)
+    S3Path{typeof(config)}(segments, root, drive, isdirectory, config)
 end
 
 """
@@ -44,6 +51,8 @@ function S3Path()
         config,
     )
 end
+# below definition needed by FilePathsBase
+S3Path{A}() where {A<:AbstractAWSConfig} = S3Path()
 
 function S3Path(
     bucket::AbstractString,
