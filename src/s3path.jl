@@ -14,7 +14,7 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
         isdirectory::Bool,
         config::A
     ) where {A<:AbstractAWSConfig}
-        new{typeof(config)}(tuple((String(s) for s ∈ segments)...), root, drive, isdirectory, config)
+        new{typeof(config)}(tuple((String(s) for s in segments)...), root, drive, isdirectory, config)
     end
 end
 
