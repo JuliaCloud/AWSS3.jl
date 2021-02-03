@@ -21,10 +21,11 @@ println(s3_get(aws, "my.bucket", "key"))
 ```
 
 ## `S3Path`
-This package exports the `S3Path` object.  This is an `AbstractPath` object as defined by
-[FilePathsBase.jl](https://github.com/rofinn/FilePathsBase.jl), allowing users to use
+This package exports the `S3Path` object. 
+This is an `AbstractPath` object as defined by [FilePathsBase.jl](https://github.com/rofinn/FilePathsBase.jl), allowing users to use
 Julia's `Base` [file system interface](https://docs.julialang.org/en/v1/base/file/) to
-obtain information from S3 buckets.  See the below example.
+obtain information from S3 buckets.
+See the below example.
 
 ```julia
 julia> using AWSS3, AWS, FilePathsBase;
