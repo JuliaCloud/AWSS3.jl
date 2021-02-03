@@ -7,8 +7,13 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
 
     # this method ensures that there is proper conversion to Tuple{Vararg{String}} for first arg,
     # which can be a little tempremental if you don't explicitly handle it
-    function S3Path{A}(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                       config::A) where {A<:AbstractAWSConfig}
+    function S3Path{A}(
+        segments,
+        root::AbstractString,
+        drive::AbstractString,
+        isdirectory::Bool,
+        config::A
+    ) where {A<:AbstractAWSConfig}
         new{typeof(config)}(tuple((String(s) for s ∈ segments)...), root, drive, isdirectory, config)
     end
 end
