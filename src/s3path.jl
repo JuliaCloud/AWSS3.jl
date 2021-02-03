@@ -6,7 +6,7 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     config::A
 
     # this method ensures that there is proper conversion to Tuple{Vararg{String}} for first arg,
-    # which can be a little tempremental if you don't explicitly handle it
+    # which can be a little temperamental if you don't explicitly handle it
     function S3Path{A}(
         segments,
         root::AbstractString,
