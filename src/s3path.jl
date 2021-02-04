@@ -1,14 +1,20 @@
-struct S3Path <: AbstractPath
+struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     segments::Tuple{Vararg{String}}
     root::String
     drive::String
     isdirectory::Bool
-    config::AWSConfig
+    config::A
+end
+
+# constructor that converts but does not require type parameter
+function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
+                config::AbstractAWSConfig)
+    S3Path{typeof(config)}(segments, root, drive, isdirectory, config)
 end
 
 """
     S3Path()
-    S3Path(str; config::AWSConfig=aws_config())
+    S3Path(str; config::AbstractAWSConfig=aws_config())
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
@@ -39,12 +45,14 @@ function S3Path()
         config,
     )
 end
+# below definition needed by FilePathsBase
+S3Path{A}() where {A<:AbstractAWSConfig} = S3Path()
 
 function S3Path(
     bucket::AbstractString,
     key::AbstractString;
     isdirectory::Bool=false,
-    config::AWSConfig=global_aws_config(),
+    config::AbstractAWSConfig=global_aws_config(),
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -59,7 +67,7 @@ function S3Path(
     bucket::AbstractString,
     key::AbstractPath;
     isdirectory::Bool=false,
-    config::AWSConfig=global_aws_config(),
+    config::AbstractAWSConfig=global_aws_config(),
 )
     return S3Path(
         key.segments,
@@ -71,15 +79,18 @@ function S3Path(
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::AWSConfig=global_aws_config())
+function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config())
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     return result
 end
 
-function Base.tryparse(::Type{S3Path}, str::AbstractString; config::AWSConfig=global_aws_config())
+# if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
+function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
     str = String(str)
     startswith(str, "s3://") || return nothing
+    # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
+    (config ≡ nothing) && (config = global_aws_config())
     root = ""
     path = ()
     isdirectory = true
