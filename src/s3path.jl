@@ -77,9 +77,11 @@ function S3Path(str::AbstractString; config::AWSConfig=aws_config())
     return result
 end
 
-function Base.tryparse(::Type{S3Path}, str::AbstractString; config::AWSConfig=aws_config())
+function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing, AWSConfig}=nothing)
     str = String(str)
     startswith(str, "s3://") || return nothing
+    # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
+    (config === nothing) && (config = aws_config())
     root = ""
     path = ()
     isdirectory = true
