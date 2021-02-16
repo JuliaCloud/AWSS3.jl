@@ -18,6 +18,7 @@ export S3Path, s3_arn, s3_put, s3_get, s3_get_file, s3_exists, s3_delete, s3_cop
        s3_sign_url, s3_begin_multipart_upload, s3_upload_part,
        s3_complete_multipart_upload, s3_multipart_upload,
        s3_get_tags, s3_put_tags, s3_delete_tags
+export S3InputSerialization, S3OutputSerialization, s3_select_object_content, s3select
 
 using AWS
 using AWS.AWSServices: s3
@@ -839,6 +840,7 @@ function s3_nuke_bucket(aws::AbstractAWSConfig, bucket_name)
 end
 
 
+include("s3select.jl")
 include("s3path.jl")
 
 end #module AWSS3

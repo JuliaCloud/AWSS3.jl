@@ -382,3 +382,7 @@ function s3_get_name(prefix::String, s::String)
     tokenized = split(subkey, "/"; limit=2)
     return length(tokenized) == 2 ? first(tokenized) * "/" : first(tokenized)
 end
+
+function s3select(fp::S3Path, expression, args::AbstractDict{String,<:Any}=Dict{String,Any}(); kwargs...)
+    s3_select_object_content(fp.config, fp.bucket, fp.key, expression, args; kwargs...)
+end
