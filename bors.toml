@@ -1,0 +1,8 @@
+status = [
+    "Julia 1.0.5 - ubuntu-latest - x64",
+    "Julia 1.3 - ubuntu-latest - x64",
+    "Julia 1 - windows-latest - x64",
+    "Julia 1 - macOS-latest - x64",
+    "Julia 1 - ubuntu-latest - x64",
+]
+delete-merged-branches = true
