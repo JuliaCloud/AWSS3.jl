@@ -343,9 +343,9 @@ end
     # `s3_list_versions` returns versions in the order newest to oldest
     versions = reverse!(s3_list_versions(aws, bucket_name, key_version_file))
     @test length(versions) == 2
-    @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"]), String) == "data.v1"
-    @test read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)["VersionId"]), String) == "data.v2"
-    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)["VersionId"]), String),
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)["VersionId"]), String) == "data.v1"
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"]), String) == "data.v2"
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"]), String),
                   read(S3Path(bucket_name, key_version_file; config=aws), String))
 
     unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
