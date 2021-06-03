@@ -4,7 +4,7 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     drive::String
     isdirectory::Bool
     config::A
-    version::AbstractString
+    version::String
 end
 
 # constructor that converts but does not require type parameter
