@@ -4,17 +4,18 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     drive::String
     isdirectory::Bool
     config::A
+    version::AbstractString
 end
 
 # constructor that converts but does not require type parameter
 function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                config::AbstractAWSConfig)
-    S3Path{typeof(config)}(segments, root, drive, isdirectory, config)
+                config::AbstractAWSConfig, version::AbstractString)
+    S3Path{typeof(config)}(segments, root, drive, isdirectory, config, version)
 end
 
 """
     S3Path()
-    S3Path(str; config::AbstractAWSConfig=aws_config())
+    S3Path(str; config::AbstractAWSConfig=aws_config(), version="")
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
@@ -31,6 +32,7 @@ NOTES:
 - On top of the standard path properties (e.g., `segments`, `root`, `drive`,
   `separator`), `S3Path`s also support `bucket` and `key` properties for your
   convenience.
+- If empty `version` argument, will return latest version of object.
 """
 function S3Path()
     config = global_aws_config()
@@ -43,6 +45,7 @@ function S3Path()
         "s3://$account_id-$region",
         true,
         config,
+        ""
     )
 end
 # below definition needed by FilePathsBase
@@ -53,6 +56,7 @@ function S3Path(
     key::AbstractString;
     isdirectory::Bool=false,
     config::AbstractAWSConfig=global_aws_config(),
+    version::AbstractString=""
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -60,6 +64,7 @@ function S3Path(
         strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/'),
         isdirectory,
         config,
+        version
     )
 end
 
@@ -68,6 +73,7 @@ function S3Path(
     key::AbstractPath;
     isdirectory::Bool=false,
     config::AbstractAWSConfig=global_aws_config(),
+    version::AbstractString=""
 )
     return S3Path(
         key.segments,
@@ -75,18 +81,19 @@ function S3Path(
         normalize_bucket_name(bucket),
         isdirectory,
         config,
+        version
     )
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config())
-    result = tryparse(S3Path, str; config=config)
+function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config(), version="")
+    result = tryparse(S3Path, str; config=config, version=version)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     return result
 end
 
 # if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
-function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
+function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing, version::AbstractString="")
     str = String(str)
     startswith(str, "s3://") || return nothing
     # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
@@ -106,7 +113,7 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
         path = Tuple(filter!(!isempty, tokenized[4:end]))
     end
 
-    return S3Path(path, root, drive, isdirectory, config)
+    return S3Path(path, root, drive, isdirectory, config, version)
 end
 
 function normalize_bucket_name(bucket)
@@ -158,6 +165,7 @@ function FilePathsBase.join(prefix::S3Path, pieces::AbstractString...)
         prefix.drive,
         isdirectory,
         prefix.config,
+        "", # Version is per-object, so would not propogate from the prefix
     )
 end
 
@@ -173,7 +181,7 @@ function FilePathsBase.parents(fp::S3Path)
     end
 end
 
-FilePathsBase.exists(fp::S3Path) = s3_exists(fp.config, fp.bucket, fp.key)
+FilePathsBase.exists(fp::S3Path) = s3_exists(fp.config, fp.bucket, fp.key; version=fp.version)
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
     if isempty(fp.segments)
@@ -205,7 +213,7 @@ function Base.stat(fp::S3Path)
     last_modified = DateTime(0)
 
     if exists(fp)
-        resp = s3_get_meta(fp.config, fp.bucket, fp.key)
+        resp = s3_get_meta(fp.config, fp.bucket, fp.key; version=fp.version)
         # Example: "Thu, 03 Jan 2019 21:09:17 GMT"
         last_modified = DateTime(
             resp["Last-Modified"][1:end-4],
@@ -261,7 +269,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
     end
 
     @debug "delete: $fp"
-    s3_delete(fp.config, fp.bucket, fp.key)
+    s3_delete(fp.config, fp.bucket, fp.key; version=fp.version)
 end
 
 # We need to special case sync with S3Paths because of how directories
@@ -355,13 +363,14 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
     end
 end
 
-Base.read(fp::S3Path) = Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key))
+Base.read(fp::S3Path) = Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key; version=fp.version))
 
 Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8}(content); kwargs...)
 
 function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=false, other_kwargs...)
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
     MAX_HTTP_BYTES = 2147483647
+    isempty(fp.version) || throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     if !multipart || length(content) < MAX_HTTP_BYTES
         return s3_put(fp.config, fp.bucket, fp.key, content)
     else

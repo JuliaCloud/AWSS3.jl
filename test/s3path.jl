@@ -143,6 +143,7 @@ function test_s3_properties(ps::PathSet)
         @test fp1.key == "path/to/some/object"
         @test fp2.bucket == "mybucket"
         @test fp2.key == "path/to/some/prefix/"
+        @test fp2.version == ""
     end
 end
 
@@ -332,6 +333,35 @@ end
         # test trailing slash on final piece is included
         @test p"s3://foo/bar" / "baz/" == p"s3://foo/bar/baz/"
     end
+end
+
+@testset "S3Path versioning" begin
+    key_version_file = "test_versions"
+    s3_put(bucket_name, key_version_file, "data.v1")
+    s3_put(bucket_name, key_version_file, "data.v2")
+
+    versions = s3_list_versions(aws, bucket_name, key_version_file)
+    @test length(versions) == 2 # versions is ordered newest to oldest---`first(versions)` is the latest version
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"]), String) == "data.v1"
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)["VersionId"]), String) == "data.v2"
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)["VersionId"]), String),
+                  read(S3Path(bucket_name, key_version_file; config=aws), String))
+
+    unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
+    versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"])
+    @test versioned_path.version == last(versions)["VersionId"]
+    @test unversioned_path.version == ""
+    @test exists(versioned_path)
+    @test exists(unversioned_path)
+    nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=aws, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
+    @test !exists(nonexistent_versioned_path)
+
+    @test isa(stat(versioned_path), Status)
+    @test_throws ArgumentError write(versioned_path, "new_content")
+
+    rm(versioned_path)
+    @test !exists(versioned_path)
+    @test length(s3_list_versions(aws, bucket_name, key_version_file)) == 1
 end
 
 AWSS3.s3_nuke_bucket(aws, bucket_name)
