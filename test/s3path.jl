@@ -1,5 +1,5 @@
 bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
-s3_create_bucket(bucket_name)
+s3_create_bucket(aws, bucket_name)
 root = Path("s3://$bucket_name/pathset-root/")
 
 ps = PathSet(
