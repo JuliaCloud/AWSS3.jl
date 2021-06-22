@@ -333,20 +333,32 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
     end
 end
 
+
+# for some reason, sometimes we get back a `Pair`
+# other times a `AbstractDict`.
+function _pair_or_dict_get(p::Pair, k)
+    first(p) == k || return nothing
+    return last(p)
+end
+_pair_or_dict_get(d::AbstractDict, k) = get(d, k, nothing)
+
 function _readdir_add_results!(results, r, key_length)
     rm_key = s -> chop(s, head=key_length, tail=0)
     sizehint!(results, length(results) + parse(Int, r["KeyCount"]))
     if haskey(r, "CommonPrefixes")
         for p in r["CommonPrefixes"]
-            # for some reason, sometimes we get back a `Pair` of the form `"Prefix" => value`,
-            # other times a `AbstractDict` with key `"Prefix"`.
-            prefix = p isa Pair ? last(p) : p["Prefix"]
-            push!(results, rm_key(prefix))
+            prefix = _pair_or_dict_get(p, "Prefix")
+            if prefix !== nothing
+                push!(results, rm_key(prefix))
+            end
         end
     end
     if haskey(r, "Contents")
         for o in r["Contents"]
-            push!(results, rm_key(o["Key"]))
+            prefix = _pair_or_dict_get(o, "Key")
+            if prefix !== nothing
+                push!(results, rm_key(prefix))
+            end
         end
     end
     return get(r, "NextContinuationToken", nothing)
