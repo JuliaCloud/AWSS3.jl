@@ -333,8 +333,8 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
     end
 end
 
-function _readdir_add_results!(results, r, k)
-    rm_key = s -> chop(s, head=length(k), tail=0)
+function _readdir_add_results!(results, r, key_length)
+    rm_key = s -> chop(s, head=key_length, tail=0)
     sizehint!(results, length(results) + parse(Int, r["KeyCount"]))
     if haskey(r, "CommonPrefixes")
         for p in r["CommonPrefixes"]
@@ -355,20 +355,22 @@ end
 function Base.readdir(fp::S3Path; join=false, sort=true)
     if isdir(fp)
         k = fp.key
+        key_length = length(k)
+
         results = String[]
         r = @repeat 4 try
             S3.list_objects_v2(fp.bucket, Dict("delimiter" => "/", "prefix" => k); aws_config=fp.config)
         catch e
             @delay_retry if ecode(e) in ["NoSuchBucket"] end
         end
-        token = _readdir_add_results!(results, r, k)
+        token = _readdir_add_results!(results, r, key_length)
         while !isnothing(token)
             r = @repeat 4 try
                 S3.list_objects_v2(fp.bucket, Dict("delimiter" => "/", "prefix" => k, "continuation-token" => token); aws_config=fp.config)
             catch e
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
             end
-            token = _readdir_add_results!(results, r, k)
+            token = _readdir_add_results!(results, r, key_length)
         end
 
         # Filter out any empty object names which are valid in S3
