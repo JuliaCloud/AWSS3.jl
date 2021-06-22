@@ -332,6 +332,13 @@ end
         # test trailing slash on final piece is included
         @test p"s3://foo/bar" / "baz/" == p"s3://foo/bar/baz/"
     end
+
+    @testset "`readdir`" begin
+        path = S3Path("s3://$(bucket_name)/A/A/B.txt"; config = aws)
+        write(path, "test!")
+        results = readdir(S3Path("s3://$(bucket_name)/A/"; config = aws))
+        @test results == ["A/"]
+    end
 end
 
 AWSS3.s3_nuke_bucket(aws, bucket_name)
