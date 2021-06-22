@@ -370,15 +370,15 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
         key_length = length(k)
 
         results = String[]
-        r = @repeat 4 try
-            S3.list_objects_v2(fp.bucket, Dict("delimiter" => "/", "prefix" => k); aws_config=fp.config)
-        catch e
-            @delay_retry if ecode(e) in ["NoSuchBucket"] end
-        end
-        token = _readdir_add_results!(results, r, key_length)
+ 
+        token = ""
         while token !== nothing
             r = @repeat 4 try
-                S3.list_objects_v2(fp.bucket, Dict("delimiter" => "/", "prefix" => k, "continuation-token" => token); aws_config=fp.config)
+                params = Dict("delimiter" => "/", "prefix" => k)
+                if !isempty(token)
+                    params["continuation-token"] = token
+                end
+                S3.list_objects_v2(fp.bucket, params; aws_config=fp.config)
             catch e
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
             end
