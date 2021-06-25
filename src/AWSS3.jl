@@ -527,7 +527,7 @@ end
 s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b...)
 
 """
-    s3_put([::AbstractAWSConfig], bucket, path, data; <keyword arguments>)
+    s3_put([::AbstractAWSConfig], bucket, path, data, data_type="", encoding=""; <keyword arguments>)
 
 [PUT Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html)
 `data` at `path` in `bucket`.
