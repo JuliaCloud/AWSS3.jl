@@ -333,14 +333,59 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
     end
 end
 
+
+# for some reason, sometimes we get back a `Pair`
+# other times a `AbstractDict`.
+function _pair_or_dict_get(p::Pair, k)
+    first(p) == k || return nothing
+    return last(p)
+end
+_pair_or_dict_get(d::AbstractDict, k) = get(d, k, nothing)
+
+function _retrieve_prefixes!(results, objects, prefix_key, chop_head)
+    objects === nothing && return nothing
+
+    rm_key = s -> chop(s, head=chop_head, tail=0)
+
+    for p in objects
+        prefix = _pair_or_dict_get(p, prefix_key)
+        
+        if prefix !== nothing
+            push!(results, rm_key(prefix))
+        end
+    end
+    
+    return nothing
+end
+
+function _readdir_add_results!(results, response, key_length)
+    sizehint!(results, length(results) + parse(Int, response["KeyCount"]))
+
+    _retrieve_prefixes!(results, get(response, "CommonPrefixes", nothing), "Prefix", key_length)
+    _retrieve_prefixes!(results, get(response, "Contents", nothing), "Key", key_length)
+
+    return get(response, "NextContinuationToken", nothing)
+end
+
 function Base.readdir(fp::S3Path; join=false, sort=true)
     if isdir(fp)
         k = fp.key
-        # Only list the files and "dirs" within this S3 "dir"
-        objects = s3_list_objects(fp.config, fp.bucket, k; delimiter="")
+        key_length = length(k)
+        results = String[]
+        token = ""
+        while token !== nothing
+            response = @repeat 4 try
+                params = Dict("delimiter" => "/", "prefix" => k)
 
-        # Only list the basename and not the full key
-        results = unique!([s3_get_name(k, string(o["Key"])) for o in objects])
+                if !isempty(token)
+                    params["continuation-token"] = token
+                end
+                S3.list_objects_v2(fp.bucket, params; aws_config=fp.config)
+            catch e
+                @delay_retry if ecode(e) in ["NoSuchBucket"] end
+            end
+            token = _readdir_add_results!(results, response, key_length)
+        end
 
         # Filter out any empty object names which are valid in S3
         filter!(!isempty, results)
@@ -373,12 +418,4 @@ end
 function FilePathsBase.mktmpdir(parent::S3Path)
     fp = parent / string(uuid4(), "/")
     return mkdir(fp)
-end
-
-# Given a full key return just the file or directory name w/o the prefix or suffix keys
-# (e.g., s3_get_name("my/common/prefix/", "my/common/prefix/to/some/file")) -> "to/"
-function s3_get_name(prefix::String, s::String)
-    subkey = lstrip(replace(s, prefix => ""), '/')
-    tokenized = split(subkey, "/"; limit=2)
-    return length(tokenized) == 2 ? first(tokenized) * "/" : first(tokenized)
 end
