@@ -359,7 +359,7 @@ function _retrieve_prefixes!(results, objects, prefix_key, chop_head)
 end
 
 function _readdir_add_results!(results, response, key_length)
-    sizehint!(results, length(results) + parse(Int, r["KeyCount"]))
+    sizehint!(results, length(results) + parse(Int, response["KeyCount"]))
 
     _retrieve_prefixes!(results, get(response, "CommonPrefixes", nothing), "Prefix", key_length)
     _retrieve_prefixes!(results, get(response, "Contents", nothing), "Key", key_length)
