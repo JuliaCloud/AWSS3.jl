@@ -364,7 +364,7 @@ function _readdir_add_results!(results, response, key_length)
     _retrieve_prefixes!(results, get(response, "CommonPrefixes", nothing), "Prefix", key_length)
     _retrieve_prefixes!(results, get(response, "Contents", nothing), "Key", key_length)
 
-    return get(r, "NextContinuationToken", nothing)
+    return get(response, "NextContinuationToken", nothing)
 end
 
 function Base.readdir(fp::S3Path; join=false, sort=true)
