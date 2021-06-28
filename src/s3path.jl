@@ -342,26 +342,27 @@ function _pair_or_dict_get(p::Pair, k)
 end
 _pair_or_dict_get(d::AbstractDict, k) = get(d, k, nothing)
 
-function _retrieve_value!(results, result_key, prefix_key, key_length)
-    rm_key = s -> chop(s, head=key_length, tail=0)
-    
-    if haskey(r, result_key)
-        for p in r[result_key]
-            prefix = _pair_or_dict_get(p, prefix_key)
-            
-            if prefix !== nothing
-                push!(results, rm_key(prefix))
-            end
+function _retrieve_prefixes!(results, objects, prefix_key, chop_head)
+    objects === nothing && return nothing
+
+    rm_key = s -> chop(s, head=chop_head, tail=0)
+
+    for p in objects
+        prefix = _pair_or_dict_get(p, prefix_key)
+        
+        if prefix !== nothing
+            push!(results, rm_key(prefix))
         end
     end
     
     return nothing
 end
 
-function _readdir_add_results!(results, r, key_length)
+function _readdir_add_results!(results, response, key_length)
     sizehint!(results, length(results) + parse(Int, r["KeyCount"]))
-    _retrieve_value!(results, "CommonPrefixes", "Prefix", key_length)
-    _retrieve_value!(results, "Contents", "Key", key_length)
+
+    _retrieve_prefixes!(results, get(response, "CommonPrefixes", nothing), "Prefix", key_length)
+    _retrieve_prefixes!(results, get(response, "Contents", nothing), "Key", key_length)
 
     return get(r, "NextContinuationToken", nothing)
 end
@@ -373,7 +374,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
         results = String[]
         token = ""
         while token !== nothing
-            r = @repeat 4 try
+            response = @repeat 4 try
                 params = Dict("delimiter" => "/", "prefix" => k)
 
                 if !isempty(token)
@@ -383,7 +384,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
             catch e
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
             end
-            token = _readdir_add_results!(results, r, key_length)
+            token = _readdir_add_results!(results, response, key_length)
         end
 
         # Filter out any empty object names which are valid in S3
