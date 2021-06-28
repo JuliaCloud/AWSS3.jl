@@ -342,25 +342,23 @@ function _pair_or_dict_get(p::Pair, k)
 end
 _pair_or_dict_get(d::AbstractDict, k) = get(d, k, nothing)
 
-function _readdir_add_results!(results, r, key_length)
+function _retrieve_value!(results, result_key, prefix_key, key_length)
     rm_key = s -> chop(s, head=key_length, tail=0)
+    if haskey(r, result_key)
+        for p in r[result_key]
+            prefix = _pair_or_dict_get(p, prefix_key)
+            if prefix !== nothing
+                push!(results, rm_key(prefix))
+            end
+        end
+    end
+    return nothing
+end
+
+function _readdir_add_results!(results, r, key_length)
     sizehint!(results, length(results) + parse(Int, r["KeyCount"]))
-    if haskey(r, "CommonPrefixes")
-        for p in r["CommonPrefixes"]
-            prefix = _pair_or_dict_get(p, "Prefix")
-            if prefix !== nothing
-                push!(results, rm_key(prefix))
-            end
-        end
-    end
-    if haskey(r, "Contents")
-        for o in r["Contents"]
-            prefix = _pair_or_dict_get(o, "Key")
-            if prefix !== nothing
-                push!(results, rm_key(prefix))
-            end
-        end
-    end
+    _retrieve_value!(results, "CommonPrefixes", "Prefix", key_length)
+    _retrieve_value!(results, "Contents", "Key", key_length)
     return get(r, "NextContinuationToken", nothing)
 end
 
