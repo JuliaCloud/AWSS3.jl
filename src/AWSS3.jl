@@ -73,10 +73,12 @@ As an example of how to set custom HTTP headers, the below is equivalent to
 
 `s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))`
 """
-function s3_get(aws::AbstractAWSConfig, bucket, path; version="", retry=true,
-                byte_range=nothing, raw=false,
-                headers::AbstractDict{<:AbstractString,<:Any}=Dict{String, Any}(),
-                return_stream::Bool=false, kwargs...)
+function s3_get(
+    aws::AbstractAWSConfig, bucket, path; version="", retry::Bool=true,
+    byte_range::Union{Nothing,AbstractVector}=nothing, raw::Bool=false,
+    headers::AbstractDict{<:AbstractString,<:Any}=Dict{String, Any}(),
+    return_stream::Bool=false, kwargs...
+)
     @repeat 4 try
         args = Dict{String, Any}(
             "return_raw" => raw,
