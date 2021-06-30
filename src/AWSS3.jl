@@ -62,13 +62,17 @@ from `path` in `bucket`.
                 (common if object was recently created).
 - `raw=false`:  return response as `Vector{UInt8}`
                 (by default return type depends on `Content-Type` header).
+- `byte_range=nothing`:  given an iterator of `(start_byte, end_byte)` gets only
+    the range of bytes of the object from `start_byte` to `end_byte`.  For example,
+    `byte_range=(0,3)` gets bytes 0 to 3 icnlusive.
 - `header::Dict{String,String}`: pass in an HTTP header to the request.
 
 For example, to get a `range` of bytes instead of the whole object, do:
 
 `s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))`
 """
-function s3_get(aws::AbstractAWSConfig, bucket, path; version="", retry=true, raw=false, headers=Dict{String, Any}(), kwargs...)
+function s3_get(aws::AbstractAWSConfig, bucket, path; version="", retry=true,
+                byte_range=nothing, raw=false, headers=Dict{String, Any}(), kwargs...)
     @repeat 4 try
         args = Dict{String, Any}(
             "return_raw" => raw
@@ -76,6 +80,11 @@ function s3_get(aws::AbstractAWSConfig, bucket, path; version="", retry=true, ra
 
         if !isempty(version)
             args["versionId"] = version
+        end
+
+        if !isnothing(byte_range)
+            a, b = first(byte_range), last(byte_range)
+            headers["Range"] = "bytes=$a-$b"
         end
 
         if !isempty(headers)

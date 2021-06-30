@@ -17,7 +17,8 @@ s3_create_bucket(aws, "my.bucket")
 s3_enable_versioning(aws, "my.bucket")
 
 s3_put(aws, "my.bucket", "key", "Hello!")
-println(s3_get(aws, "my.bucket", "key"))
+println(s3_get(aws, "my.bucket", "key"))  # prints "Hello!"
+println(s3_get(aws, "my.bucket", "key", byte_range=0:1))  # prints only "He"
 ```
 
 ## `S3Path`
@@ -58,6 +59,9 @@ Status(
 
 julia> String(read(file))  # fetch the file into memory
 "this is a file for testing S3Path\n"
+
+julia> String(read(file, byte_range=0:3))  # fetch a specific byte range of the file
+"this"
 
 julia> rm(file)  # delete the file
 UInt8[]
