@@ -18,11 +18,11 @@ s3_enable_versioning(aws, "my.bucket")
 
 s3_put(aws, "my.bucket", "key", "Hello!")
 println(s3_get(aws, "my.bucket", "key"))  # prints "Hello!"
-println(s3_get(aws, "my.bucket", "key", byte_range=0:1))  # prints only "He"
+println(s3_get(aws, "my.bucket", "key", byte_range=1:2))  # prints only "He"
 ```
 
 ## `S3Path`
-This package exports the `S3Path` object. 
+This package exports the `S3Path` object.
 This is an `AbstractPath` object as defined by [FilePathsBase.jl](https://github.com/rofinn/FilePathsBase.jl), allowing users to use
 Julia's `Base` [file system interface](https://docs.julialang.org/en/v1/base/file/) to
 obtain information from S3 buckets.
@@ -60,7 +60,7 @@ Status(
 julia> String(read(file))  # fetch the file into memory
 "this is a file for testing S3Path\n"
 
-julia> String(read(file, byte_range=0:3))  # fetch a specific byte range of the file
+julia> String(read(file, byte_range=1:4))  # fetch a specific byte range of the file
 "this"
 
 julia> rm(file)  # delete the file
