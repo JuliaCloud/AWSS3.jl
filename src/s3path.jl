@@ -401,7 +401,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
 end
 
 function Base.read(fp::S3Path; byte_range=nothing)
-    Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key; raw=true, byte_range))
+    return Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key; raw=true, byte_range=byte_range))
 end
 
 Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8}(content); kwargs...)
