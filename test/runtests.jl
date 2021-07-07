@@ -9,6 +9,7 @@ using FilePathsBase
 using FilePathsBase: /, join
 using FilePathsBase.TestPaths
 using UUIDs: uuid4
+using JSON3
 
 aws = AWSConfig()
 
