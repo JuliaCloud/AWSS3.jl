@@ -87,7 +87,7 @@ function s3_get(aws::AbstractAWSConfig, bucket, path; version="", retry=true,
             args["versionId"] = version
         end
 
-        if !isnothing(byte_range)
+        if byte_range ≢ nothing
             headers = copy(headers)  # make sure we don't mutate existing object
             # we make sure we stick to the Julia convention of 1-based indexing
             a, b = (first(byte_range) - 1), (last(byte_range) - 1)
