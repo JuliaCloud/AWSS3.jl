@@ -60,7 +60,7 @@ end
     teststr = "123456789"
     s3_put(aws, bucket_name, "byte_range", teststr)
     range = 3:6
-    @test String(s3_get(aws, bucket_name, "byte_range"; headers=Dict{String,String}("Range" => "bytes=$(first(range)-1)-$(last(range)-1)"))) == teststr[range]
+    @test String(s3_get(aws, bucket_name, "byte_range"; byte_range=range)) == teststr[range]
 end
 
 @testset "Object Copy" begin
