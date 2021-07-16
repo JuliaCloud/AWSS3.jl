@@ -62,20 +62,38 @@ from `path` in `bucket`.
                 (common if object was recently created).
 - `raw=false`:  return response as `Vector{UInt8}`
                 (by default return type depends on `Content-Type` header).
+- `byte_range=nothing`:  given an iterator of `(start_byte, end_byte)` gets only
+    the range of bytes of the object from `start_byte` to `end_byte`.  For example,
+    `byte_range=1:4` gets bytes 1 to 4 inclusive.  Arguments should use the Julia convention
+    of 1-based indexing.
 - `header::Dict{String,String}`: pass in an HTTP header to the request.
 
-For example, to get a `range` of bytes instead of the whole object, do:
+As an example of how to set custom HTTP headers, the below is equivalent to
+`s3_get(aws, bucket, path; byte_range=range)`.
 
 `s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))`
 """
-function s3_get(aws::AbstractAWSConfig, bucket, path; version="", retry=true, raw=false, headers=Dict{String, Any}(), kwargs...)
+function s3_get(
+    aws::AbstractAWSConfig, bucket, path; version="", retry::Bool=true,
+    byte_range::Union{Nothing,AbstractVector}=nothing, raw::Bool=false,
+    headers::AbstractDict{<:AbstractString,<:Any}=Dict{String, Any}(),
+    return_stream::Bool=false, kwargs...
+)
     @repeat 4 try
         args = Dict{String, Any}(
-            "return_raw" => raw
+            "return_raw" => raw,
+            "return_stream" => return_stream,
         )
 
         if !isempty(version)
             args["versionId"] = version
+        end
+
+        if byte_range ≢ nothing
+            headers = copy(headers)  # make sure we don't mutate existing object
+            # we make sure we stick to the Julia convention of 1-based indexing
+            a, b = (first(byte_range) - 1), (last(byte_range) - 1)
+            headers["Range"] = "bytes=$a-$b"
         end
 
         if !isempty(headers)
@@ -94,10 +112,11 @@ s3_get(a...; b...) = s3_get(global_aws_config(), a...; b...)
 """
     s3_get_file([::AbstractAWSConfig], bucket, path, filename; [version=], kwargs...)
 
-Like `s3_get` but streams result directly to `filename`.
+Like `s3_get` but streams result directly to `filename`.  Keyword arguments accept are
+the same as those for `s3_get`.
 """
 function s3_get_file(aws::AbstractAWSConfig, bucket, path, filename; version="", kwargs...)
-    stream = S3.get_object(bucket, path, Dict("return_stream"=>true); aws_config=aws, kwargs...)
+    stream = s3_get(aws, bucket, path; return_stream=true, kwargs...)
 
     open(filename, "w") do file
         while !eof(stream)
@@ -527,7 +546,7 @@ end
 s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b...)
 
 """
-    s3_put([::AbstractAWSConfig], bucket, path, data; <keyword arguments>)
+    s3_put([::AbstractAWSConfig], bucket, path, data, data_type="", encoding=""; <keyword arguments>)
 
 [PUT Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html)
 `data` at `path` in `bucket`.

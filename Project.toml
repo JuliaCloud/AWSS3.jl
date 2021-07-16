@@ -1,6 +1,6 @@
 name = "AWSS3"
 uuid = "1c724243-ef5b-51ab-93f4-b0a88ac62a95"
-version = "0.8.3"
+version = "0.8.6"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
@@ -21,6 +21,7 @@ AWS = "1.25"
 EzXML = "0.9, 1"
 FilePathsBase = "0.9"
 HTTP = "0.8, 0.9"
+JSON3 = "1"
 MbedTLS = "0.6, 0.7, 1"
 OrderedCollections = "1"
 Retry = "0.3, 0.4"
@@ -29,7 +30,8 @@ XMLDict = "0.3, 0.4"
 julia = "1"
 
 [extras]
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "JSON3"]
