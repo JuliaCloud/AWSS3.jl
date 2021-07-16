@@ -130,8 +130,7 @@ function Base.:(==)(a::S3Path, b::S3Path)
 end
 
 function Base.getproperty(fp::S3Path, attr::Symbol)
-    if attr 
-      :anchor
+    if attr === :anchor
         return fp.drive * fp.root
     elseif attr === :separator
         return "/"
