@@ -371,7 +371,7 @@ end
     unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
     versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions))
     @test versioned_path.version == last(versions)
-    @test unversioned_path.version == ""
+    @test isnothing(unversioned_path.version)
     @test exists(versioned_path)
     @test exists(unversioned_path)
     nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=aws, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
