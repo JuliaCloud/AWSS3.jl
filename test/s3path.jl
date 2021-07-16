@@ -143,7 +143,7 @@ function test_s3_properties(ps::PathSet)
         @test fp1.key == "path/to/some/object"
         @test fp2.bucket == "mybucket"
         @test fp2.key == "path/to/some/prefix/"
-        @test fp2.version == ""
+        @test isnothing(fp2.version)
     end
 end
 
@@ -361,16 +361,16 @@ end
     s3_put(bucket_name, key_version_file, "data.v2")
 
     # `s3_list_versions` returns versions in the order newest to oldest
-    versions = reverse!(s3_list_versions(aws, bucket_name, key_version_file))
+    versions = reverse(d["VersionId"] for d in s3_list_versions(aws, bucket_name, key_version_file))
     @test length(versions) == 2
-    @test read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)["VersionId"]), String) == "data.v1"
-    @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"]), String) == "data.v2"
-    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"]), String),
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)), String) == "data.v1"
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String) == "data.v2"
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String),
                   read(S3Path(bucket_name, key_version_file; config=aws), String))
 
     unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
-    versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions)["VersionId"])
-    @test versioned_path.version == last(versions)["VersionId"]
+    versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions))
+    @test versioned_path.version == last(versions)
     @test unversioned_path.version == ""
     @test exists(versioned_path)
     @test exists(unversioned_path)
