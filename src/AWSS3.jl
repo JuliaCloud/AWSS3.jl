@@ -86,7 +86,7 @@ function s3_get(
             "return_stream" => return_stream,
         )
 
-        if !isnothing(version)
+        if !isnothing(version) || !isempty(version)
             args["versionId"] = version
         end
 
@@ -151,7 +151,7 @@ Retrieves metadata from an object without returning the object itself.
 """
 function s3_get_meta(aws::AbstractAWSConfig, bucket, path; version::S3PathVersion=nothing,
                      kwargs...)
-    if isnothing(version)
+    if isnothing(version) || isempty(version)
         S3.head_object(bucket, path; aws_config=aws, kwargs...)
     else
         S3.head_object(bucket, path, Dict("versionId"=>version); aws_config=aws, kwargs...)
@@ -192,7 +192,7 @@ s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 """
 function s3_delete(aws::AbstractAWSConfig, bucket, path; version::S3PathVersion=nothing,
                    kwargs...)
-    if isnothing(version)
+    if isnothing(version) || isempty(version)
         S3.delete_object(bucket, path; aws_config=aws, kwargs...)
     else
         S3.delete_object(bucket, path, Dict("versionId"=>version); aws_config=aws, kwargs...)

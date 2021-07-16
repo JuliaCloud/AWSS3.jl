@@ -9,7 +9,7 @@ end
 
 # constructor that converts but does not require type parameter
 function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                config::AbstractAWSConfig, version::S3PathVersion)
+                config::AbstractAWSConfig, version::S3PathVersion=nothing)
     S3Path{typeof(config)}(segments, root, drive, isdirectory, config, version)
 end
 
