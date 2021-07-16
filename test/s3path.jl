@@ -148,6 +148,12 @@ end
 
 function test_s3_folders_and_files(ps::PathSet)
     @testset "s3_folders_and_files" begin
+        # Minio has slightly different semantics than s3 in that it does
+        # not support having prefixes that clash with files
+        # (https://github.com/minio/minio/issues/9865)
+        # Thus in these tests, we run certain tests only on s3.
+        minio = ps.root.config isa MinioConfig
+
         # In case the ps.root doesn't exist
         mkdir(ps.root; recursive=true, exist_ok=true)
 
@@ -160,14 +166,18 @@ function test_s3_folders_and_files(ps::PathSet)
         @test_broken p"s3://mybucket/path/to/some/prefix" != p"s3://mybucket/path//to/some/prefix"
 
         write(ps.root / "foobar", "I'm an object")
-        mkdir(ps.root / "foobar/")
-        write(ps.root / "foobar" / "car.txt", "I'm a different object")
+        if !minio
+            mkdir(ps.root / "foobar/")
+            write(ps.root / "foobar" / "car.txt", "I'm a different object")
+        end
 
         @test read(ps.root / "foobar") == b"I'm an object"
         @test read(ps.root / "foobar", String) == "I'm an object"
         @test_throws ArgumentError readpath(ps.root / "foobar")
-        @test readpath(ps.root / "foobar/") == [ps.root / "foobar" / "car.txt"]
-        @test read(ps.root / "foobar" / "car.txt", String) == "I'm a different object"
+        if !minio
+            @test readpath(ps.root / "foobar/") == [ps.root / "foobar" / "car.txt"]
+            @test read(ps.root / "foobar" / "car.txt", String) == "I'm a different object"
+        end
     end
 end
 
@@ -354,4 +364,7 @@ end
     rm(json_path)
 end
 
-AWSS3.s3_nuke_bucket(aws, bucket_name)
+# Minio 
+if !(aws isa MinioConfig)
+    AWSS3.s3_nuke_bucket(aws, bucket_name)
+end

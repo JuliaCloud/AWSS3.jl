@@ -23,6 +23,7 @@ FilePathsBase = "0.9"
 HTTP = "0.8, 0.9"
 JSON3 = "1"
 MbedTLS = "0.6, 0.7, 1"
+Minio = "0.1"
 OrderedCollections = "1"
 Retry = "0.3, 0.4"
 SymDict = "0.3"
@@ -31,7 +32,8 @@ julia = "1"
 
 [extras]
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+Minio = "4281f0d9-7ae0-406e-9172-b7277c1efa20"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "JSON3"]
+test = ["Test", "JSON3", "Minio"]

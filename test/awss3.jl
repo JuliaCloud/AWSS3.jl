@@ -1,5 +1,6 @@
-aws.region = "us-east-1"
 bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+
+minio = aws isa MinioConfig
 
 @testset "Create Bucket" begin
     s3_create_bucket(aws, bucket_name)
@@ -180,11 +181,13 @@ end
     @test s3_exists(bucket_name, key_name)
 end
 
-@testset "Empty and Delete Bucket" begin
-    AWSS3.s3_nuke_bucket(aws, bucket_name)
-    @test !in(bucket_name, s3_list_buckets(aws))
-end
+if !minio
+    @testset "Empty and Delete Bucket" begin
+        AWSS3.s3_nuke_bucket(aws, bucket_name)
+        @test !in(bucket_name, s3_list_buckets(aws))
+    end
 
-@testset "Delete Non-Existant Bucket" begin
-    @test_throws AWS.AWSException s3_delete_bucket(aws, bucket_name)
+    @testset "Delete Non-Existant Bucket" begin
+        @test_throws AWS.AWSException s3_delete_bucket(aws, bucket_name)
+    end
 end

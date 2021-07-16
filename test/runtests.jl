@@ -11,7 +11,7 @@ using FilePathsBase.TestPaths
 using UUIDs: uuid4
 using JSON3
 
-aws = AWSConfig()
+aws = AWSConfig(; region = "us-east-1")
 
 @testset "AWSS3.jl" begin
     include("s3path.jl")

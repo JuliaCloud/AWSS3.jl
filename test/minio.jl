@@ -14,31 +14,14 @@ using FilePathsBase: /, join
 using FilePathsBase.TestPaths
 using UUIDs: uuid4
 
-# https://github.com/JuliaCloud/AWS.jl#modifying-functionality
-struct MinioConfig <: AbstractAWSConfig
-    endpoint::String
-    region::String
-    creds
- end
- AWS.region(c::MinioConfig) = c.region
- AWS.credentials(c::MinioConfig) = c.creds
+using Minio
 
- AWS.aws_account_number(c::MinioConfig) = 1234
+dirs = [mktempdir() for _ =1:12]
+minio_server = Minio.Server(dirs; address="localhost:9002")  # create a server which views the current directory
+run(minio_server, wait=false)
 
- struct SimpleCredentials
-    access_key_id::String
-    secret_key::String
-    token::String
-end
-
-AWS.check_credentials(c::SimpleCredentials) = c
-
-function AWS.generate_service_url(aws::MinioConfig, service::String, resource::String)
-    service == "s3" || throw(ArgumentError("Can only handle s3 requests to Minio"))
-    return string(aws.endpoint, resource)
-end
-
-aws = AWS.global_aws_config(MinioConfig("http://127.0.0.1:9000", "a_region", SimpleCredentials("minioadmin", "minioadmin", "")))
+aws = global_aws_config(MinioConfig("http://localhost:9002"))
+AWS.aws_account_number(::Minio.MinioConfig) = "123"
 
 @testset "AWSS3.jl" begin
     include("s3path.jl")
