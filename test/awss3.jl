@@ -126,6 +126,8 @@ end
     @test (s3_get(aws, bucket_name, "key3"; version=versions[3]["VersionId"]) == b"data3.v1")
     @test (s3_get(aws, bucket_name, "key3"; version=versions[2]["VersionId"]) == b"data3.v2")
     @test (s3_get(aws, bucket_name, "key3"; version=versions[1]["VersionId"]) == b"data3.v3")
+
+    @test (s3_get_file(aws, buecket_name, "key3"; version=versions[2]["VersionId"]) == b"data3.v2")
 end
 
 @testset "Purge Versions" begin

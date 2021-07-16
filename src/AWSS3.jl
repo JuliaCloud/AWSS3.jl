@@ -117,7 +117,7 @@ Like `s3_get` but streams result directly to `filename`.  Keyword arguments acce
 the same as those for `s3_get`.
 """
 function s3_get_file(aws::AbstractAWSConfig, bucket, path, filename; version::S3PathVersion=nothing, kwargs...)
-    stream = s3_get(aws, bucket, path; return_stream=true, kwargs...)
+    stream = s3_get(aws, bucket, path; version=version, return_stream=true, kwargs...)
 
     open(filename, "w") do file
         while !eof(stream)
