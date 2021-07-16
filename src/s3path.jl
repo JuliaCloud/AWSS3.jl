@@ -45,7 +45,7 @@ function S3Path()
         "s3://$account_id-$region",
         true,
         config,
-        nothing
+        nothing,
     )
 end
 # below definition needed by FilePathsBase
@@ -56,7 +56,7 @@ function S3Path(
     key::AbstractString;
     isdirectory::Bool=false,
     config::AbstractAWSConfig=global_aws_config(),
-    version::S3PathVersion=nothing
+    version::S3PathVersion=nothing,
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -64,7 +64,7 @@ function S3Path(
         strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/'),
         isdirectory,
         config,
-        version
+        version,
     )
 end
 
@@ -73,7 +73,7 @@ function S3Path(
     key::AbstractPath;
     isdirectory::Bool=false,
     config::AbstractAWSConfig=global_aws_config(),
-    version::S3PathVersion=nothing
+    version::S3PathVersion=nothing,
 )
     return S3Path(
         key.segments,
@@ -81,7 +81,7 @@ function S3Path(
         normalize_bucket_name(bucket),
         isdirectory,
         config,
-        version
+        version,
     )
 end
 
