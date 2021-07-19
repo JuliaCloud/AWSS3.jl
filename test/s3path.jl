@@ -356,18 +356,21 @@ end
 
 # <https://github.com/JuliaCloud/AWSS3.jl/issues/168>
 @testset "Global config is not frozen at construction time" begin
+    # Setup: create a file holding a string `abc`
+    path = S3Path("s3://$(bucket_name)/test_str.txt")
+    write(path, "abc")
+
     prev_config = global_aws_config()
     try
         global_aws_config(region="us-east-2") # this is the wrong region!
         path = S3Path("s3://$(bucket_name)/test_str.txt")
-        write(path, "abc")
         @test_throws AWS.AWSException read(path, String)
 
         # restore the right region
         global_aws_config(prev_config)
         # Now it works, without recreating `path`
         @test read(path, String) == "abc"
-
+        rm(path)
     finally
         # In case a test threw, make sure we really do restore the right global config
         global_aws_config(prev_config)
