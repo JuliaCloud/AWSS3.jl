@@ -32,6 +32,7 @@ using EzXML
 using Dates
 using Base64
 using UUIDs
+using Compat
 
 @service S3
 
