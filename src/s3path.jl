@@ -1,4 +1,4 @@
-struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
+struct S3Path{A<:Union{Nothing, AbstractAWSConfig}} <: AbstractPath
     segments::Tuple{Vararg{String}}
     root::String
     drive::String
@@ -8,13 +8,13 @@ end
 
 # constructor that converts but does not require type parameter
 function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                config::AbstractAWSConfig)
+                config::Union{Nothing, AbstractAWSConfig})
     S3Path{typeof(config)}(segments, root, drive, isdirectory, config)
 end
 
 """
     S3Path()
-    S3Path(str; config::AbstractAWSConfig=aws_config())
+    S3Path(str; config::Union{Nothing, AbstractAWSConfig}=nothing)
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
@@ -31,28 +31,30 @@ NOTES:
 - On top of the standard path properties (e.g., `segments`, `root`, `drive`,
   `separator`), `S3Path`s also support `bucket` and `key` properties for your
   convenience.
+- if `config` is left at its default value of `nothing`, then the
+  latest `global_aws_config()` will be used in any operations involving the
+  path. To "freeze" the config at construction time, explicitly pass an
+  `AbstractAWSConfig` to the `config` keyword argument.
 """
 function S3Path()
-    config = global_aws_config()
-    account_id = aws_account_number(config)
-    region = config.region
+    config = nothing
 
     return S3Path(
         (),
         "/",
-        "s3://$account_id-$region",
+        "",
         true,
         config,
     )
 end
 # below definition needed by FilePathsBase
-S3Path{A}() where {A<:AbstractAWSConfig} = S3Path()
+S3Path{A}() where {A<:Union{Nothing, AbstractAWSConfig}} = S3Path()
 
 function S3Path(
     bucket::AbstractString,
     key::AbstractString;
     isdirectory::Bool=false,
-    config::AbstractAWSConfig=global_aws_config(),
+    config::Union{Nothing, AbstractAWSConfig}=nothing,
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -67,7 +69,7 @@ function S3Path(
     bucket::AbstractString,
     key::AbstractPath;
     isdirectory::Bool=false,
-    config::AbstractAWSConfig=global_aws_config(),
+    config::Union{Nothing, AbstractAWSConfig}=nothing,
 )
     return S3Path(
         key.segments,
@@ -79,18 +81,15 @@ function S3Path(
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config())
+function S3Path(str::AbstractString; config::Union{Nothing, AbstractAWSConfig}=nothing)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     return result
 end
 
-# if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
 function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
     str = String(str)
     startswith(str, "s3://") || return nothing
-    # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
-    (config ≡ nothing) && (config = global_aws_config())
     root = ""
     path = ()
     isdirectory = true
@@ -173,7 +172,10 @@ function FilePathsBase.parents(fp::S3Path)
     end
 end
 
-FilePathsBase.exists(fp::S3Path) = s3_exists(fp.config, fp.bucket, fp.key)
+# Use `fp.config` unless it is nothing; in that case, get the latest `global_aws_config`
+get_config(fp::S3Path) = @something(fp.config, global_aws_config())
+
+FilePathsBase.exists(fp::S3Path) = s3_exists(get_config(fp), fp.bucket, fp.key)
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
     if isempty(fp.segments)
@@ -184,7 +186,7 @@ function Base.isdir(fp::S3Path)
         return false
     end
 
-    objects = s3_list_objects(fp.config, fp.bucket, key; max_items=1)
+    objects = s3_list_objects(get_config(fp), fp.bucket, key; max_items=1)
 
     # `objects` is a `Channel`, so we call iterate to see if there are any objects that
     # match our directory key.
@@ -205,7 +207,7 @@ function Base.stat(fp::S3Path)
     last_modified = DateTime(0)
 
     if exists(fp)
-        resp = s3_get_meta(fp.config, fp.bucket, fp.key)
+        resp = s3_get_meta(get_config(fp), fp.bucket, fp.key)
         # Example: "Thu, 03 Jan 2019 21:09:17 GMT"
         last_modified = DateTime(
             resp["Last-Modified"][1:end-4],
@@ -261,7 +263,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
     end
 
     @debug "delete: $fp"
-    s3_delete(fp.config, fp.bucket, fp.key)
+    s3_delete(get_config(fp), fp.bucket, fp.key)
 end
 
 # We need to special case sync with S3Paths because of how directories
@@ -380,7 +382,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
                 if !isempty(token)
                     params["continuation-token"] = token
                 end
-                S3.list_objects_v2(fp.bucket, params; aws_config=fp.config)
+                S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp))
             catch e
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
             end
@@ -401,7 +403,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
 end
 
 function Base.read(fp::S3Path; byte_range=nothing)
-    return Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key; raw=true, byte_range=byte_range))
+    return Vector{UInt8}(s3_get(get_config(fp), fp.bucket, fp.key; raw=true, byte_range=byte_range))
 end
 
 Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8}(content); kwargs...)
@@ -410,10 +412,10 @@ function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipa
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
     MAX_HTTP_BYTES = 2147483647
     if !multipart || length(content) < MAX_HTTP_BYTES
-        return s3_put(fp.config, fp.bucket, fp.key, content)
+        return s3_put(get_config(fp), fp.bucket, fp.key, content)
     else
         io = IOBuffer(content)
-        return s3_multipart_upload(fp.config, fp.bucket, fp.key, io, part_size_mb=part_size_mb; other_kwargs...)
+        return s3_multipart_upload(get_config(fp), fp.bucket, fp.key, io, part_size_mb=part_size_mb; other_kwargs...)
     end
 end
 
