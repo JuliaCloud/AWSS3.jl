@@ -1,7 +1,5 @@
 bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
 
-minio = aws isa MinioConfig
-
 @testset "Create Bucket" begin
     s3_create_bucket(aws, bucket_name)
     @test bucket_name in s3_list_buckets(aws)
@@ -69,7 +67,7 @@ end
     @test s3_get(aws, bucket_name, "key1.copy") == b"data1.v1"
 end
 
-@testset "Sign URL" begin
+minio || @testset "Sign URL" begin
     for v in ["v2", "v4"]
         url = s3_sign_url(aws, bucket_name, "key1"; signature_version=v)
         curl_output = ""
@@ -121,7 +119,7 @@ end
     @test meta["ETag"] == "\"68bc8898af64159b72f349b391a7ae35\""
 end
 
-@testset "Check Object Versions" begin
+minio || @testset "Check Object Versions" begin
     versions = s3_list_versions(aws, bucket_name, "key3")
     @test length(versions) == 3
     @test (s3_get(aws, bucket_name, "key3"; version=versions[3]["VersionId"]) == b"data3.v1")
@@ -129,7 +127,7 @@ end
     @test (s3_get(aws, bucket_name, "key3"; version=versions[1]["VersionId"]) == b"data3.v3")
 end
 
-@testset "Purge Versions" begin
+minio || @testset "Purge Versions" begin
     s3_purge_versions(aws, bucket_name, "key3")
     versions = s3_list_versions(aws, bucket_name, "key3")
     @test length(versions) == 1
@@ -146,7 +144,7 @@ end
         "file_html",
         "file/html",
         "foobar.html/file.htm"]
-
+        minio && k == "file" && continue
         s3_put(aws, bucket_name, k, "x")
         @test ctype(k) == "application/octet-stream"
     end
