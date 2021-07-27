@@ -1,4 +1,6 @@
-struct S3Path{A<:Union{Nothing, AbstractAWSConfig}} <: AbstractPath
+const S3PathConfig = Union{AbstractAWSConfig, Nothing}
+
+struct S3Path{A<:S3PathConfig} <: AbstractPath
     segments::Tuple{Vararg{String}}
     root::String
     drive::String
@@ -8,13 +10,13 @@ end
 
 # constructor that converts but does not require type parameter
 function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                config::Union{Nothing, AbstractAWSConfig})
+                config::S3PathConfig)
     S3Path{typeof(config)}(segments, root, drive, isdirectory, config)
 end
 
 """
     S3Path()
-    S3Path(str; config::Union{Nothing, AbstractAWSConfig}=nothing)
+    S3Path(str; config::$(S3PathConfig)=nothing)
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
@@ -48,13 +50,13 @@ function S3Path()
     )
 end
 # below definition needed by FilePathsBase
-S3Path{A}() where {A<:Union{Nothing, AbstractAWSConfig}} = S3Path()
+S3Path{A}() where {A<:S3PathConfig} = S3Path()
 
 function S3Path(
     bucket::AbstractString,
     key::AbstractString;
     isdirectory::Bool=false,
-    config::Union{Nothing, AbstractAWSConfig}=nothing,
+    config::S3PathConfig=nothing,
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -69,7 +71,7 @@ function S3Path(
     bucket::AbstractString,
     key::AbstractPath;
     isdirectory::Bool=false,
-    config::Union{Nothing, AbstractAWSConfig}=nothing,
+    config::S3PathConfig=nothing,
 )
     return S3Path(
         key.segments,
@@ -81,7 +83,7 @@ function S3Path(
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::Union{Nothing, AbstractAWSConfig}=nothing)
+function S3Path(str::AbstractString; config::S3PathConfig=nothing)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     return result
