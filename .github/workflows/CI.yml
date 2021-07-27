@@ -51,7 +51,7 @@ jobs:
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@latest
       - name: "Compat fix for Julia < v1.5"
-        if: ${{ (matrix.version == "1.3") || (matrix.version == "1.0") }}
+        if: ${{ (matrix.version == '1.3') || (matrix.version == '1.0') }}
         run: |
           # Remove Minio from the test project
           write("Project.toml", read(`grep -v '^Minio =' Project.toml`, String))
