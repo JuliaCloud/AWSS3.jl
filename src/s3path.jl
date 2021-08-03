@@ -193,6 +193,37 @@ function Base.isdir(fp::S3Path)
     return iterate(objects) !== nothing
 end
 
+function FilePathsBase.walkpath(fp::S3Path; topdown=true, follow_symlinks=false, onerror=throw)
+
+    # Select objects with that prefix
+    objects = s3_list_objects(fp.config, fp.bucket, fp.key; delimiter="")
+
+    # Extract keys from the objects and remove the prefix
+    rm_key = s -> chop(s, head=length(fp.key), tail=0)
+    keys = map(rm_key, o["Key"] for o in objects)
+
+    isempty(keys) && return Channel{S3Path}()
+
+    chnl = S3Path[]
+    for k in (topdown ? keys : reverse(keys))
+        batch = S3Path[]
+
+        topdown || push!(batch, fp / k)
+        prnts = parents(Path(k))
+
+        for p in (topdown ? prnts : reverse(prnts))
+            _p = fp / p
+            !(_p in chnl) && push!(batch, _p)
+        end
+
+        topdown && push!(batch, fp / k)
+        push!(chnl, (topdown ? batch : reverse(batch))...)
+    end
+
+    result = (topdown ? chnl : reverse(chnl))
+    return Channel{S3Path{AWS.AWSConfig}}(ch -> foreach(i -> put!(ch, i), result))
+end
+
 function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
     # ownership and permission settings
@@ -349,12 +380,12 @@ function _retrieve_prefixes!(results, objects, prefix_key, chop_head)
 
     for p in objects
         prefix = _pair_or_dict_get(p, prefix_key)
-        
+
         if prefix !== nothing
             push!(results, rm_key(prefix))
         end
     end
-    
+
     return nothing
 end
 
