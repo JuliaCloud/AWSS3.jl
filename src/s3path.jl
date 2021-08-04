@@ -198,7 +198,9 @@ function FilePathsBase.walkpath(fp::S3Path; kwargs...)
     objects = s3_list_objects(fp.config, fp.bucket, fp.key; delimiter="")
 
     # Construct a new Channel using a recursive internal `_walkpath!` function
-    return Channel{typeof(fp)}(chnl -> _walkpath!(fp, fp, objects, chnl; kwargs...))
+    return Channel(ctype=typeof(fp)) do chnl
+        _walkpath!(fp, fp, objects, chnl; kwargs...)
+    end
 end
 
 function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, kwargs...)
