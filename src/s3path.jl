@@ -193,35 +193,55 @@ function Base.isdir(fp::S3Path)
     return iterate(objects) !== nothing
 end
 
-function FilePathsBase.walkpath(fp::S3Path; topdown=true, follow_symlinks=false, onerror=throw)
-
+function FilePathsBase.walkpath(fp::S3Path; kwargs...)
     # Select objects with that prefix
     objects = s3_list_objects(fp.config, fp.bucket, fp.key; delimiter="")
 
-    # Extract keys from the objects and remove the prefix
-    rm_key = s -> chop(s, head=length(fp.key), tail=0)
-    keys = map(rm_key, o["Key"] for o in objects)
+    # Construct a new Channel using a recursive internal `_walkpath!` function
+    return Channel{typeof(fp)}(chnl -> _walkpath!(fp, fp, objects, chnl; kwargs...))
+end
 
-    isempty(keys) && return Channel{S3Path}()
+function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, kwargs...)
+    # Next is used for storing taken elements which belong to a different parent.
+    # Think of it like a pseudo stateful iteration.
+    next = nothing
+    while true
+        try
+            # If we have no next element saved then take! the next object
+            o = isnothing(next) ? take!(objects) : next
+            # If our key doesn't start with the prefix then we've exhausted the current
+            # prefix directory.
+            startswith(o["Key"], prefix.key) || return o
 
-    chnl = S3Path[]
-    for k in (topdown ? keys : reverse(keys))
-        batch = S3Path[]
+            # Extract the non-root part of the key
+            k = chop(o["Key"], head=length(root.key), tail=0)
 
-        topdown || push!(batch, fp / k)
-        prnts = parents(Path(k))
+            # Construct a valid child path from the key
+            child = joinpath(root, k)
 
-        for p in (topdown ? prnts : reverse(prnts))
-            _p = fp / p
-            !(_p in chnl) && push!(batch, _p)
+            # If we aren't dealing with the root and we're doing topdown iteration then
+            # insert the child into the results channel
+            !isempty(k) && topdown && put!(chnl, child)
+
+            # If our child is also a directory then recursively call _walkpath! to
+            # process those children.
+            if isdir(child)
+                next = _walkpath!(root, child, objects, chnl; topdown=topdown, kwargs...)
+            end
+
+            # If we aren't dealing with the root and we're doing bottom up iteration then
+            # insert the child ion the result channel here
+            !isempty(k) && (topdown || put!(chnl, child))
+        catch e
+            # If take! throws a closed channel exception then exit the loop w/o error,
+            # otherwise rethrow our error condition
+            if isa(e, InvalidStateException) && e.state === :closed
+                break
+            else
+                rethrow()
+            end
         end
-
-        topdown && push!(batch, fp / k)
-        push!(chnl, (topdown ? batch : reverse(batch))...)
     end
-
-    result = (topdown ? chnl : reverse(chnl))
-    return Channel{S3Path{AWS.AWSConfig}}(ch -> foreach(i -> put!(ch, i), result))
 end
 
 function Base.stat(fp::S3Path)
