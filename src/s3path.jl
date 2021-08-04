@@ -210,7 +210,7 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, k
     while true
         try
             # If we have no next element saved then take! the next object
-            o = isnothing(next) ? take!(objects) : next
+            o = next === nothing ? take!(objects) : next
             # If our key doesn't start with the prefix then we've exhausted the current
             # prefix directory.
             startswith(o["Key"], prefix.key) || return o
