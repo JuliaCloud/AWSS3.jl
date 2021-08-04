@@ -207,7 +207,7 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, o
     while true
         try
             # Start by inspecting the next element
-            next = peek(objects)
+            next = Base.peek(objects)
 
             # Early exit condition if we've exhausted the iterator or just the current prefix.
             next === nothing && return nothing
