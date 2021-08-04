@@ -199,27 +199,35 @@ function FilePathsBase.walkpath(fp::S3Path; kwargs...)
 
     # Construct a new Channel using a recursive internal `_walkpath!` function
     return Channel(ctype=typeof(fp)) do chnl
-        _walkpath!(fp, fp, objects, chnl; kwargs...)
+        _walkpath!(fp, fp, Iterators.Stateful(objects), chnl; kwargs...)
     end
 end
 
-function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, kwargs...)
-    # Next is used for storing taken elements which belong to a different parent.
-    # Think of it like a pseudo stateful iteration.
-    next = nothing
+function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, onerror=throw, kwargs...)
     while true
         try
-            # If we have no next element saved then take! the next object
-            o = next === nothing ? take!(objects) : next
-            # If our key doesn't start with the prefix then we've exhausted the current
-            # prefix directory.
-            startswith(o["Key"], prefix.key) || return o
+            # Start by inspecting the next element
+            next = peek(objects)
+
+            # Early exit condition if we've exhausted the iterator or just the current prefix.
+            next === nothing && return nothing
+            startswith(next["Key"], prefix.key) || return nothing
 
             # Extract the non-root part of the key
-            k = chop(o["Key"], head=length(root.key), tail=0)
+            k = chop(next["Key"], head=length(root.key), tail=0)
 
-            # Construct a valid child path from the key
-            child = joinpath(root, k)
+            # Determine the next appropriate child path
+            # 1. Next is a direct descendant of the current prefix (ie: we have a prefix object)
+            # 2. Next is a distant descendant of the current prefix (ie: we don't have prefix objects)
+            fp = joinpath(root, k)
+            _parents = parents(fp)
+            child, recurse = if last(_parents) == prefix || fp.segments == prefix.segments
+                popfirst!(objects)
+                fp, isdir(fp)
+            else
+                i = findfirst(==(prefix), _parents)
+                _parents[i+1], true
+            end
 
             # If we aren't dealing with the root and we're doing topdown iteration then
             # insert the child into the results channel
@@ -227,9 +235,7 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, k
 
             # If our child is also a directory then recursively call _walkpath! to
             # process those children.
-            if isdir(child)
-                next = _walkpath!(root, child, objects, chnl; topdown=topdown, kwargs...)
-            end
+            recurse && _walkpath!(root, child, objects, chnl; topdown=topdown, kwargs...)
 
             # If we aren't dealing with the root and we're doing bottom up iteration then
             # insert the child ion the result channel here
@@ -239,6 +245,8 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, k
             # otherwise rethrow our error condition
             if isa(e, InvalidStateException) && e.state === :closed
                 break
+            elseif isa(e, Base.IOError)
+                onerror(e)
             else
                 rethrow()
             end
