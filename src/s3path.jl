@@ -243,7 +243,7 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, o
 
             # If we aren't dealing with the root and we're doing bottom up iteration then
             # insert the child ion the result channel here
-            !isempty(k) && (topdown || put!(chnl, child))
+            !isempty(k) && !topdown && put!(chnl, child)
         catch e
             isa(e, Base.IOError) ? onerror(e) : rethrow()
         end
