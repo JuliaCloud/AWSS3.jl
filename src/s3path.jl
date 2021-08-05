@@ -233,23 +233,19 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, o
             # insert the child into the results channel
             !isempty(k) && topdown && put!(chnl, child)
 
-            # If our child is also a directory then recursively call _walkpath! to
-            # process those children.
-            recurse && _walkpath!(root, child, objects, chnl; topdown=topdown, kwargs...)
+            # Apply our recursive call for the children as necessary
+            if recurse
+                _walkpath!(
+                    root, child, objects, chnl;
+                    topdown=topdown, onerror=onerror, kwargs...
+                )
+            end
 
             # If we aren't dealing with the root and we're doing bottom up iteration then
             # insert the child ion the result channel here
             !isempty(k) && (topdown || put!(chnl, child))
         catch e
-            # If take! throws a closed channel exception then exit the loop w/o error,
-            # otherwise rethrow our error condition
-            if isa(e, InvalidStateException) && e.state === :closed
-                break
-            elseif isa(e, Base.IOError)
-                onerror(e)
-            else
-                rethrow()
-            end
+            isa(e, Base.IOError) ? onerror(e) : rethrow()
         end
     end
 end
