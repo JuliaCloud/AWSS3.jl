@@ -107,8 +107,7 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
     path = ()
     isdirectory = true
 
-    version_split = split(str, "?version=")
-    tokenized = split(version_split[1], "/")
+    tokenized = split(str, "/")
     bucket = strip(tokenized[3], '/')
     drive = "s3://$bucket"
 
@@ -119,8 +118,7 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
         path = Tuple(filter!(!isempty, tokenized[4:end]))
     end
 
-    version = length(version_split) == 1 ? nothing : version_split[2]
-    return S3Path(path, root, drive, isdirectory, config, version)
+    return S3Path(path, root, drive, isdirectory, config, nothing)
 end
 
 function normalize_bucket_name(bucket)
