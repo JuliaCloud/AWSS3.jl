@@ -39,7 +39,8 @@ if VERSION >= v"1.5"
     end
 end
 
-aws = global_aws_config()
+# Set `AWSConfig` as the default for the following tests
+aws = global_aws_config(AWSConfig())
 minio = false # make sure we run all tests
 @testset "AWSS3.jl" begin
     include("s3path.jl")
