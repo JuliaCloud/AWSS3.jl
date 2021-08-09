@@ -36,7 +36,7 @@ using UUIDs
 @service S3
 
 const SSDict = Dict{String,String}
-const S3PathVersion = Union{String,Nothing}
+const S3PathVersion = Union{AbstractString,Nothing}
 
 __init__() = FilePathsBase.register(S3Path)
 
