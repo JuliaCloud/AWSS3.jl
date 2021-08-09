@@ -86,8 +86,8 @@ function S3Path(
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config(), version=nothing)
-    result = tryparse(S3Path, str; config=config, version=version)
+function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config())
+    result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     return result
 end
