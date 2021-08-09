@@ -86,14 +86,19 @@ function S3Path(
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config())
+function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config(),
+                version::S3PathVersion=nothing)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
+    if !isnothing(version) && !isempty(version)
+        !isnothing(result.version) && throw(ArgumentError("Object `version` already parsed from `str`"))
+        result = S3Path(result.bucket, result.key; config=result.config, version=version)
+    end
     return result
 end
 
 # if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
-function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing, version::S3PathVersion=nothing)
+function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
     str = String(str)
     startswith(str, "s3://") || return nothing
     # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
@@ -112,8 +117,7 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
         isdirectory = isempty(last(tokenized))
         path = Tuple(filter!(!isempty, tokenized[4:end]))
     end
-
-    return S3Path(path, root, drive, isdirectory, config, version)
+    return S3Path(path, root, drive, isdirectory, config, nothing)
 end
 
 function normalize_bucket_name(bucket)
