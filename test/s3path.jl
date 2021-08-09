@@ -367,6 +367,8 @@ end
     @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String) == "data.v2"
     @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String),
                   read(S3Path(bucket_name, key_version_file; config=aws), String))
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String),
+                  read(S3Path(bucket_name, key_version_file; config=aws, version=""), String))
 
     unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
     versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions))

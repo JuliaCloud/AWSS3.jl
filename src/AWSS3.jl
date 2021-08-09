@@ -85,8 +85,7 @@ function s3_get(
             "return_raw" => raw,
             "return_stream" => return_stream,
         )
-
-        if !isnothing(version) || !isempty(version)
+        if !isnothing(version) && !isempty(version)
             args["versionId"] = version
         end
 
