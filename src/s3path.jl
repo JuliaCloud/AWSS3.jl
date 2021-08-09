@@ -165,7 +165,7 @@ function FilePathsBase.join(prefix::S3Path, pieces::AbstractString...)
         prefix.drive,
         isdirectory,
         prefix.config,
-        nothing, # Version is per-object, so would not propogate from the prefix
+        nothing, # Version is per-object, so we should not propagate it from the prefix
     )
 end
 
