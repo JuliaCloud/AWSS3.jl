@@ -356,14 +356,10 @@ end
 end
 
 @testset "S3Path versioning" begin
+    s3_enable_versioning(aws, bucket_name)
     key_version_file = "test_versions"
     s3_put(aws, bucket_name, key_version_file, "data.v1")
     s3_put(aws, bucket_name, key_version_file, "data.v2")
-    for i in 1:10
-        length(s3_list_versions(aws, bucket_name, key_version_file)) == 2 && break
-        @info "i..."
-        sleep(1)
-    end
 
     # `s3_list_versions` returns versions in the order newest to oldest
     versions = [d["VersionId"] for d in reverse!(s3_list_versions(aws, bucket_name, key_version_file))]
