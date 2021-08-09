@@ -143,7 +143,7 @@ function test_s3_properties(ps::PathSet)
         @test fp1.key == "path/to/some/object"
         @test fp2.bucket == "mybucket"
         @test fp2.key == "path/to/some/prefix/"
-        @test isnothing(fp2.version)
+        @test fp2.version === nothing
     end
 end
 
@@ -373,7 +373,7 @@ end
     unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
     versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions))
     @test versioned_path.version == last(versions)
-    @test isnothing(unversioned_path.version)
+    @test unversioned_path.version === nothing
     @test exists(versioned_path)
     @test exists(unversioned_path)
     nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=aws, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")

@@ -90,8 +90,8 @@ function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config
                 version::S3PathVersion=nothing)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
-    if !isnothing(version) && !isempty(version)
-        !isnothing(result.version) && throw(ArgumentError("Object `version` already parsed from `str`"))
+    if version !== nothing && !isempty(version)
+        result.version !== nothing && throw(ArgumentError("Object `version` already parsed from `str`"))
         result = S3Path(result.bucket, result.key; config=result.config, version=version)
     end
     return result
@@ -421,7 +421,7 @@ Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8
 function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=false, other_kwargs...)
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
     MAX_HTTP_BYTES = 2147483647
-    isnothing(fp.version) || throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
+    fp.version === nothing || throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     if !multipart || length(content) < MAX_HTTP_BYTES
         return s3_put(fp.config, fp.bucket, fp.key, content)
     else
