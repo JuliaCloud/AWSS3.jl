@@ -33,14 +33,13 @@ if VERSION >= v"1.5"
             include("s3path.jl")
             include("awss3.jl")
         end
-    catch
+    finally
         # Make sure we kill the server even if a test failed.
         kill(minio_server)
-        rethrow()
     end
 end
 
-aws = global_aws_config(AWSConfig(; region = "us-east-1"))
+aws = global_aws_config()
 minio = false # make sure we run all tests
 @testset "AWSS3.jl" begin
     include("s3path.jl")
