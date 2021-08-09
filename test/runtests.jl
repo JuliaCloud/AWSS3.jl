@@ -20,7 +20,8 @@ if VERSION >= v"1.5"
     # We then run all tests with s3 directly.
 
     # We use multiple directories so that Minio can support versioning.
-    dirs = [mktempdir() for _ =1:12]
+    root = mktempdir()
+    dirs = [mkdir(joinpath(root, string(i))) for i in 1:12]
     port = 9005
     minio_server = Minio.Server(dirs; address="localhost:$port")
 
