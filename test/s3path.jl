@@ -152,7 +152,6 @@ function test_s3_folders_and_files(ps::PathSet)
         # not support having prefixes that clash with files
         # (https://github.com/minio/minio/issues/9865)
         # Thus in these tests, we run certain tests only on s3.
-        minio = ps.root.config isa MinioConfig
 
         # In case the ps.root doesn't exist
         mkdir(ps.root; recursive=true, exist_ok=true)
@@ -364,7 +363,7 @@ end
     rm(json_path)
 end
 
-# Minio 
-if !(aws isa MinioConfig)
+# Broken on minio 
+if aws isa AWSConfig
     AWSS3.s3_nuke_bucket(aws, bucket_name)
 end
