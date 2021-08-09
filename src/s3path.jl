@@ -9,7 +9,7 @@ end
 
 # constructor that converts but does not require type parameter
 function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                config::AbstractAWSConfig, version::S3PathVersion=nothing)
+                config::AbstractAWSConfig, version::AbstractS3Version=nothing)
     S3Path{typeof(config)}(segments, root, drive, isdirectory, config, version)
 end
 
@@ -56,7 +56,7 @@ function S3Path(
     key::AbstractString;
     isdirectory::Bool=false,
     config::AbstractAWSConfig=global_aws_config(),
-    version::S3PathVersion=nothing,
+    version::AbstractS3Version=nothing,
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -73,7 +73,7 @@ function S3Path(
     key::AbstractPath;
     isdirectory::Bool=false,
     config::AbstractAWSConfig=global_aws_config(),
-    version::S3PathVersion=nothing,
+    version::AbstractS3Version=nothing,
 )
     return S3Path(
         key.segments,
@@ -87,7 +87,7 @@ end
 
 # To avoid a breaking change.
 function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config(),
-                version::S3PathVersion=nothing)
+                version::AbstractS3Version=nothing)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     if version !== nothing && !isempty(version)
@@ -107,7 +107,8 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
     path = ()
     isdirectory = true
 
-    tokenized = split(str, "/")
+    version_split = split(str, "?version=")
+    tokenized = split(version_split[1], "/")
     bucket = strip(tokenized[3], '/')
     drive = "s3://$bucket"
 
@@ -117,7 +118,9 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
         isdirectory = isempty(last(tokenized))
         path = Tuple(filter!(!isempty, tokenized[4:end]))
     end
-    return S3Path(path, root, drive, isdirectory, config, nothing)
+
+    version = length(version_split) == 1 ? nothing : version_split[2]
+    return S3Path(path, root, drive, isdirectory, config, version)
 end
 
 function normalize_bucket_name(bucket)
