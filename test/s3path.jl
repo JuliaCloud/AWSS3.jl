@@ -356,14 +356,16 @@ end
 
 # <https://github.com/JuliaCloud/AWSS3.jl/issues/168>
 @testset "Global config is not frozen at construction time" begin
+    prev_config = global_aws_config()
+    
     # Setup: create a file holding a string `abc`
     path = S3Path("s3://$(bucket_name)/test_str.txt")
     write(path, "abc")
+    @test read(path, String) == "abc"  # Have access to read file
 
-    prev_config = global_aws_config()
+    alt_region = prev_config.region == "us-east-2" ? "us-east-1" : "us-east-2"
     try
-        global_aws_config(region="us-east-2") # this is the wrong region!
-        path = S3Path("s3://$(bucket_name)/test_str.txt")
+        global_aws_config(region=alt_region) # this is the wrong region!
         @test_throws AWS.AWSException read(path, String)
 
         # restore the right region
