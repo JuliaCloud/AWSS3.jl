@@ -129,7 +129,7 @@ end
 
     tmp_file = "/tmp/jl_qws_test_key3"
     s3_get_file(aws, bucket_name, "key3", tmp_file; version=versions[2]["VersionId"])
-    @test (read(tmp_file) == b"data3.v2")
+    @test read(tmp_file) == b"data3.v2"
 end
 
 @testset "Purge Versions" begin
