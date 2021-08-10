@@ -137,7 +137,8 @@ function Base.:(==)(a::S3Path, b::S3Path)
     return a.segments == b.segments &&
         a.root == b.root &&
         a.drive == b.drive &&
-        a.isdirectory == b.isdirectory
+        a.isdirectory == b.isdirectory &&
+        a.version == b.version
 end
 
 function Base.getproperty(fp::S3Path, attr::Symbol)

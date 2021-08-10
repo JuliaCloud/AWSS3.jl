@@ -382,7 +382,11 @@ end
 
     v1 = first(versions)
     versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=v1)
+    versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
+    versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
     @test versioned_path_v1.version == v1
+    @test !isequal(versioned_path_v1, unversioned_path)
+    @test !isequal(versioned_path_v1, versioned_path_v2)
 
     versioned_path_v1_from_url = S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)")
     @test versioned_path_v1_from_url.key == key_version_file
