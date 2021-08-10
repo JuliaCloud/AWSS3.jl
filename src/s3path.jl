@@ -131,7 +131,13 @@ function normalize_bucket_name(bucket)
     return strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/')
 end
 
-Base.print(io::IO, fp::S3Path) = print(io, fp.anchor * fp.key)
+function Base.print(io::IO, fp::S3Path)
+    str = fp.anchor * fp.key
+    if fp.version !== nothing && !isempty(fp.version)
+        str *= "?versionId=" * fp.version
+    end
+    return print(io, str)
+end
 
 function Base.:(==)(a::S3Path, b::S3Path)
     return a.segments == b.segments &&

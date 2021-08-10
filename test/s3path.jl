@@ -388,6 +388,11 @@ end
     @test !isequal(versioned_path_v1, unversioned_path)
     @test !isequal(versioned_path_v1, versioned_path_v2)
 
+    str_v1 = string(versioned_path_v1)
+    roundtripped_v1 = S3Path(str_v1; config=aws)
+    @test isequal(versioned_path_v1, roundtripped_v1)
+    @test str_v1 == "s3://" * bucket_name * "/" * key_version_file * "?versionId=" * v1
+
     versioned_path_v1_from_url = S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)")
     @test versioned_path_v1_from_url.key == key_version_file
     @test versioned_path_v1_from_url.version == v1
