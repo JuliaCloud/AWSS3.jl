@@ -143,6 +143,7 @@ function test_s3_properties(ps::PathSet)
         @test fp1.key == "path/to/some/object"
         @test fp2.bucket == "mybucket"
         @test fp2.key == "path/to/some/prefix/"
+        @test fp2.version === nothing
     end
 end
 
@@ -352,6 +353,45 @@ end
     json_bytes = read(json_path)
     @test JSON3.read(json_bytes, Dict) == my_dict
     rm(json_path)
+end
+
+@testset "S3Path versioning" begin
+    s3_enable_versioning(aws, bucket_name)
+    key_version_file = "test_versions"
+    s3_put(aws, bucket_name, key_version_file, "data.v1")
+    s3_put(aws, bucket_name, key_version_file, "data.v2")
+
+    # `s3_list_versions` returns versions in the order newest to oldest
+    versions = [d["VersionId"] for d in reverse!(s3_list_versions(aws, bucket_name, key_version_file))]
+    @test length(versions) == 2
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)), String) == "data.v1"
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String) == "data.v2"
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String),
+                  read(S3Path(bucket_name, key_version_file; config=aws), String))
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String),
+                  read(S3Path(bucket_name, key_version_file; config=aws, version=nothing), String))
+
+    unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
+    versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions))
+    @test versioned_path.version == last(versions)
+    @test unversioned_path.version === nothing
+    @test exists(versioned_path)
+    @test exists(unversioned_path)
+    nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=aws, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
+    @test !exists(nonexistent_versioned_path)
+
+    versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
+    versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
+    @test versioned_path_v1.version == first(versions)
+    @test !isequal(versioned_path_v1, unversioned_path)
+    @test !isequal(versioned_path_v1, versioned_path_v2)
+
+    @test isa(stat(versioned_path), Status)
+    @test_throws ArgumentError write(versioned_path, "new_content")
+
+    rm(versioned_path)
+    @test !exists(versioned_path)
+    @test length(s3_list_versions(aws, bucket_name, key_version_file)) == 1
 end
 
 AWSS3.s3_nuke_bucket(aws, bucket_name)
