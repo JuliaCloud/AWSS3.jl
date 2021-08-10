@@ -207,6 +207,63 @@ function Base.isdir(fp::S3Path)
     return iterate(objects) !== nothing
 end
 
+function FilePathsBase.walkpath(fp::S3Path; kwargs...)
+    # Select objects with that prefix
+    objects = s3_list_objects(fp.config, fp.bucket, fp.key; delimiter="")
+
+    # Construct a new Channel using a recursive internal `_walkpath!` function
+    return Channel(ctype=typeof(fp)) do chnl
+        _walkpath!(fp, fp, Iterators.Stateful(objects), chnl; kwargs...)
+    end
+end
+
+function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, onerror=throw, kwargs...)
+    while true
+        try
+            # Start by inspecting the next element
+            next = Base.peek(objects)
+
+            # Early exit condition if we've exhausted the iterator or just the current prefix.
+            next === nothing && return nothing
+            startswith(next["Key"], prefix.key) || return nothing
+
+            # Extract the non-root part of the key
+            k = chop(next["Key"], head=length(root.key), tail=0)
+
+            # Determine the next appropriate child path
+            # 1. Next is a direct descendant of the current prefix (ie: we have a prefix object)
+            # 2. Next is a distant descendant of the current prefix (ie: we don't have prefix objects)
+            fp = joinpath(root, k)
+            _parents = parents(fp)
+            child, recurse = if last(_parents) == prefix || fp.segments == prefix.segments
+                popfirst!(objects)
+                fp, isdir(fp)
+            else
+                i = findfirst(==(prefix), _parents)
+                _parents[i+1], true
+            end
+
+            # If we aren't dealing with the root and we're doing topdown iteration then
+            # insert the child into the results channel
+            !isempty(k) && topdown && put!(chnl, child)
+
+            # Apply our recursive call for the children as necessary
+            if recurse
+                _walkpath!(
+                    root, child, objects, chnl;
+                    topdown=topdown, onerror=onerror, kwargs...
+                )
+            end
+
+            # If we aren't dealing with the root and we're doing bottom up iteration then
+            # insert the child ion the result channel here
+            !isempty(k) && !topdown && put!(chnl, child)
+        catch e
+            isa(e, Base.IOError) ? onerror(e) : rethrow()
+        end
+    end
+end
+
 function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
     # ownership and permission settings

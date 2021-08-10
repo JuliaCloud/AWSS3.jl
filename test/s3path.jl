@@ -75,6 +75,32 @@ function test_s3_readpath(p::PathSet)
     end
 end
 
+function test_s3_walkpath(p::PathSet)
+    @testset "walkpath - S3" begin
+        # Test that we still return parent prefixes even when no "directory" objects
+        # have been created by a `mkdir`, retaining consistency with `readdir`.
+        _root = p.root / "s3_walkpath/"
+
+        _foo = _root / "foo/"
+        _baz = _foo / "baz.txt"
+        _bar = _root / "bar/"
+        _qux = _bar / "qux/"
+        _quux = _qux / "quux.tar.gz"
+
+        # Only write the leaf files
+        write(_baz, read(p.baz))
+        write(_quux, read(p.quux))
+
+        topdown = [_bar, _qux, _quux, _foo, _baz]
+        bottomup = [_quux, _qux, _bar, _baz, _foo]
+
+        @test collect(walkpath(_root; topdown=true)) == topdown
+        @test collect(walkpath(_root; topdown=false)) == bottomup
+
+        rm(_root; recursive=true)
+    end
+end
+
 function test_s3_cp(p::PathSet)
     @testset "cp" begin
         # In case the folder objects were deleted in a previous test
@@ -211,6 +237,7 @@ end
         test_cd,
         test_s3_readpath,
         test_walkpath,
+        test_s3_walkpath,
         test_read,
         test_large_write,
         test_write,
