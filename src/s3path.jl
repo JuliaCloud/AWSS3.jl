@@ -93,7 +93,7 @@ function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     if version !== nothing && !isempty(version)
-        if result.version !== nothing
+        if result.version !== nothing && result.version != version 
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end
         result = S3Path(result.bucket, result.key; config=result.config, version=version)

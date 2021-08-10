@@ -391,6 +391,7 @@ end
     versioned_path_v1_from_url = S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)")
     @test versioned_path_v1_from_url.key == key_version_file
     @test versioned_path_v1_from_url.version == v1
+    @test S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"; version=v1).version == v1
     @test_throws ArgumentError S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)";
                                       version=v2)
 
