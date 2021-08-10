@@ -364,26 +364,26 @@ end
     # `s3_list_versions` returns versions in the order newest to oldest
     versions = [d["VersionId"] for d in reverse!(s3_list_versions(aws, bucket_name, key_version_file))]
     @test length(versions) == 2
-    @test read(S3Path(bucket_name, key_version_file; config=aws, version=first(versions)), String) == "data.v1"
-    @test read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String) == "data.v2"
-    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String),
+    v1 = first(versions)
+    v2 = last(versions)
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=v1), String) == "data.v1"
+    @test read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String) == "data.v2"
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String),
                   read(S3Path(bucket_name, key_version_file; config=aws), String))
-    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=last(versions)), String),
+    @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String),
                   read(S3Path(bucket_name, key_version_file; config=aws, version=nothing), String))
 
     unversioned_path = S3Path(bucket_name, key_version_file; config=aws)
-    versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=last(versions))
-    @test versioned_path.version == last(versions)
+    versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=v2)
+    @test versioned_path.version == v2
     @test unversioned_path.version === nothing
     @test exists(versioned_path)
     @test exists(unversioned_path)
     nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=aws, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
     @test !exists(nonexistent_versioned_path)
 
-    v1 = first(versions)
     versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=v1)
-    versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
-    versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
+    versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=v2)
     @test versioned_path_v1.version == v1
     @test !isequal(versioned_path_v1, unversioned_path)
     @test !isequal(versioned_path_v1, versioned_path_v2)
@@ -391,7 +391,8 @@ end
     versioned_path_v1_from_url = S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)")
     @test versioned_path_v1_from_url.key == key_version_file
     @test versioned_path_v1_from_url.version == v1
-    @test_throws ArgumentError S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"; version=last(versions))
+    @test_throws ArgumentError S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)";
+                                      version=v2)
 
     str_v1 = string(versioned_path_v1)
     roundtripped_v1 = S3Path(str_v1; config=aws)
