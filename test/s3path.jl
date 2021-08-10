@@ -381,7 +381,10 @@ end
     @test !exists(nonexistent_versioned_path)
 
     versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
+    versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
     @test versioned_path_v1.version == first(versions)
+    @test !isequal(versioned_path_v1, unversioned_path)
+    @test !isequal(versioned_path_v1, versioned_path_v2)
 
     @test isa(stat(versioned_path), Status)
     @test_throws ArgumentError write(versioned_path, "new_content")
