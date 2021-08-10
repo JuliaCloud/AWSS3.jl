@@ -1,4 +1,5 @@
 function test_s3_constructors(ps::PathSet)
+    bucket_name = ps.root.bucket
     @test S3Path(bucket_name, "pathset-root/foo/baz.txt") == ps.baz
     @test S3Path(bucket_name, p"pathset-root/foo/baz.txt") == ps.baz
     @test S3Path(bucket_name, p"/pathset-root/foo/baz.txt") == ps.baz
@@ -83,40 +84,40 @@ function test_s3_mv(p::PathSet)
     end
 end
 
-function test_s3_sync(p::PathSet)
-    @testset "sync" begin
-        # In case the folder objects were deleted in a previous test
-        mkdir.([p.foo, p.qux, p.fred]; recursive=true, exist_ok=true)
-        # Base cp case
-        sync(p.foo, ps.qux / "foo/")
-        @test exists(p.qux / "foo" / "baz.txt")
+function test_s3_sync(ps::PathSet)
+    return p -> @testset "sync" begin
+                # In case the folder objects were deleted in a previous test
+                mkdir.([p.foo, p.qux, p.fred]; recursive=true, exist_ok=true)
+                # Base cp case
+                sync(p.foo, ps.qux / "foo/")
+                @test exists(p.qux / "foo" / "baz.txt")
 
-        # Test that the copied baz file has a newer modified time
-        baz_t = modified(p.qux / "foo" / "baz.txt")
-        @test modified(p.baz) < baz_t
+                # Test that the copied baz file has a newer modified time
+                baz_t = modified(p.qux / "foo" / "baz.txt")
+                @test modified(p.baz) < baz_t
 
-        # Don't cp unchanged files when a new file is added
-        # NOTE: sleep before we make a new file, so it's clear tha the
-        # modified time has changed.
-        sleep(1)
-        write(p.foo / "test.txt", "New File")
-        sync(p.foo, ps.qux / "foo/")
-        @test exists(p.qux / "foo" / "test.txt")
-        @test read(p.qux / "foo" / "test.txt") == b"New File"
-        @test read(p.qux / "foo" / "test.txt", String) == "New File"
-        @test modified(p.qux / "foo" / "baz.txt") == baz_t
-        @test modified(p.qux / "foo" / "test.txt") > baz_t
+                # Don't cp unchanged files when a new file is added
+                # NOTE: sleep before we make a new file, so it's clear tha the
+                # modified time has changed.
+                sleep(1)
+                write(p.foo / "test.txt", "New File")
+                sync(p.foo, ps.qux / "foo/")
+                @test exists(p.qux / "foo" / "test.txt")
+                @test read(p.qux / "foo" / "test.txt") == b"New File"
+                @test read(p.qux / "foo" / "test.txt", String) == "New File"
+                @test modified(p.qux / "foo" / "baz.txt") == baz_t
+                @test modified(p.qux / "foo" / "test.txt") > baz_t
 
-        # Test not deleting a file on sync
-        rm(p.foo / "test.txt")
-        sync(p.foo, ps.qux / "foo/")
-        @test exists(p.qux / "foo" / "test.txt")
+                # Test not deleting a file on sync
+                rm(p.foo / "test.txt")
+                sync(p.foo, ps.qux / "foo/")
+                @test exists(p.qux / "foo" / "test.txt")
 
-        # Test passing delete flag
-        sync(p.foo, p.qux / "foo/"; delete=true)
-        @test !exists(p.qux / "foo" / "test.txt")
-        rm(p.qux / "foo/"; recursive=true)
-    end
+                # Test passing delete flag
+                sync(p.foo, p.qux / "foo/"; delete=true)
+                @test !exists(p.qux / "foo" / "test.txt")
+                rm(p.qux / "foo/"; recursive=true)
+            end
 end
 
 function test_s3_properties(ps::PathSet)
@@ -280,7 +281,7 @@ function s3path_tests(config)
             # These tests seem to fail due to an eventual consistency issue?
             test_s3_cp,
             test_s3_mv,
-            test_s3_sync,
+            test_s3_sync(ps),
             test_symlink,
             test_touch,
             test_tmpname,
