@@ -11,6 +11,12 @@ using FilePathsBase.TestPaths
 using UUIDs: uuid4
 using JSON3
 
+is_aws(config) = config isa AWSConfig
+
+# Load the test functions
+include("s3path.jl")
+include("awss3.jl")
+
 if VERSION >= v"1.5"
     using Minio
     AWS.aws_account_number(::Minio.MinioConfig) = "123"
@@ -25,14 +31,12 @@ if VERSION >= v"1.5"
     port = 9005
     minio_server = Minio.Server(dirs; address="localhost:$port")
 
-    # We use this boolean flag to skip some tests under Minio
-    minio = true
     try
         run(minio_server, wait=false)
-        global aws = global_aws_config(MinioConfig("http://localhost:$port"; username="minioadmin", password="minioadmin"))
+        config = global_aws_config(MinioConfig("http://localhost:$port"; username="minioadmin", password="minioadmin"))
         @testset "Minio tests" begin
-            include("s3path.jl")
-            include("awss3.jl")
+            awss3_tests(config)
+            s3path_tests(config)
         end
     finally
         # Make sure we kill the server even if a test failed.
@@ -42,8 +46,7 @@ end
 
 # Set `AWSConfig` as the default for the following tests
 aws = global_aws_config(AWSConfig())
-minio = false # make sure we run all tests
 @testset "AWSS3.jl" begin
-    include("s3path.jl")
-    include("awss3.jl")
+    awss3_tests(aws)
+    s3path_tests(aws)
 end
