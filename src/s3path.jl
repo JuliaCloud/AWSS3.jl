@@ -32,7 +32,9 @@ NOTES:
 - On top of the standard path properties (e.g., `segments`, `root`, `drive`,
   `separator`), `S3Path`s also support `bucket` and `key` properties for your
   convenience.
-- If `version` argument is `nothing`, will return latest version of object.
+- If `version` argument is `nothing`, will return latest version of object. Version
+  can be provided via either kwarg `version` or as suffix `?versionId=<object_version>`
+  of `str`, e.g., "s3://<bucket>/prefix/to/my/object?versionId=<object_version>".
 """
 function S3Path()
     config = global_aws_config()
@@ -91,7 +93,9 @@ function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     if version !== nothing && !isempty(version)
-        result.version !== nothing && throw(ArgumentError("Object `version` already parsed from `str`"))
+        if result.version !== nothing
+            throw(ArgumentError("Conflicting object versions in `version` and `str`"))
+        end
         result = S3Path(result.bucket, result.key; config=result.config, version=version)
     end
     return result
@@ -107,7 +111,8 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
     path = ()
     isdirectory = true
 
-    tokenized = split(str, "/")
+    version_split = split(str, "?versionId=")
+    tokenized = split(version_split[1], "/")
     bucket = strip(tokenized[3], '/')
     drive = "s3://$bucket"
 
@@ -118,7 +123,8 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
         path = Tuple(filter!(!isempty, tokenized[4:end]))
     end
 
-    return S3Path(path, root, drive, isdirectory, config, nothing)
+    version = length(version_split) == 1 ? nothing : version_split[2]
+    return S3Path(path, root, drive, isdirectory, config, version)
 end
 
 function normalize_bucket_name(bucket)

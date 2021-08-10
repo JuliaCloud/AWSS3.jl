@@ -380,8 +380,14 @@ end
     nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=aws, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
     @test !exists(nonexistent_versioned_path)
 
-    versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
-    @test versioned_path_v1.version == first(versions)
+    v1 = first(versions)
+    versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=v1)
+    @test versioned_path_v1.version == v1
+
+    versioned_path_v1_from_url = S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)")
+    @test versioned_path_v1_from_url.key == key_version_file
+    @test versioned_path_v1_from_url.version == v1
+    @test_throws ArgumentError S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"; version=last(versions))
 
     @test isa(stat(versioned_path), Status)
     @test_throws ArgumentError write(versioned_path, "new_content")
