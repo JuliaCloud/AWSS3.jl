@@ -33,7 +33,7 @@ if VERSION >= v"1.5"
 
     try
         run(minio_server, wait=false)
-        config = MinioConfig("http://localhost:$port"; username="minioadmin", password="minioadmin")
+        config = global_aws_config(MinioConfig("http://localhost:$port"; username="minioadmin", password="minioadmin"))
         @testset "Minio tests" begin
             awss3_tests(config)
             s3path_tests(config)
