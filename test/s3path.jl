@@ -355,6 +355,26 @@ end
     rm(json_path)
 end
 
+@testset "`tryparse`" begin
+    get_values = (str) -> begin
+        p = S3Path(str)
+        return (p.segments, p.root, p.drive, p.isdirectory, p.version)
+    end
+
+    @test isequal(get_values("s3://my_bucket/prefix/that/is/fun"),
+                  (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, nothing))
+    @test isequal(get_values("s3://my_bucket/prefix/that/is/fun/"),
+                  (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, nothing))
+    @test isequal(get_values("s3://my_bucket/"), ((), "/", "s3://my_bucket", true, nothing))
+    @test isequal(get_values("s3://my_bucket"), ((), "", "s3://my_bucket", true, nothing))
+    @test isequal(get_values("s3://my_bucket/prefix/that/is/fun?versionId=xyz"),
+                  (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, "xyz"))
+    @test isequal(get_values("s3://my_bucket/prefix/that/is/fun/?versionId=xyz"),
+                  (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz"))
+    @test isequal(get_values("s3://my_bucket/?versionId=xyz"), ((), "/", "s3://my_bucket", true, "xyz"))
+    @test isequal(get_values("s3://my_bucket?versionId=xyz"),((), "", "s3://my_bucket", true, "xyz"))
+end
+
 @testset "S3Path versioning" begin
     s3_enable_versioning(aws, bucket_name)
     key_version_file = "test_versions"
