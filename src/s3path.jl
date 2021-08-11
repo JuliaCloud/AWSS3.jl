@@ -135,11 +135,10 @@ function normalize_bucket_name(bucket)
 end
 
 function Base.print(io::IO, fp::S3Path)
-    str = fp.anchor * fp.key
-    if fp.version !== nothing && !isempty(fp.version)
-        str *= "?versionId=" * fp.version
+    if fp.version === nothing || isempty(fp.version)
+        return print(io, fp.anchor * fp.key)
     end
-    return print(io, str)
+    return print(io, fp.anchor * fp.key * "?versionId=" * fp.version)
 end
 
 function Base.:(==)(a::S3Path, b::S3Path)
