@@ -99,6 +99,7 @@ end
 # To avoid a breaking change.
 function S3Path(
     str::AbstractString;
+    isdirectory::Union{Bool, Nothing}=nothing,
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
@@ -110,7 +111,17 @@ function S3Path(
         end
         result = S3Path(result.bucket, result.key; version=version, config=result.config)
     end
-    return result
+
+    # Replace the parsed isdirectory field with an explicit passed in argument.
+    is_dir = isdirectory === nothing ? result.isdirectory : isdirectory
+
+    return S3Path(
+        result.bucket,
+        result.key;
+        isdirectory=is_dir,
+        config=result.config,
+        version=ver,
+    )
 end
 
 function Base.tryparse(
@@ -243,13 +254,13 @@ function _walkpath!(
     while true
         try
             # Start by inspecting the next element
-            next = Base.peek(objects)
+            obj = Base.peek(objects)
 
             # Early exit condition if we've exhausted the iterator or just the current prefix.
-            next === nothing && return nothing
+            obj === nothing && return nothing
 
             # Extract the non-root part of the key
-            k = chop(next["Key"]; head=length(root.key), tail=0)
+            k = chop(obj["Key"]; head=length(root.key), tail=0)
 
             fp = joinpath(root, k)
             _parents = parents(fp)
@@ -263,12 +274,19 @@ function _walkpath!(
             # is a directory too
             elseif last(_parents) == prefix
                 popfirst!(objects)
-                next_child = Base.peek(objects)
-                if next_child !== nothing && startswith(next_child["Key"], fp.key)
-                    joinpath(fp, "/")
-                else
-                    joinpath(fp, isdir(fp) ? "/" : "")
-                end
+                # If our current path is a prefix for the next path then we can assume that
+                # the current path should be a directory without needing to call `isdir`
+                next = Base.peek(objects)
+                is_dir = (next !== nothing && startswith(next["Key"], fp.key)) || isdir(fp)
+                # Reconstruct our next object and explicitly specify whether it is a
+                # directory.
+                S3Path(
+                    fp.bucket,
+                    fp.key;
+                    isdirectory=is_dir,
+                    config=fp.config,
+                    version=fp.version,
+                )
             # If our filepath is a distance descendant of the prefix then start filling in
             # the intermediate paths
             elseif prefix in _parents

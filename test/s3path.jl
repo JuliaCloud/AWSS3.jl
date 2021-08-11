@@ -8,6 +8,7 @@ function test_s3_constructors(ps::PathSet)
     @test S3Path(bucket_name, "pathset-root/bar/qux/"; isdirectory=true) == ps.qux
     @test S3Path(bucket_name, p"pathset-root/bar/qux"; isdirectory=true) == ps.qux
     @test S3Path(bucket_name, p"/pathset-root/bar/qux"; isdirectory=true) == ps.qux
+    @test S3Path("s3://$bucket_name/pathset-root/bar/qux"; isdirectory=true) == ps.qux
 end
 
 function test_s3_parents(ps::PathSet)
