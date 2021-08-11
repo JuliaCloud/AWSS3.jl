@@ -395,43 +395,46 @@ function s3path_tests(config)
         rm(json_path)
     end
 
-    @testset "S3Path versioning" begin
-        s3_enable_versioning(config, bucket_name)
-        key_version_file = "test_versions"
-        s3_put(config, bucket_name, key_version_file, "data.v1")
-        s3_put(config, bucket_name, key_version_file, "data.v2")
-    
-        # `s3_list_versions` returns versions in the order newest to oldest
-        versions = [d["VersionId"] for d in reverse!(s3_list_versions(config, bucket_name, key_version_file))]
-        @test length(versions) == 2
-        @test read(S3Path(bucket_name, key_version_file; config=config, version=first(versions)), String) == "data.v1"
-        @test read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String) == "data.v2"
-        @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
-                      read(S3Path(bucket_name, key_version_file; config=config), String))
-        @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
-                      read(S3Path(bucket_name, key_version_file; config=config, version=nothing), String))
-    
-        unversioned_path = S3Path(bucket_name, key_version_file; config=config)
-        versioned_path = S3Path(bucket_name, key_version_file; config=config, version=last(versions))
-        @test versioned_path.version == last(versions)
-        @test unversioned_path.version === nothing
-        @test exists(versioned_path)
-        @test exists(unversioned_path)
-        nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=config, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
-        @test !exists(nonexistent_versioned_path)
-    
-        versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
-        versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
-        @test versioned_path_v1.version == first(versions)
-        @test !isequal(versioned_path_v1, unversioned_path)
-        @test !isequal(versioned_path_v1, versioned_path_v2)
-    
-        @test isa(stat(versioned_path), Status)
-        @test_throws ArgumentError write(versioned_path, "new_content")
-    
-        rm(versioned_path)
-        @test !exists(versioned_path)
-        @test length(s3_list_versions(config, bucket_name, key_version_file)) == 1
+    # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
+    if is_aws(config)
+        @testset "S3Path versioning" begin
+            s3_enable_versioning(config, bucket_name)
+            key_version_file = "test_versions"
+            s3_put(config, bucket_name, key_version_file, "data.v1")
+            s3_put(config, bucket_name, key_version_file, "data.v2")
+        
+            # `s3_list_versions` returns versions in the order newest to oldest
+            versions = [d["VersionId"] for d in reverse!(s3_list_versions(config, bucket_name, key_version_file))]
+            @test length(versions) == 2
+            @test read(S3Path(bucket_name, key_version_file; config=config, version=first(versions)), String) == "data.v1"
+            @test read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String) == "data.v2"
+            @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
+                        read(S3Path(bucket_name, key_version_file; config=config), String))
+            @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
+                        read(S3Path(bucket_name, key_version_file; config=config, version=nothing), String))
+        
+            unversioned_path = S3Path(bucket_name, key_version_file; config=config)
+            versioned_path = S3Path(bucket_name, key_version_file; config=config, version=last(versions))
+            @test versioned_path.version == last(versions)
+            @test unversioned_path.version === nothing
+            @test exists(versioned_path)
+            @test exists(unversioned_path)
+            nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=config, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
+            @test !exists(nonexistent_versioned_path)
+        
+            versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
+            versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
+            @test versioned_path_v1.version == first(versions)
+            @test !isequal(versioned_path_v1, unversioned_path)
+            @test !isequal(versioned_path_v1, versioned_path_v2)
+        
+            @test isa(stat(versioned_path), Status)
+            @test_throws ArgumentError write(versioned_path, "new_content")
+        
+            rm(versioned_path)
+            @test !exists(versioned_path)
+            @test length(s3_list_versions(config, bucket_name, key_version_file)) == 1
+        end
     end
 
     # Broken on minio 
