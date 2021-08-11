@@ -33,7 +33,7 @@ NOTES:
   `separator`), `S3Path`s also support `bucket` and `key` properties for your
   convenience.
 - If `version` argument is `nothing`, will return latest version of object. Version
-  can be provided via either kwarg `version` or as suffix `?versionId=<object_version>`
+  can be provided via either kwarg `version` or as suffix "?versionId=<object_version>"
   of `str`, e.g., "s3://<bucket>/prefix/to/my/object?versionId=<object_version>".
 """
 function S3Path()

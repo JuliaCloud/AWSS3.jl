@@ -364,8 +364,7 @@ end
     # `s3_list_versions` returns versions in the order newest to oldest
     versions = [d["VersionId"] for d in reverse!(s3_list_versions(aws, bucket_name, key_version_file))]
     @test length(versions) == 2
-    v1 = first(versions)
-    v2 = last(versions)
+    v1, v2 = first(versions), last(versions)
     @test read(S3Path(bucket_name, key_version_file; config=aws, version=v1), String) == "data.v1"
     @test read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String) == "data.v2"
     @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String),
