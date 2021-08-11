@@ -36,6 +36,7 @@ using UUIDs
 @service S3
 
 const SSDict = Dict{String,String}
+const AbstractS3Version = Union{AbstractString,Nothing}
 
 __init__() = FilePathsBase.register(S3Path)
 
@@ -74,7 +75,7 @@ As an example of how to set custom HTTP headers, the below is equivalent to
 `s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))`
 """
 function s3_get(
-    aws::AbstractAWSConfig, bucket, path; version="", retry::Bool=true,
+    aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, retry::Bool=true,
     byte_range::Union{Nothing,AbstractVector}=nothing, raw::Bool=false,
     headers::AbstractDict{<:AbstractString,<:Any}=Dict{String, Any}(),
     return_stream::Bool=false, kwargs...
@@ -84,8 +85,7 @@ function s3_get(
             "return_raw" => raw,
             "return_stream" => return_stream,
         )
-
-        if !isempty(version)
+        if version !== nothing && !isempty(version)
             args["versionId"] = version
         end
 
@@ -115,8 +115,8 @@ s3_get(a...; b...) = s3_get(global_aws_config(), a...; b...)
 Like `s3_get` but streams result directly to `filename`.  Keyword arguments accept are
 the same as those for `s3_get`.
 """
-function s3_get_file(aws::AbstractAWSConfig, bucket, path, filename; version="", kwargs...)
-    stream = s3_get(aws, bucket, path; return_stream=true, kwargs...)
+function s3_get_file(aws::AbstractAWSConfig, bucket, path, filename; version::AbstractS3Version=nothing, kwargs...)
+    stream = s3_get(aws, bucket, path; version=version, return_stream=true, kwargs...)
 
     open(filename, "w") do file
         while !eof(stream)
@@ -128,7 +128,8 @@ end
 s3_get_file(a...; b...) = s3_get_file(global_aws_config(), a...; b...)
 
 
-function s3_get_file(aws::AbstractAWSConfig, buckets::Vector, path, filename; version="", kwargs...)
+function s3_get_file(aws::AbstractAWSConfig, buckets::Vector, path, filename;
+                     version::AbstractS3Version=nothing, kwargs...)
     i = start(buckets)
 
     @repeat length(buckets) try
@@ -147,8 +148,9 @@ end
 
 Retrieves metadata from an object without returning the object itself.
 """
-function s3_get_meta(aws::AbstractAWSConfig, bucket, path; version="", kwargs...)
-    if isempty(version)
+function s3_get_meta(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing,
+                     kwargs...)
+    if version === nothing || isempty(version)
         S3.head_object(bucket, path; aws_config=aws, kwargs...)
     else
         S3.head_object(bucket, path, Dict("versionId"=>version); aws_config=aws, kwargs...)
@@ -163,7 +165,7 @@ s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
 Is there an object in `bucket` at `path`?
 """
-function s3_exists(aws::AbstractAWSConfig, bucket, path; version="", kwargs...)
+function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...)
     @repeat 2 try
         s3_get_meta(aws, bucket, path; version=version, kwargs...)
 
@@ -187,8 +189,9 @@ s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 
 [DELETE Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
 """
-function s3_delete(aws::AbstractAWSConfig, bucket, path; version="", kwargs...)
-    if isempty(version)
+function s3_delete(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing,
+                   kwargs...)
+    if version === nothing || isempty(version)
         S3.delete_object(bucket, path; aws_config=aws, kwargs...)
     else
         S3.delete_object(bucket, path, Dict("versionId"=>version); aws_config=aws, kwargs...)

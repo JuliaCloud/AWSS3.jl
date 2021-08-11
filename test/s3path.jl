@@ -60,6 +60,32 @@ function test_s3_readpath(p::PathSet)
     end
 end
 
+function test_s3_walkpath(p::PathSet)
+    @testset "walkpath - S3" begin
+        # Test that we still return parent prefixes even when no "directory" objects
+        # have been created by a `mkdir`, retaining consistency with `readdir`.
+        _root = p.root / "s3_walkpath/"
+
+        _foo = _root / "foo/"
+        _baz = _foo / "baz.txt"
+        _bar = _root / "bar/"
+        _qux = _bar / "qux/"
+        _quux = _qux / "quux.tar.gz"
+
+        # Only write the leaf files
+        write(_baz, read(p.baz))
+        write(_quux, read(p.quux))
+
+        topdown = [_bar, _qux, _quux, _foo, _baz]
+        bottomup = [_quux, _qux, _bar, _baz, _foo]
+
+        @test collect(walkpath(_root; topdown=true)) == topdown
+        @test collect(walkpath(_root; topdown=false)) == bottomup
+
+        rm(_root; recursive=true)
+    end
+end
+
 function test_s3_cp(p::PathSet)
     @testset "cp" begin
         # In case the folder objects were deleted in a previous test
@@ -128,6 +154,7 @@ function test_s3_properties(ps::PathSet)
         @test fp1.key == "path/to/some/object"
         @test fp2.bucket == "mybucket"
         @test fp2.key == "path/to/some/prefix/"
+        @test fp2.version === nothing
     end
 end
 
@@ -366,6 +393,45 @@ function s3path_tests(config)
         json_bytes = read(json_path)
         @test JSON3.read(json_bytes, Dict) == my_dict
         rm(json_path)
+    end
+
+    @testset "S3Path versioning" begin
+        s3_enable_versioning(config, bucket_name)
+        key_version_file = "test_versions"
+        s3_put(config, bucket_name, key_version_file, "data.v1")
+        s3_put(config, bucket_name, key_version_file, "data.v2")
+    
+        # `s3_list_versions` returns versions in the order newest to oldest
+        versions = [d["VersionId"] for d in reverse!(s3_list_versions(config, bucket_name, key_version_file))]
+        @test length(versions) == 2
+        @test read(S3Path(bucket_name, key_version_file; config=config, version=first(versions)), String) == "data.v1"
+        @test read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String) == "data.v2"
+        @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
+                      read(S3Path(bucket_name, key_version_file; config=config), String))
+        @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
+                      read(S3Path(bucket_name, key_version_file; config=config, version=nothing), String))
+    
+        unversioned_path = S3Path(bucket_name, key_version_file; config=config)
+        versioned_path = S3Path(bucket_name, key_version_file; config=config, version=last(versions))
+        @test versioned_path.version == last(versions)
+        @test unversioned_path.version === nothing
+        @test exists(versioned_path)
+        @test exists(unversioned_path)
+        nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=config, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
+        @test !exists(nonexistent_versioned_path)
+    
+        versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
+        versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
+        @test versioned_path_v1.version == first(versions)
+        @test !isequal(versioned_path_v1, unversioned_path)
+        @test !isequal(versioned_path_v1, versioned_path_v2)
+    
+        @test isa(stat(versioned_path), Status)
+        @test_throws ArgumentError write(versioned_path, "new_content")
+    
+        rm(versioned_path)
+        @test !exists(versioned_path)
+        @test length(s3_list_versions(config, bucket_name, key_version_file)) == 1
     end
 
     # Broken on minio 
