@@ -93,7 +93,7 @@ function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     if version !== nothing && !isempty(version)
-        if result.version !== nothing && result.version != version 
+        if result.version !== nothing && result.version != version
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end
         result = S3Path(result.bucket, result.key; config=result.config, version=version)
@@ -111,21 +111,24 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
     path = ()
     isdirectory = true
 
-    version_split = split(str, "?versionId=")
-    tokenized = split(version_split[1], "/")
-    bucket = strip(tokenized[3], '/')
-    drive = "s3://$bucket"
+    uri = URI(str)
+    params = queryparams(uri)
+    version = get(params, "versionId", nothing)
+    bucket = uri.host
 
-    if length(tokenized) > 3
+    drive = "s3://$bucket"
+    tokenized = isempty(uri.path) ? nothing : split(lstrip(uri.path, '/'), '/')
+    if tokenized !== nothing
         root = "/"
         # If the last tokenized element is an empty string then we've parsed a directory
         isdirectory = isempty(last(tokenized))
-        path = Tuple(filter!(!isempty, tokenized[4:end]))
+        path = Tuple(filter!(!isempty, tokenized))
     end
 
-    version = length(version_split) == 1 ? nothing : version_split[2]
     return S3Path(path, root, drive, isdirectory, config, version)
 end
+
+
 
 function normalize_bucket_name(bucket)
     return strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/')

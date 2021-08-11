@@ -373,6 +373,8 @@ end
                   (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz"))
     @test isequal(get_values("s3://my_bucket/?versionId=xyz"), ((), "/", "s3://my_bucket", true, "xyz"))
     @test isequal(get_values("s3://my_bucket?versionId=xyz"),((), "", "s3://my_bucket", true, "xyz"))
+    @test isequal(get_values("s3://my_bucket/prefix/that/is/fun/?versionId=xyz&radtimes=foo"),
+                  (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz"))
 end
 
 @testset "S3Path versioning" begin
