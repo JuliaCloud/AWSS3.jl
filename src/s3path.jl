@@ -477,7 +477,7 @@ end
 
 Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8}(content); kwargs...)
 
-function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=false, other_kwargs...)
+function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=true, other_kwargs...)
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
     MAX_HTTP_BYTES = 2147483647
     fp.version === nothing || throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
@@ -485,7 +485,7 @@ function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipa
         return s3_put(fp.config, fp.bucket, fp.key, content)
     else
         io = IOBuffer(content)
-        return s3_multipart_upload(fp.config, fp.bucket, fp.key, io, part_size_mb=part_size_mb; other_kwargs...)
+        return s3_multipart_upload(fp.config, fp.bucket, fp.key, io, part_size_mb; other_kwargs...)
     end
 end
 
