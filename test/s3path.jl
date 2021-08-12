@@ -430,15 +430,15 @@ function s3path_tests(config)
             # `s3_list_versions` returns versions in the order newest to oldest
             versions = [d["VersionId"] for d in reverse!(s3_list_versions(config, bucket_name, key_version_file))]
             v1, v2 = first(versions), last(versions)
-            @test read(S3Path(bucket_name, key_version_file; config=aws, version=v1), String) == "data.v1"
-            @test read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String) == "data.v2"
-            @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String),
-                          read(S3Path(bucket_name, key_version_file; config=aws), String))
-            @test isequal(read(S3Path(bucket_name, key_version_file; config=aws, version=v2), String),
+            @test read(S3Path(bucket_name, key_version_file; config=config, version=v1), String) == "data.v1"
+            @test read(S3Path(bucket_name, key_version_file; config=config, version=v2), String) == "data.v2"
+            @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=v2), String),
+                          read(S3Path(bucket_name, key_version_file; config=config), String))
+            @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=v2), String),
                         read(S3Path(bucket_name, key_version_file; config=config, version=nothing), String))
         
             unversioned_path = S3Path(bucket_name, key_version_file; config=config)
-            versioned_path = S3Path(bucket_name, key_version_file; config=aws, version=v2)
+            versioned_path = S3Path(bucket_name, key_version_file; config=config, version=v2)
             @test versioned_path.version == v2
             @test unversioned_path.version === nothing
             @test exists(versioned_path)
@@ -460,7 +460,7 @@ function s3path_tests(config)
                                             version=v2)
 
             str_v1 = string(versioned_path_v1)
-            roundtripped_v1 = S3Path(str_v1; config=aws)
+            roundtripped_v1 = S3Path(str_v1; config=config)
             @test isequal(versioned_path_v1, roundtripped_v1)
             @test str_v1 == "s3://" * bucket_name * "/" * key_version_file * "?versionId=" * v1
             
