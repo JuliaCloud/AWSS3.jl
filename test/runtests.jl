@@ -35,7 +35,7 @@ include("awss3.jl") # creates `s3path_tests(config)`
         try
             run(minio_server, wait=false)
             config = global_aws_config(MinioConfig("http://localhost:$port"; username="minioadmin", password="minioadmin"))
-            @testset "Minio tests" begin
+            @testset "Minio" begin
                 awss3_tests(config)
                 s3path_tests(config)
             end
@@ -47,7 +47,7 @@ include("awss3.jl") # creates `s3path_tests(config)`
 
     # Set `AWSConfig` as the default for the following tests
     aws = global_aws_config(AWSConfig())
-    @testset "S3 tests" begin
+    @testset "S3" begin
         awss3_tests(aws)
         s3path_tests(aws)
     end
