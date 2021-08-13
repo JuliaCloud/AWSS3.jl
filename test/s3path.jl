@@ -440,8 +440,8 @@ function s3path_tests(config)
     # <https://github.com/JuliaCloud/AWSS3.jl/issues/168>
     @testset "Default `S3Path` does not hold config" begin
         path = S3Path("s3://$(bucket_name)/test_str.txt")
-        @test isnothing(path.config)
-        @test !isnothing(AWSS3.get_config(path))
+        @test path.config === nothing
+        @test AWSS3.get_config(path) !== nothing
     end
 
     # Minio does not care about regions, so this test doesn't work there
