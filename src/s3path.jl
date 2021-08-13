@@ -213,7 +213,7 @@ end
 
 function FilePathsBase.walkpath(fp::S3Path; kwargs...)
     # Select objects with that prefix
-    objects = s3_list_objects(fp.config, fp.bucket, fp.key; delimiter="")
+    objects = s3_list_objects(get_config(fp), fp.bucket, fp.key; delimiter="")
 
     # Construct a new Channel using a recursive internal `_walkpath!` function
     return Channel(ctype=typeof(fp)) do chnl

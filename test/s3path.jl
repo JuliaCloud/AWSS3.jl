@@ -437,29 +437,37 @@ function s3path_tests(config)
         end
     end
 
-
     # <https://github.com/JuliaCloud/AWSS3.jl/issues/168>
-    @testset "Global config is not frozen at construction time" begin
-        prev_config = global_aws_config()
-        
-        # Setup: create a file holding a string `abc`
+    @testset "Default `S3Path` does not hold config" begin
         path = S3Path("s3://$(bucket_name)/test_str.txt")
-        write(path, "abc")
-        @test read(path, String) == "abc"  # Have access to read file
+        @test isnothing(path.config)
+        @test !isnothing(AWSS3.get_config(path))
+    end
 
-        alt_region = prev_config.region == "us-east-2" ? "us-east-1" : "us-east-2"
-        try
-            global_aws_config(region=alt_region) # this is the wrong region!
-            @test_throws AWS.AWSException read(path, String)
+    # Minio does not care about regions, so this test doesn't work there
+    if is_aws(config)
+        @testset "Global config is not frozen at construction time" begin
+            prev_config = global_aws_config()
+            
+            # Setup: create a file holding a string `abc`
+            path = S3Path("s3://$(bucket_name)/test_str.txt")
+            write(path, "abc")
+            @test read(path, String) == "abc"  # Have access to read file
 
-            # restore the right region
-            global_aws_config(prev_config)
-            # Now it works, without recreating `path`
-            @test read(path, String) == "abc"
-            rm(path)
-        finally
-            # In case a test threw, make sure we really do restore the right global config
-            global_aws_config(prev_config)
+            alt_region = prev_config.region == "us-east-2" ? "us-east-1" : "us-east-2"
+            try
+                global_aws_config(region=alt_region) # this is the wrong region!
+                @test_throws AWS.AWSException read(path, String)
+
+                # restore the right region
+                global_aws_config(prev_config)
+                # Now it works, without recreating `path`
+                @test read(path, String) == "abc"
+                rm(path)
+            finally
+                # In case a test threw, make sure we really do restore the right global config
+                global_aws_config(prev_config)
+            end
         end
     end
 
