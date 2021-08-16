@@ -420,41 +420,41 @@ function s3path_tests(config)
         cfg = global_aws_config()
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, cfg, nothing
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, nothing, cfg,
         )
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun/") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, nothing
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, nothing, cfg,
         )
 
         @test S3Path("s3://my_bucket/") ==
-              S3Path((), "/", "s3://my_bucket", true, cfg, nothing)
+              S3Path((), "/", "s3://my_bucket", true, nothing, cfg)
 
         @test S3Path("s3://my_bucket") ==
-              S3Path((), "", "s3://my_bucket", true, cfg, nothing)
+              S3Path((), "", "s3://my_bucket", true, nothing, cfg)
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun?versionId=xyz") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, cfg, "xyz"
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, "xyz", cfg,
         )
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, "xyz"
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg,
         )
 
         @test S3Path("s3://my_bucket/?versionId=xyz") ==
-              S3Path((), "/", "s3://my_bucket", true, cfg, "xyz")
+              S3Path((), "/", "s3://my_bucket", true, "xyz", cfg)
 
         @test S3Path("s3://my_bucket?versionId=xyz") ==
-              S3Path((), "", "s3://my_bucket", true, cfg, "xyz")
+              S3Path((), "", "s3://my_bucket", true, "xyz", cfg)
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz&radtimes=foo") ==
               S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, "xyz"
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg,
         )
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun/?radtimes=foo&versionId=xyz") ==
               S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, "xyz"
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg,
         )
     end
 
