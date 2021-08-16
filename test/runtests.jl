@@ -33,8 +33,12 @@ include("awss3.jl") # creates `s3path_tests(config)`
         minio_server = Minio.Server(dirs; address="localhost:$port")
 
         try
-            run(minio_server, wait=false)
-            config = global_aws_config(MinioConfig("http://localhost:$port"; username="minioadmin", password="minioadmin"))
+            run(minio_server; wait=false)
+            config = global_aws_config(
+                MinioConfig(
+                    "http://localhost:$port"; username="minioadmin", password="minioadmin"
+                ),
+            )
             @testset "Minio" begin
                 awss3_tests(config)
                 s3path_tests(config)

@@ -8,9 +8,15 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
 end
 
 # constructor that converts but does not require type parameter
-function S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-                config::AbstractAWSConfig, version::AbstractS3Version=nothing)
-    S3Path{typeof(config)}(segments, root, drive, isdirectory, config, version)
+function S3Path(
+    segments,
+    root::AbstractString,
+    drive::AbstractString,
+    isdirectory::Bool,
+    config::AbstractAWSConfig,
+    version::AbstractS3Version=nothing,
+)
+    return S3Path{typeof(config)}(segments, root, drive, isdirectory, config, version)
 end
 
 """
@@ -41,14 +47,7 @@ function S3Path()
     account_id = aws_account_number(config)
     region = config.region
 
-    return S3Path(
-        (),
-        "/",
-        "s3://$account_id-$region",
-        true,
-        config,
-        nothing,
-    )
+    return S3Path((), "/", "s3://$account_id-$region", true, config, nothing)
 end
 # below definition needed by FilePathsBase
 S3Path{A}() where {A<:AbstractAWSConfig} = S3Path()
@@ -78,18 +77,16 @@ function S3Path(
     version::AbstractS3Version=nothing,
 )
     return S3Path(
-        key.segments,
-        "/",
-        normalize_bucket_name(bucket),
-        isdirectory,
-        config,
-        version,
+        key.segments, "/", normalize_bucket_name(bucket), isdirectory, config, version
     )
 end
 
 # To avoid a breaking change.
-function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config(),
-                version::AbstractS3Version=nothing)
+function S3Path(
+    str::AbstractString;
+    config::AbstractAWSConfig=global_aws_config(),
+    version::AbstractS3Version=nothing,
+)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     if version !== nothing && !isempty(version)
@@ -102,7 +99,9 @@ function S3Path(str::AbstractString; config::AbstractAWSConfig=global_aws_config
 end
 
 # if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
-function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
+function Base.tryparse(
+    ::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing
+)
     uri = URI(str)
     uri.scheme == "s3" || return nothing
     # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
@@ -128,10 +127,10 @@ end
 
 function Base.:(==)(a::S3Path, b::S3Path)
     return a.segments == b.segments &&
-        a.root == b.root &&
-        a.drive == b.drive &&
-        a.isdirectory == b.isdirectory &&
-        a.version == b.version
+           a.root == b.root &&
+           a.drive == b.drive &&
+           a.isdirectory == b.isdirectory &&
+           a.version == b.version
 end
 
 function Base.getproperty(fp::S3Path, attr::Symbol)
@@ -176,7 +175,7 @@ end
 
 function FilePathsBase.parents(fp::S3Path)
     if hasparent(fp)
-        return map(0:length(fp.segments)-1) do i
+        return map(0:(length(fp.segments) - 1)) do i
             S3Path(fp.segments[1:i], fp.root, fp.drive, true, fp.config)
         end
     elseif fp.segments == tuple(".") || isempty(fp.segments)
@@ -186,7 +185,9 @@ function FilePathsBase.parents(fp::S3Path)
     end
 end
 
-FilePathsBase.exists(fp::S3Path) = s3_exists(fp.config, fp.bucket, fp.key; version=fp.version)
+function FilePathsBase.exists(fp::S3Path)
+    return s3_exists(fp.config, fp.bucket, fp.key; version=fp.version)
+end
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
     if isempty(fp.segments)
@@ -211,12 +212,14 @@ function FilePathsBase.walkpath(fp::S3Path; kwargs...)
     objects = s3_list_objects(fp.config, fp.bucket, fp.key; delimiter="")
 
     # Construct a new Channel using a recursive internal `_walkpath!` function
-    return Channel(ctype=typeof(fp)) do chnl
+    return Channel(; ctype=typeof(fp)) do chnl
         _walkpath!(fp, fp, Iterators.Stateful(objects), chnl; kwargs...)
     end
 end
 
-function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, onerror=throw, kwargs...)
+function _walkpath!(
+    root::S3Path, prefix::S3Path, objects, chnl; topdown=true, onerror=throw, kwargs...
+)
     while true
         try
             # Start by inspecting the next element
@@ -227,7 +230,7 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, o
             startswith(next["Key"], prefix.key) || return nothing
 
             # Extract the non-root part of the key
-            k = chop(next["Key"], head=length(root.key), tail=0)
+            k = chop(next["Key"]; head=length(root.key), tail=0)
 
             # Determine the next appropriate child path
             # 1. Next is a direct descendant of the current prefix (ie: we have a prefix object)
@@ -239,7 +242,7 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, o
                 fp, isdir(fp)
             else
                 i = findfirst(==(prefix), _parents)
-                _parents[i+1], true
+                _parents[i + 1], true
             end
 
             # If we aren't dealing with the root and we're doing topdown iteration then
@@ -249,8 +252,7 @@ function _walkpath!(root::S3Path, prefix::S3Path, objects, chnl; topdown=true, o
             # Apply our recursive call for the children as necessary
             if recurse
                 _walkpath!(
-                    root, child, objects, chnl;
-                    topdown=topdown, onerror=onerror, kwargs...
+                    root, child, objects, chnl; topdown=topdown, onerror=onerror, kwargs...
                 )
             end
 
@@ -266,7 +268,7 @@ end
 function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
     # ownership and permission settings
-    m = Mode(user=(READ + WRITE), group=(READ + WRITE), other=(READ + WRITE))
+    m = Mode(; user=(READ + WRITE), group=(READ + WRITE), other=(READ + WRITE))
     u = FilePathsBase.User()
     g = FilePathsBase.Group()
     blksize = 4096
@@ -278,8 +280,7 @@ function Base.stat(fp::S3Path)
         resp = s3_get_meta(fp.config, fp.bucket, fp.key; version=fp.version)
         # Example: "Thu, 03 Jan 2019 21:09:17 GMT"
         last_modified = DateTime(
-            resp["Last-Modified"][1:end-4],
-            dateformat"e, d u Y H:M:S",
+            resp["Last-Modified"][1:(end - 4)], dateformat"e, d u Y H:M:S"
         )
         s = parse(Int, resp["Content-Length"])
         blocks = ceil(Int, s / 4096)
@@ -306,7 +307,7 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
             else
                 error(
                     "The parent of $fp does not exist. " *
-                    "Pass `recursive=true` to create it."
+                    "Pass `recursive=true` to create it.",
                 )
             end
         end
@@ -331,7 +332,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
     end
 
     @debug "delete: $fp"
-    s3_delete(fp.config, fp.bucket, fp.key; version=fp.version)
+    return s3_delete(fp.config, fp.bucket, fp.key; version=fp.version)
 end
 
 # We need to special case sync with S3Paths because of how directories
@@ -340,7 +341,9 @@ end
 # 1) It'd be odd for other packages to restrict FilePathsBase to a patch release
 # 2) Seems cleaner to have it fallback and error rather than having
 # slightly inconsistent handling of edge cases between the two versions.
-function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=false, overwrite=true)
+function FilePathsBase.sync(
+    f::Function, src::AbstractPath, dst::S3Path; delete=false, overwrite=true
+)
     # Throw an error if the source path doesn't exist at all
     exists(src) || throw(ArgumentError("Unable to sync from non-existent $src"))
 
@@ -359,12 +362,13 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
         end
     elseif isdir(src)
         if exists(dst)
-            isdir(dst) || throw(ArgumentError("Unable to sync directory $src to non-directory $dst"))
+            isdir(dst) ||
+                throw(ArgumentError("Unable to sync directory $src to non-directory $dst"))
             # Create an index of all of the source files
             src_paths = collect(walkpath(src))
             index = Dict(
-                Tuple(setdiff(p.segments, src.segments)) => i
-                for (i, p) in enumerate(src_paths)
+                Tuple(setdiff(p.segments, src.segments)) => i for
+                (i, p) in enumerate(src_paths)
             )
             for dst_path in walkpath(dst)
                 k = Tuple(setdiff(dst_path.segments, dst.segments))
@@ -403,7 +407,6 @@ function FilePathsBase.sync(f::Function, src::AbstractPath, dst::S3Path; delete=
     end
 end
 
-
 # for some reason, sometimes we get back a `Pair`
 # other times a `AbstractDict`.
 function _pair_or_dict_get(p::Pair, k)
@@ -415,7 +418,7 @@ _pair_or_dict_get(d::AbstractDict, k) = get(d, k, nothing)
 function _retrieve_prefixes!(results, objects, prefix_key, chop_head)
     objects === nothing && return nothing
 
-    rm_key = s -> chop(s, head=chop_head, tail=0)
+    rm_key = s -> chop(s; head=chop_head, tail=0)
 
     for p in objects
         prefix = _pair_or_dict_get(p, prefix_key)
@@ -431,7 +434,9 @@ end
 function _readdir_add_results!(results, response, key_length)
     sizehint!(results, length(results) + parse(Int, response["KeyCount"]))
 
-    _retrieve_prefixes!(results, get(response, "CommonPrefixes", nothing), "Prefix", key_length)
+    _retrieve_prefixes!(
+        results, get(response, "CommonPrefixes", nothing), "Prefix", key_length
+    )
     _retrieve_prefixes!(results, get(response, "Contents", nothing), "Key", key_length)
 
     return get(response, "NextContinuationToken", nothing)
@@ -452,7 +457,8 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
                 end
                 S3.list_objects_v2(fp.bucket, params; aws_config=fp.config)
             catch e
-                @delay_retry if ecode(e) in ["NoSuchBucket"] end
+                @delay_retry if ecode(e) in ["NoSuchBucket"]
+                end
             end
             token = _readdir_add_results!(results, response, key_length)
         end
@@ -471,20 +477,40 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
 end
 
 function Base.read(fp::S3Path; byte_range=nothing)
-    return Vector{UInt8}(s3_get(fp.config, fp.bucket, fp.key; raw=true, byte_range=byte_range, version=fp.version))
+    return Vector{UInt8}(
+        s3_get(
+            fp.config,
+            fp.bucket,
+            fp.key;
+            raw=true,
+            byte_range=byte_range,
+            version=fp.version,
+        ),
+    )
 end
 
-Base.write(fp::S3Path, content::String; kwargs...) = Base.write(fp, Vector{UInt8}(content); kwargs...)
+function Base.write(fp::S3Path, content::String; kwargs...)
+    return Base.write(fp, Vector{UInt8}(content); kwargs...)
+end
 
-function Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=true, other_kwargs...)
+function Base.write(
+    fp::S3Path,
+    content::Vector{UInt8};
+    part_size_mb=50,
+    multipart::Bool=true,
+    other_kwargs...,
+)
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
     MAX_HTTP_BYTES = 2147483647
-    fp.version === nothing || throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
+    fp.version === nothing ||
+        throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     if !multipart || length(content) < MAX_HTTP_BYTES
         return s3_put(fp.config, fp.bucket, fp.key, content)
     else
         io = IOBuffer(content)
-        return s3_multipart_upload(fp.config, fp.bucket, fp.key, io, part_size_mb; other_kwargs...)
+        return s3_multipart_upload(
+            fp.config, fp.bucket, fp.key, io, part_size_mb; other_kwargs...
+        )
     end
 end
 
