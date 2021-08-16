@@ -287,6 +287,13 @@ function _walkpath!(
     end
 end
 
+"""
+    stat(fp::S3Path)
+
+Return the status struct for the S3 path analogously to `stat` for local directories.
+
+Note that due to the way S3 works, this cannot be called on a directory.
+"""
 function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
     # ownership and permission settings
@@ -298,7 +305,8 @@ function Base.stat(fp::S3Path)
     s = 0
     last_modified = DateTime(0)
 
-    if exists(fp)
+    # this only works for files and not directories
+    if isfile(fp)
         resp = s3_get_meta(fp.config, fp.bucket, fp.key; version=fp.version)
         # Example: "Thu, 03 Jan 2019 21:09:17 GMT"
         last_modified = DateTime(
