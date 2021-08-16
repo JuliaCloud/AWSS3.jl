@@ -32,6 +32,7 @@ using EzXML
 using Dates
 using Base64
 using UUIDs
+using URIs
 
 @service S3
 
