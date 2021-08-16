@@ -103,10 +103,10 @@ end
 
 # if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
 function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
-    startswith(str, "s3://") || return nothing
+    uri = URI(str)
+    uri.scheme == "s3" || return nothing
     # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
     config === nothing && (config = global_aws_config())
-    uri = URI(str)
     drive = "s3://$(uri.host)"
     root = isempty(uri.path) ? "" : "/"
     isdirectory = isempty(uri.path) || endswith(uri.path, '/')
@@ -114,8 +114,6 @@ function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Noth
     version = get(queryparams(uri), "versionId", nothing)
     return S3Path(path, root, drive, isdirectory, config, version)
 end
-
-
 
 function normalize_bucket_name(bucket)
     return strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/')

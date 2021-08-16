@@ -395,7 +395,7 @@ function s3path_tests(config)
         rm(json_path)
     end
 
-    @testset "`tryparse`" begin
+    @testset "tryparse" begin
         cfg = global_aws_config()
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun") ==
