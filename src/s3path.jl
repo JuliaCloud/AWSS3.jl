@@ -123,9 +123,9 @@ end
 
 function Base.print(io::IO, fp::S3Path)
     if fp.version === nothing || isempty(fp.version)
-        return print(io, fp.anchor * fp.key)
+        return print(io, fp.anchor, fp.key)
     end
-    return print(io, fp.anchor * fp.key * "?versionId=" * fp.version)
+    return print(io, fp.anchor, fp.key, "?versionId=", fp.version)
 end
 
 function Base.:(==)(a::S3Path, b::S3Path)
