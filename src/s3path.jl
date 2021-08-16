@@ -8,8 +8,9 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
 end
 
 @deprecate(
-    S3Path{A}(segments, root, drive, isdirectory,
-           config::A, version::Union{String,Nothing}) where A <: AbstractAWSConfig,
+    S3Path{A}(
+        segments, root, drive, isdirectory, config::A, version::Union{String,Nothing}
+    ) where {A<:AbstractAWSConfig},
     S3Path{A}(segments, root, drive, isdirectory, version, config),
 )
 
@@ -26,8 +27,14 @@ function S3Path(
 end
 
 @deprecate(
-    S3Path(segments, root::AbstractString, drive::AbstractString, isdirectory::Bool,
-           config::AbstractAWSConfig, version::AbstractS3Version=nothing),
+    S3Path(
+        segments,
+        root::AbstractString,
+        drive::AbstractString,
+        isdirectory::Bool,
+        config::AbstractAWSConfig;
+        version::AbstractS3Version=nothing,
+    ),
     S3Path(segments, root, drive, isdirectory, version, config),
 )
 
