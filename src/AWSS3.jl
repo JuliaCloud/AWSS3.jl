@@ -838,9 +838,7 @@ function _s3_sign_url_v4(
 
     headers = OrderedDict{String,String}("Host" => host)
     sort!(headers; by=name -> lowercase(name))
-    canonical_header_names = join(
-        map(name -> lowercase(name), collect(keys(headers))), ";"
-    )
+    canonical_header_names = join(map(name -> lowercase(name), collect(keys(headers))), ";")
 
     query = OrderedDict{String,String}(
         "X-Amz-Expires" => string(seconds),

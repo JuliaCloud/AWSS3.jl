@@ -264,7 +264,7 @@ function verify_files(path::AbstractPath)
     ]
     @test readdir(path / "subdir1/subdir2/subdir3/") == []
     return VERSION >= v"1.4.0" &&
-        @test readdir(path / "subdir1/subdir2/subdir3/"; join=true) == []
+           @test readdir(path / "subdir1/subdir2/subdir3/"; join=true) == []
 end
 
 # This is the main entrypoint for the S3Path tests
