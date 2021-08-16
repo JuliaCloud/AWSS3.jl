@@ -202,19 +202,11 @@ Is there an object in `bucket` at `path`?
 function s3_exists(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    @repeat 2 try
-        s3_get_meta(aws, bucket, path; version=version, kwargs...)
-
-        return true
-
-    catch e
-        @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
-        end
-
-        @ignore if ecode(e) in ["404", "NoSuchKey", "AccessDenied"]
-            return false
-        end
-    end
+    l = s3_list_objects(aws, bucket, path; kwargs...)
+    o = iterate(l)
+    isnothing(o) && return false
+    obj, _ = o
+    obj["Key"] == path
 end
 
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
