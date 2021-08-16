@@ -1,5 +1,6 @@
 function awss3_tests(config)
-    bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+    bucket_name =
+        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
 
     @testset "Create Bucket" begin
         s3_create_bucket(config, bucket_name)
@@ -19,10 +20,10 @@ function awss3_tests(config)
 
     @testset "Create Objects" begin
         s3_put(config, bucket_name, "key1", "data1.v1")
-        s3_put(bucket_name, "key2", "data2.v1", tags = Dict("Key" => "Value"))
+        s3_put(bucket_name, "key2", "data2.v1"; tags=Dict("Key" => "Value"))
         s3_put(config, bucket_name, "key3", "data3.v1")
         s3_put(config, bucket_name, "key3", "data3.v2")
-        s3_put(config, bucket_name, "key3", "data3.v3"; metadata = Dict("foo" => "bar"))
+        s3_put(config, bucket_name, "key3", "data3.v3"; metadata=Dict("foo" => "bar"))
         s3_put(config, bucket_name, "key4", "data3.v4"; acl="bucket-owner-full-control")
         s3_put_tags(config, bucket_name, "key3", Dict("Left" => "Right"))
 
@@ -52,7 +53,7 @@ function awss3_tests(config)
     @testset "Raw Return - XML" begin
         xml = "<?xml version='1.0'?><Doc><Text>Hello</Text></Doc>"
         s3_put(config, bucket_name, "file.xml", xml, "text/xml")
-        @test String(s3_get(config, bucket_name, "file.xml", raw=true)) == xml
+        @test String(s3_get(config, bucket_name, "file.xml"; raw=true)) == xml
         @test s3_get(config, bucket_name, "file.xml")["Text"] == "Hello"
     end
 
@@ -60,7 +61,8 @@ function awss3_tests(config)
         teststr = "123456789"
         s3_put(config, bucket_name, "byte_range", teststr)
         range = 3:6
-        @test String(s3_get(config, bucket_name, "byte_range"; byte_range=range)) == teststr[range]
+        @test String(s3_get(config, bucket_name, "byte_range"; byte_range=range)) ==
+              teststr[range]
     end
 
     @testset "Object Copy" begin
@@ -76,7 +78,8 @@ function awss3_tests(config)
             @repeat 3 try
                 curl_output = read(`curl -s -o - $url`, String)
             catch e
-                @delay_retry if true end
+                @delay_retry if true
+                end
             end
 
             @test curl_output == "data1.v1"
@@ -90,7 +93,8 @@ function awss3_tests(config)
                 s3_get_file(config, bucket_name, "key1", fn)
             catch e
                 sleep(1)
-                @retry if true end
+                @retry if true
+                end
             end
 
             @test read(fn, String) == "data1.v1"
@@ -123,9 +127,18 @@ function awss3_tests(config)
     is_aws(config) && @testset "Check Object Versions" begin
         versions = s3_list_versions(config, bucket_name, "key3")
         @test length(versions) == 3
-        @test (s3_get(config, bucket_name, "key3"; version=versions[3]["VersionId"]) == b"data3.v1")
-        @test (s3_get(config, bucket_name, "key3"; version=versions[2]["VersionId"]) == b"data3.v2")
-        @test (s3_get(config, bucket_name, "key3"; version=versions[1]["VersionId"]) == b"data3.v3")
+        @test (
+            s3_get(config, bucket_name, "key3"; version=versions[3]["VersionId"]) ==
+            b"data3.v1"
+        )
+        @test (
+            s3_get(config, bucket_name, "key3"; version=versions[2]["VersionId"]) ==
+            b"data3.v2"
+        )
+        @test (
+            s3_get(config, bucket_name, "key3"; version=versions[1]["VersionId"]) ==
+            b"data3.v3"
+        )
 
         tmp_file = joinpath(tempdir(), "jl_qws_test_key3")
         s3_get_file(config, bucket_name, "key3", tmp_file; version=versions[2]["VersionId"])
@@ -143,28 +156,23 @@ function awss3_tests(config)
         # https://github.com/samoconnor/AWSS3.jl/issues/24
         ctype(key) = s3_get_meta(bucket_name, key)["Content-Type"]
 
-        for k in [
-            "file.foo",
-            "file",
-            "file_html",
-            "file/html",
-            "foobar.html/file.htm"]
+        for k in ["file.foo", "file", "file_html", "file/html", "foobar.html/file.htm"]
             is_aws(config) && k == "file" && continue
             s3_put(config, bucket_name, k, "x")
             @test ctype(k) == "application/octet-stream"
         end
 
         for (k, t) in [
-            ("foo/bar/file.html",  "text/html"),
-            ("x.y.z.js",           "application/javascript"),
-            ("downalods/foo.pdf",  "application/pdf"),
-            ("data/foo.csv",       "text/csv"),
+            ("foo/bar/file.html", "text/html"),
+            ("x.y.z.js", "application/javascript"),
+            ("downalods/foo.pdf", "application/pdf"),
+            ("data/foo.csv", "text/csv"),
             ("this.is.a.file.txt", "text/plain"),
-            ("my.log",             "text/plain"),
-            ("big.dat",            "application/octet-stream"),
-            ("some.tar.gz",        "application/octet-stream"),
-            ("data.bz2",           "application/octet-stream")]
-
+            ("my.log", "text/plain"),
+            ("big.dat", "application/octet-stream"),
+            ("some.tar.gz", "application/octet-stream"),
+            ("data.bz2", "application/octet-stream"),
+        ]
             s3_put(config, bucket_name, k, "x")
             @test ctype(k) == t
         end
@@ -177,7 +185,10 @@ function awss3_tests(config)
         tags = Vector{String}()
 
         for part_number in 1:5
-            push!(tags, s3_upload_part(config, upload, part_number, rand(UInt8, MIN_S3_CHUNK_SIZE)))
+            push!(
+                tags,
+                s3_upload_part(config, upload, part_number, rand(UInt8, MIN_S3_CHUNK_SIZE)),
+            )
         end
 
         s3_complete_multipart_upload(config, upload, tags)
