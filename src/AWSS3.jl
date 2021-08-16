@@ -206,7 +206,7 @@ function s3_exists(
     o = iterate(l)
     isnothing(o) && return false
     obj, _ = o
-    obj["Key"] == path
+    return obj["Key"] == path
 end
 
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
