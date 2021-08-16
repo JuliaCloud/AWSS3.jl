@@ -3,9 +3,16 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     root::String
     drive::String
     isdirectory::Bool
-    config::A
     version::Union{String,Nothing}
+    config::A
 end
+
+@deprecate(
+    S3Path{A}(
+        segments, root, drive, isdirectory, config::A, version::Union{String,Nothing}
+    ) where {A<:AbstractAWSConfig},
+    S3Path{A}(segments, root, drive, isdirectory, version, config),
+)
 
 # constructor that converts but does not require type parameter
 function S3Path(
@@ -13,15 +20,27 @@ function S3Path(
     root::AbstractString,
     drive::AbstractString,
     isdirectory::Bool,
+    version::AbstractS3Version,
     config::AbstractAWSConfig,
-    version::AbstractS3Version=nothing,
 )
-    return S3Path{typeof(config)}(segments, root, drive, isdirectory, config, version)
+    return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
 end
+
+@deprecate(
+    S3Path(
+        segments,
+        root::AbstractString,
+        drive::AbstractString,
+        isdirectory::Bool,
+        config::AbstractAWSConfig;
+        version::AbstractS3Version=nothing,
+    ),
+    S3Path(segments, root, drive, isdirectory, version, config),
+)
 
 """
     S3Path()
-    S3Path(str; config::AbstractAWSConfig=aws_config(), version=nothing)
+    S3Path(str; version=nothing, config::AbstractAWSConfig=global_aws_config())
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
@@ -47,7 +66,7 @@ function S3Path()
     account_id = aws_account_number(config)
     region = config.region
 
-    return S3Path((), "/", "s3://$account_id-$region", true, config, nothing)
+    return S3Path((), "/", "s3://$account_id-$region", true, nothing, config)
 end
 # below definition needed by FilePathsBase
 S3Path{A}() where {A<:AbstractAWSConfig} = S3Path()
@@ -56,16 +75,16 @@ function S3Path(
     bucket::AbstractString,
     key::AbstractString;
     isdirectory::Bool=false,
-    config::AbstractAWSConfig=global_aws_config(),
     version::AbstractS3Version=nothing,
+    config::AbstractAWSConfig=global_aws_config(),
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
         "/",
         strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/'),
         isdirectory,
-        config,
         version,
+        config,
     )
 end
 
@@ -73,11 +92,11 @@ function S3Path(
     bucket::AbstractString,
     key::AbstractPath;
     isdirectory::Bool=false,
-    config::AbstractAWSConfig=global_aws_config(),
     version::AbstractS3Version=nothing,
+    config::AbstractAWSConfig=global_aws_config(),
 )
     return S3Path(
-        key.segments, "/", normalize_bucket_name(bucket), isdirectory, config, version
+        key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config
     )
 end
 
@@ -93,7 +112,7 @@ function S3Path(
         if result.version !== nothing && result.version != version
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end
-        result = S3Path(result.bucket, result.key; config=result.config, version=version)
+        result = S3Path(result.bucket, result.key; version=version, config=result.config)
     end
     return result
 end
@@ -104,14 +123,17 @@ function Base.tryparse(
 )
     uri = URI(str)
     uri.scheme == "s3" || return nothing
+
     # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
     config === nothing && (config = global_aws_config())
+
     drive = "s3://$(uri.host)"
     root = isempty(uri.path) ? "" : "/"
     isdirectory = isempty(uri.path) || endswith(uri.path, '/')
     path = Tuple(split(uri.path, '/'; keepempty=false))
     version = get(queryparams(uri), "versionId", nothing)
-    return S3Path(path, root, drive, isdirectory, config, version)
+
+    return S3Path(path, root, drive, isdirectory, version, config)
 end
 
 function normalize_bucket_name(bucket)
@@ -168,15 +190,15 @@ function FilePathsBase.join(prefix::S3Path, pieces::AbstractString...)
         "/",
         prefix.drive,
         isdirectory,
-        prefix.config,
         nothing, # Version is per-object, so we should not propagate it from the prefix
+        prefix.config,
     )
 end
 
 function FilePathsBase.parents(fp::S3Path)
     if hasparent(fp)
         return map(0:(length(fp.segments) - 1)) do i
-            S3Path(fp.segments[1:i], fp.root, fp.drive, true, fp.config)
+            S3Path(fp.segments[1:i], fp.root, fp.drive, true, nothing, fp.config)
         end
     elseif fp.segments == tuple(".") || isempty(fp.segments)
         return [fp]
@@ -394,6 +416,7 @@ function FilePathsBase.sync(
                     dst.root,
                     dst.drive,
                     isdir(src_paths[i]),
+                    nothing,
                     dst.config,
                 )
 

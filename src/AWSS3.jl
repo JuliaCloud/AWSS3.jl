@@ -37,6 +37,7 @@ export S3Path,
 
 using AWS
 using AWS.AWSServices: s3
+using Base: @deprecate
 using FilePathsBase
 using FilePathsBase: /, join
 using HTTP
