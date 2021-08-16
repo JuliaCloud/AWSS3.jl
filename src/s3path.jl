@@ -103,28 +103,15 @@ end
 
 # if config=nothing, will not try to talk to AWS until after string is confirmed to be an s3 path
 function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::Union{Nothing,AbstractAWSConfig}=nothing)
-    str = String(str)
     startswith(str, "s3://") || return nothing
     # we do this here so that the `@p_str` macro only tries to call AWS if it actually has an S3 path
-    (config ≡ nothing) && (config = global_aws_config())
-    root = ""
-    path = ()
-    isdirectory = true
-
+    config === nothing && (config = global_aws_config())
     uri = URI(str)
-    params = queryparams(uri)
-    version = get(params, "versionId", nothing)
-    bucket = uri.host
-
-    drive = "s3://$bucket"
-    tokenized = isempty(uri.path) ? nothing : split(lstrip(uri.path, '/'), '/')
-    if tokenized !== nothing
-        root = "/"
-        # If the last tokenized element is an empty string then we've parsed a directory
-        isdirectory = isempty(last(tokenized))
-        path = Tuple(filter!(!isempty, tokenized))
-    end
-
+    drive = "s3://$(uri.host)"
+    root = isempty(uri.path) ? "" : "/"
+    isdirectory = isempty(uri.path) || endswith(uri.path, '/')
+    path = Tuple(split(uri.path, '/'; keepempty=false))
+    version = get(queryparams(uri), "versionId", nothing)
     return S3Path(path, root, drive, isdirectory, config, version)
 end
 
