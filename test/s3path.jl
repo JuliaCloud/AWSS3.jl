@@ -254,10 +254,10 @@ end
 # This is the main entrypoint for the S3Path tests
 function s3path_tests(config)
     bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
-    
+
     s3_create_bucket(config, bucket_name)
     root = Path("s3://$bucket_name/pathset-root/")
-    
+
     ps = PathSet(
         root,
         root / "foo/",
@@ -269,7 +269,7 @@ function s3path_tests(config)
         root / "fred" / "plugh",
         false
     )
-        
+
     @testset "$(typeof(ps.root))" begin
         testsets = [
             test_s3_constructors,
@@ -396,27 +396,37 @@ function s3path_tests(config)
     end
 
     @testset "`tryparse`" begin
-        get_values = (str) -> begin
-            p = S3Path(str)
-            return (p.segments, p.root, p.drive, p.isdirectory, p.version)
-        end
+        cfg = global_aws_config()
 
-        @test isequal(get_values("s3://my_bucket/prefix/that/is/fun"),
-                    (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, nothing))
-        @test isequal(get_values("s3://my_bucket/prefix/that/is/fun/"),
-                    (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, nothing))
-        @test isequal(get_values("s3://my_bucket/"), ((), "/", "s3://my_bucket", true, nothing))
-        @test isequal(get_values("s3://my_bucket"), ((), "", "s3://my_bucket", true, nothing))
-        @test isequal(get_values("s3://my_bucket/prefix/that/is/fun?versionId=xyz"),
-                    (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, "xyz"))
-        @test isequal(get_values("s3://my_bucket/prefix/that/is/fun/?versionId=xyz"),
-                    (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz"))
-        @test isequal(get_values("s3://my_bucket/?versionId=xyz"), ((), "/", "s3://my_bucket", true, "xyz"))
-        @test isequal(get_values("s3://my_bucket?versionId=xyz"),((), "", "s3://my_bucket", true, "xyz"))
-        @test isequal(get_values("s3://my_bucket/prefix/that/is/fun/?versionId=xyz&radtimes=foo"),
-                    (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz"))
-        @test isequal(get_values("s3://my_bucket/prefix/that/is/fun/?radtimes=foo&versionId=xyz"),
-                    (("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz"))
+        @test S3Path("s3://my_bucket/prefix/that/is/fun") ==
+            S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, cfg, nothing)
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/") ==
+            S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, nothing)
+
+        @test S3Path("s3://my_bucket/") ==
+            S3Path((), "/", "s3://my_bucket", true, cfg, nothing)
+
+        @test S3Path("s3://my_bucket") ==
+            S3Path((), "", "s3://my_bucket", true, cfg, nothing)
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun?versionId=xyz") ==
+            S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, cfg, "xyz")
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz") ==
+            S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, "xyz")
+
+        @test S3Path("s3://my_bucket/?versionId=xyz") ==
+            S3Path((), "/", "s3://my_bucket", true, cfg, "xyz")
+
+        @test S3Path("s3://my_bucket?versionId=xyz") ==
+            S3Path((), "", "s3://my_bucket", true, cfg, "xyz")
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz&radtimes=foo") ==
+            S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, "xyz")
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?radtimes=foo&versionId=xyz") ==
+            S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, cfg, "xyz")
     end
 
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
@@ -426,7 +436,7 @@ function s3path_tests(config)
             key_version_file = "test_versions"
             s3_put(config, bucket_name, key_version_file, "data.v1")
             s3_put(config, bucket_name, key_version_file, "data.v2")
-        
+
             # `s3_list_versions` returns versions in the order newest to oldest
             versions = [d["VersionId"] for d in reverse!(s3_list_versions(config, bucket_name, key_version_file))]
             v1, v2 = first(versions), last(versions)
@@ -436,7 +446,7 @@ function s3path_tests(config)
                           read(S3Path(bucket_name, key_version_file; config=config), String))
             @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=v2), String),
                         read(S3Path(bucket_name, key_version_file; config=config, version=nothing), String))
-        
+
             unversioned_path = S3Path(bucket_name, key_version_file; config=config)
             versioned_path = S3Path(bucket_name, key_version_file; config=config, version=v2)
             @test versioned_path.version == v2
@@ -445,13 +455,13 @@ function s3path_tests(config)
             @test exists(unversioned_path)
             nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=config, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
             @test !exists(nonexistent_versioned_path)
-        
+
             versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=v1)
             versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=v2)
             @test versioned_path_v1.version == v1
             @test !isequal(versioned_path_v1, unversioned_path)
             @test !isequal(versioned_path_v1, versioned_path_v2)
-        
+
             versioned_path_v1_from_url = S3Path("s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)")
             @test versioned_path_v1_from_url.key == key_version_file
             @test versioned_path_v1_from_url.version == v1
@@ -463,17 +473,17 @@ function s3path_tests(config)
             roundtripped_v1 = S3Path(str_v1; config=config)
             @test isequal(versioned_path_v1, roundtripped_v1)
             @test str_v1 == "s3://" * bucket_name * "/" * key_version_file * "?versionId=" * v1
-            
+
             @test isa(stat(versioned_path), Status)
             @test_throws ArgumentError write(versioned_path, "new_content")
-        
+
             rm(versioned_path)
             @test !exists(versioned_path)
             @test length(s3_list_versions(config, bucket_name, key_version_file)) == 1
         end
     end
 
-    # Broken on minio 
+    # Broken on minio
     if is_aws(config)
         AWSS3.s3_nuke_bucket(config, bucket_name)
     end
