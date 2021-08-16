@@ -89,7 +89,7 @@ function S3Path(
     config::AbstractAWSConfig=global_aws_config(),
 )
     return S3Path(
-        key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config,
+        key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config
     )
 end
 
