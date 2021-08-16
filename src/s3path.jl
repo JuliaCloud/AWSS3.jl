@@ -208,7 +208,7 @@ function FilePathsBase.parents(fp::S3Path)
 end
 
 function FilePathsBase.exists(fp::S3Path)
-    return s3_exists(fp.config, fp.bucket, fp.key; version=fp.version) || isdir(fp)
+    return s3_exists(fp.config, fp.bucket, fp.key; version=fp.version)
 end
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
