@@ -36,8 +36,8 @@ export S3Path,
     s3_delete_tags
 
 using AWS
-using Base: @deprecate
 using AWS.AWSServices: s3
+using Base: @deprecate
 using FilePathsBase
 using FilePathsBase: /, join
 using HTTP
