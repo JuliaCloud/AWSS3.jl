@@ -5,7 +5,7 @@ function awss3_tests(config)
     @testset "Create Bucket" begin
         s3_create_bucket(config, bucket_name)
         @test bucket_name in s3_list_buckets(config)
-        s3_enable_versioning(config, bucket_name)
+        is_aws(config) && s3_enable_versioning(config, bucket_name)
         sleep(1)
     end
 
@@ -156,7 +156,7 @@ function awss3_tests(config)
         # https://github.com/samoconnor/AWSS3.jl/issues/24
         ctype(key) = s3_get_meta(bucket_name, key)["Content-Type"]
 
-        for k in ["file.foo", "file", "file_html", "file/html", "foobar.html/file.htm"]
+        for k in ["file.foo", "file", "file_html", "file.d/html", "foobar.html/file.htm"]
             is_aws(config) && k == "file" && continue
             s3_put(config, bucket_name, k, "x")
             @test ctype(k) == "application/octet-stream"

@@ -211,22 +211,14 @@ function FilePathsBase.exists(fp::S3Path)
     return s3_exists(fp.config, fp.bucket, fp.key; version=fp.version)
 end
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
-function Base.isdir(fp::S3Path)
-    if isempty(fp.segments)
-        key = ""
-    elseif fp.isdirectory
-        key = fp.key
+function Base.isdir(fp::S3Path) 
+    fp.isdirectory || return false
+    if isempty(fp.segments)  # special handling of buckets themselves
+        # may not be super efficient for those with billions of buckets, but really our best option
+        fp.bucket ∈ s3_list_buckets(fp.config)
     else
-        return false
+        exists(fp)
     end
-
-    objects = s3_list_objects(fp.config, fp.bucket, key; max_items=1)
-
-    # `objects` is a `Channel`, so we call iterate to see if there are any objects that
-    # match our directory key.
-    # NOTE: `iterate` should handle waiting on a value to become available or return `nothing`
-    # if the channel is closed without inserting anything.
-    return iterate(objects) !== nothing
 end
 
 function FilePathsBase.walkpath(fp::S3Path; kwargs...)
@@ -292,7 +284,9 @@ end
 
 Return the status struct for the S3 path analogously to `stat` for local directories.
 
-Note that due to the way S3 works, this cannot be called on a directory.
+Note that this cannot be used on a directory.  This is because S3 is a pure key-value store and internally does
+not have a concept of directories.  In some cases, a directory may actually be an empty file, in which case
+you should use `s3_get_meta`.
 """
 function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
@@ -333,7 +327,8 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
     else
         if hasparent(fp) && !exists(parent(fp))
             if recursive
-                mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
+                # don't try to create buckets this way, minio at least really doesn't like it
+                isempty(parent(fp).segments) || mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
             else
                 error(
                     "The parent of $fp does not exist. " *

@@ -27,10 +27,8 @@ include("awss3.jl") # creates `s3path_tests(config)`
         # We then run all tests with s3 directly.
 
         # We use multiple directories so that Minio can support versioning.
-        root = mktempdir()
-        dirs = [mkdir(joinpath(root, string(i))) for i in 1:12]
         port = 9005
-        minio_server = Minio.Server(dirs; address="localhost:$port")
+        minio_server = Minio.Server([mktempdir()]; address="localhost:$port")
 
         try
             run(minio_server; wait=false)

@@ -194,19 +194,31 @@ end
 
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
+function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
+    q = Dict("prefix"=>path, "delimiter"=>"", "max-keys"=>1)
+    l = S3.list_objects_v2(bucket, q; aws_config=aws)
+    c = get(l, "Contents", nothing)
+    isnothing(c) && return false
+    return get(c, "Key", "") == path
+end
+
+function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
+    a = string(path)[1:end-1]*"."
+    # note that you are not allowed to use *both* `prefix` and `start-after`
+    q = Dict("delimiter"=>"", "max-keys"=>1, "start-after"=>a)
+    l = S3.list_objects_v2(bucket, q; aws_config=aws)
+    c = get(l, "Contents", nothing)
+    isnothing(c) && return false
+    return startswith(get(c, "Key", ""), path)
+end
+
 """
     s3_exists([::AbstractAWSConfig], bucket, path [version=], kwargs...)
 
 Is there an object in `bucket` at `path`?
 """
-function s3_exists(
-    aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
-)
-    l = s3_list_objects(aws, bucket, path; kwargs...)
-    o = iterate(l)
-    isnothing(o) && return false
-    obj, _ = o
-    return obj["Key"] == path
+function s3_exists(aws::AbstractAWSConfig, bucket, path; kw...)
+    (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(aws, bucket, path; kw...)
 end
 
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
@@ -484,24 +496,23 @@ function s3_list_objects(
     bucket,
     path_prefix="";
     delimiter="/",
+    start_after="",
     max_items=nothing,
     kwargs...,
 )
     return Channel() do chnl
         more = true
         num_objects = 0
-        marker = ""
+        token = ""
 
         while more
             q = Dict{String,String}()
-            if path_prefix != ""
-                q["prefix"] = path_prefix
-            end
-            if delimiter != ""
-                q["delimiter"] = delimiter
-            end
-            if marker != ""
-                q["marker"] = marker
+            for (v, name) ∈ [(path_prefix, "prefix"),
+                             (delimiter, "delimiter"),
+                             (start_after, "start-after"),
+                             (token, "continuation-token"),
+                            ]
+                isempty(v) || (q[name] = v)
             end
             if max_items !== nothing
                 # Note: AWS seems to only return up to 1000 items
@@ -510,28 +521,17 @@ function s3_list_objects(
 
             @repeat 4 try
                 # Request objects
-                r = S3.list_objects(bucket, q; aws_config=aws, kwargs...)
+                r = S3.list_objects_v2(bucket, q; aws_config=aws, kwargs...)
 
-                # Add each object from the response and update our object count / marker
+                token = get(r, "NextContinuationToken", "")
+                isempty(token) && (more = false)
                 if haskey(r, "Contents")
                     l = isa(r["Contents"], Vector) ? r["Contents"] : [r["Contents"]]
                     for object in l
                         put!(chnl, object)
                         num_objects += 1
-                        marker = object["Key"]
                     end
-                    # It's possible that the response doesn't have "Contents" and just has a prefix,
-                    # in which case we should just save the next marker and iterate.
-                elseif haskey(r, "Prefix")
-                    put!(chnl, Dict("Key" => r["Prefix"]))
-                    num_objects += 1
-                    marker = haskey(r, "NextMarker") ? r["NextMarker"] : r["Prefix"]
                 end
-
-                # Continue looping if the results were truncated and we haven't exceeded out max_items (if specified)
-                more =
-                    r["IsTruncated"] == "true" &&
-                    (max_items === nothing || num_objects < max_items)
             catch e
                 @delay_retry if ecode(e) in ["NoSuchBucket"]
                 end
