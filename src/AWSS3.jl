@@ -59,9 +59,8 @@ const AbstractS3PathConfig = Union{AbstractAWSConfig,Nothing}
 
 __init__() = FilePathsBase.register(S3Path)
 
-check_empty_version(::Nothing) = nothing
-function check_empty_version(v::AbstractString)
-    if isempty(v)
+function check_empty_version(v::AbstractS3Version)
+    if !isnothing(v) && isempty(v)
         throw(ArgumentError("Version should be nothing, not empty string"))
     end
 end
