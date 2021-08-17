@@ -1,6 +1,4 @@
-const S3PathConfig = Union{AbstractAWSConfig, Nothing}
-
-struct S3Path{A<:S3PathConfig} <: AbstractPath
+struct S3Path{A<:AbstractS3PathConfig} <: AbstractPath
     segments::Tuple{Vararg{String}}
     root::String
     drive::String
@@ -22,7 +20,7 @@ function S3Path(
     root::AbstractString,
     drive::AbstractString,
     isdirectory::Bool,
-    config::S3PathConfig,
+    config::AbstractS3PathConfig,
     version::AbstractS3Version,
 )
     return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
@@ -42,7 +40,7 @@ end
 
 """
     S3Path()
-    S3Path(str; config::$(S3PathConfig)=nothing, version=nothing)
+    S3Path(str; config::$(AbstractS3PathConfig)=nothing, version=nothing)
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
@@ -71,14 +69,14 @@ NOTES:
 S3Path() = S3Path((), "/", "", true, nothing, nothing)
 
 # below definition needed by FilePathsBase
-S3Path{A}() where {A<:S3PathConfig} = S3Path()
+S3Path{A}() where {A<:AbstractS3PathConfig} = S3Path()
 
 function S3Path(
     bucket::AbstractString,
     key::AbstractString;
     isdirectory::Bool=false,
     version::AbstractS3Version=nothing,
-    config::S3PathConfig=nothing,
+    config::AbstractS3PathConfig=nothing,
 )
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
@@ -95,7 +93,7 @@ function S3Path(
     key::AbstractPath;
     isdirectory::Bool=false,
     version::AbstractS3Version=nothing,
-    config::S3PathConfig=nothing,
+    config::AbstractS3PathConfig=nothing,
 )
     return S3Path(
         key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config
@@ -106,7 +104,7 @@ end
 function S3Path(
     str::AbstractString;
     version::AbstractS3Version=nothing,
-    config::S3PathConfig=global_aws_config(),
+    config::AbstractS3PathConfig=global_aws_config(),
 )
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
@@ -119,7 +117,7 @@ function S3Path(
     return result
 end
 
-function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::S3PathConfig=nothing)
+function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::AbstractS3PathConfig=nothing)
     uri = URI(str)
     uri.scheme == "s3" || return nothing
 
