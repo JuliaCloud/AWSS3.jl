@@ -205,4 +205,13 @@ function awss3_tests(config)
             @test_throws AWS.AWSException s3_delete_bucket(config, bucket_name)
         end
     end
+
+    @testset "Empty version string" begin
+        @test_throws ArgumentError s3_get("b", "k"; version="")
+        @test_throws ArgumentError s3_get_file("b", "k", "f"; version="")
+        @test_throws ArgumentError s3_get_file(["b1", "b2"], "k", "f"; version="")
+        @test_throws ArgumentError s3_get_meta("b", "k"; version="")
+        @test_throws ArgumentError s3_exists("b", "k"; version="")
+        @test_throws ArgumentError s3_delete("b", "k"; version="")
+    end
 end
