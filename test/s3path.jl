@@ -548,7 +548,7 @@ function s3path_tests(config)
     end
 
     # <https://github.com/JuliaCloud/AWSS3.jl/issues/168>
-    @testset "Default `S3Path` does not hold config" begin
+    @testset "Default `S3Path` does not freeze config" begin
         path = S3Path("s3://$(bucket_name)/test_str.txt")
         @test path.config === nothing
         @test AWSS3.get_config(path) !== nothing

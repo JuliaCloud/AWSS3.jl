@@ -40,7 +40,7 @@ end
 
 """
     S3Path()
-    S3Path(str; config::$(AbstractS3PathConfig)=nothing, version=nothing)
+    S3Path(str; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
 
 Construct a new AWS S3 path type which should be of the form
 "s3://<bucket>/prefix/to/my/object".
