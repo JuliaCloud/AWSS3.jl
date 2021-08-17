@@ -175,7 +175,8 @@ function test_s3_folders_and_files(ps::PathSet)
         # Test that we can have empty directory names
         # I'm not sure if we want to support this in the future, but it may require more
         # overloading of AbstractPath methods to support properly.
-        @test_broken p"s3://mybucket/path/to/some/prefix" != p"s3://mybucket/path//to/some/prefix"
+        @test_broken p"s3://mybucket/path/to/some/prefix" !=
+                     p"s3://mybucket/path//to/some/prefix"
 
         write(ps.root / "foobar", "I'm an object")
         if is_aws(config)
@@ -194,7 +195,7 @@ function test_s3_folders_and_files(ps::PathSet)
 end
 
 function test_large_write(ps::PathSet)
-    teststr = repeat("This is a test string!", round(Int, 2e5));
+    teststr = repeat("This is a test string!", round(Int, 2e5))
     @testset "large write/read" begin
         write(ps.quux, teststr; part_size_mb=1, multipart=true)
         @test read(ps.quux, String) == teststr
@@ -222,42 +223,58 @@ function initialize(bucket_name)
     s3_put(bucket_name, "subdir1/test_03.txt", "test03")
     s3_put(bucket_name, "subdir1/subdir2/", "")
     s3_put(bucket_name, "subdir1/subdir2/test_04.txt", "test04")
-    s3_put(bucket_name, "subdir1/subdir2/subdir3/", "")
+    return s3_put(bucket_name, "subdir1/subdir2/subdir3/", "")
 end
 
 function verify_files(path::S3Path)
     @test readdir(path) == ["emptydir/", "subdir1/", "test_01.txt"]
-    @test readdir(path; join=true) == [path / "emptydir/", path / "subdir1/", path / "test_01.txt"]
+    @test readdir(path; join=true) ==
+          [path / "emptydir/", path / "subdir1/", path / "test_01.txt"]
     @test readdir(path / "emptydir/") == []
     @test readdir(path / "emptydir/"; join=true) == []
     @test readdir(path / "subdir1/") == ["subdir2/", "test_02.txt", "test_03.txt"]
-    @test readdir(path / "subdir1/"; join=true) == [path / "subdir1/" / "subdir2/", path / "subdir1/" / "test_02.txt", path / "subdir1/" / "test_03.txt"]
+    @test readdir(path / "subdir1/"; join=true) == [
+        path / "subdir1/" / "subdir2/",
+        path / "subdir1/" / "test_02.txt",
+        path / "subdir1/" / "test_03.txt",
+    ]
     @test readdir(path / "subdir1/subdir2/") == ["subdir3/", "test_04.txt"]
-    @test readdir(path / "subdir1/subdir2/"; join=true) == [path / "subdir1/subdir2/" / "subdir3/", path / "subdir1/subdir2/" / "test_04.txt"]
+    @test readdir(path / "subdir1/subdir2/"; join=true) == [
+        path / "subdir1/subdir2/" / "subdir3/", path / "subdir1/subdir2/" / "test_04.txt"
+    ]
     @test readdir(path / "subdir1/subdir2/subdir3/") == []
     @test readdir(path / "subdir1/subdir2/subdir3/"; join=true) == []
 end
 
 function verify_files(path::AbstractPath)
     @test readdir(path) == ["emptydir", "subdir1", "test_01.txt"]
-    VERSION >= v"1.4.0" && @test readdir(path; join=true) == [path / "emptydir", path / "subdir1", path / "test_01.txt"]
+    VERSION >= v"1.4.0" && @test readdir(path; join=true) ==
+          [path / "emptydir", path / "subdir1", path / "test_01.txt"]
     @test readdir(path / "emptydir/") == []
     VERSION >= v"1.4.0" && @test readdir(path / "emptydir/"; join=true) == []
     @test readdir(path / "subdir1/") == ["subdir2", "test_02.txt", "test_03.txt"]
-    VERSION >= v"1.4.0" && @test readdir(path / "subdir1/"; join=true) == [path / "subdir1" / "subdir2", path / "subdir1" / "test_02.txt", path / "subdir1/" / "subdir1/test_03.txt"]
+    VERSION >= v"1.4.0" && @test readdir(path / "subdir1/"; join=true) == [
+        path / "subdir1" / "subdir2",
+        path / "subdir1" / "test_02.txt",
+        path / "subdir1/" / "subdir1/test_03.txt",
+    ]
     @test readdir(path / "subdir1/subdir2/") == ["subdir3", "test_04.txt"]
-    VERSION >= v"1.4.0" && @test readdir(path / "subdir1/subdir2/"; join=true) == [path / "subdir1/subdir2/" / "subdir3", path / "subdir1/subdir2/" / "test_04.txt"]
+    VERSION >= v"1.4.0" && @test readdir(path / "subdir1/subdir2/"; join=true) == [
+        path / "subdir1/subdir2/" / "subdir3", path / "subdir1/subdir2/" / "test_04.txt"
+    ]
     @test readdir(path / "subdir1/subdir2/subdir3/") == []
-    VERSION >= v"1.4.0" && @test readdir(path / "subdir1/subdir2/subdir3/"; join=true) == []
+    return VERSION >= v"1.4.0" &&
+           @test readdir(path / "subdir1/subdir2/subdir3/"; join=true) == []
 end
 
 # This is the main entrypoint for the S3Path tests
 function s3path_tests(config)
-    bucket_name = "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
-    
+    bucket_name =
+        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+
     s3_create_bucket(config, bucket_name)
     root = Path("s3://$bucket_name/pathset-root/")
-    
+
     ps = PathSet(
         root,
         root / "foo/",
@@ -267,9 +284,9 @@ function s3path_tests(config)
         root / "bar" / "qux" / "quux.tar.gz",
         root / "fred/",
         root / "fred" / "plugh",
-        false
+        false,
     )
-        
+
     @testset "$(typeof(ps.root))" begin
         testsets = [
             test_s3_constructors,
@@ -341,7 +358,9 @@ function s3path_tests(config)
 
         @testset "S3" begin
             verify_files(S3Path("s3://$bucket_name/"))
-            @test_throws ArgumentError("Invalid s3 path string: $bucket_name") S3Path(bucket_name)
+            @test_throws ArgumentError("Invalid s3 path string: $bucket_name") S3Path(
+                bucket_name
+            )
         end
 
         @test_skip @testset "Local" begin
@@ -351,14 +370,12 @@ function s3path_tests(config)
             sync(S3Path("s3://$bucket_name/"), temp_path)
             verify_files(temp_path)
 
-            rm(temp_path, force=true, recursive=true)
+            rm(temp_path; force=true, recursive=true)
         end
 
         @testset "join" begin
             @test (  # test trailing slash on prefix does not matter for join
-                p"s3://foo/bar" / "baz" ==
-                p"s3://foo/bar/" / "baz" ==
-                p"s3://foo/bar/baz"
+                p"s3://foo/bar" / "baz" == p"s3://foo/bar/" / "baz" == p"s3://foo/bar/baz"
             )
             @test (  # test trailing slash on root-only prefix in particular does not matter
                 p"s3://foo" / "bar" / "baz" ==
@@ -368,23 +385,27 @@ function s3path_tests(config)
             # test extra leading and trailing slashes do not matter
             @test p"s3://foo/" / "bar/" / "/baz" == p"s3://foo/bar/baz"
             # test joining `/` and string concatentation `*` play nice as expected
-            @test p"s3://foo" * "/" / "bar" == p"s3://foo" / "/" * "bar" == p"s3://foo" / "bar"
-            @test p"s3://foo" / "bar" * "baz" == p"s3://foo/bar" * "baz"  == p"s3://foo" / "barbaz"
+            @test p"s3://foo" * "/" / "bar" ==
+                  p"s3://foo" / "/" * "bar" ==
+                  p"s3://foo" / "bar"
+            @test p"s3://foo" / "bar" * "baz" ==
+                  p"s3://foo/bar" * "baz" ==
+                  p"s3://foo" / "barbaz"
             # test trailing slash on final piece is included
             @test p"s3://foo/bar" / "baz/" == p"s3://foo/bar/baz/"
         end
 
         @testset "readdir" begin
-            path = S3Path("s3://$(bucket_name)/A/A/B.txt"; config = config)
+            path = S3Path("s3://$(bucket_name)/A/A/B.txt"; config=config)
             write(path, "test!")
-            results = readdir(S3Path("s3://$(bucket_name)/A/"; config = config))
+            results = readdir(S3Path("s3://$(bucket_name)/A/"; config=config))
 
             @test results == ["A/"]
         end
     end
 
     @testset "JSON roundtripping" begin
-        json_path = S3Path("s3://$(bucket_name)/test_json"; config = config)
+        json_path = S3Path("s3://$(bucket_name)/test_json"; config=config)
         my_dict = Dict("key" => "value", "key2" => 5.0)
         # here we use the "application/json" MIME type to trigger the heuristic parsing into a `LittleDict`
         # that will hit a `MethodError` at the `Vector{UInt8}` constructor of `read(::S3Path)` if `raw=true`
@@ -395,6 +416,48 @@ function s3path_tests(config)
         rm(json_path)
     end
 
+    @testset "tryparse" begin
+        cfg = global_aws_config()
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun") == S3Path(
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, nothing, cfg
+        )
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/") == S3Path(
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, nothing, cfg
+        )
+
+        @test S3Path("s3://my_bucket/") ==
+              S3Path((), "/", "s3://my_bucket", true, nothing, cfg)
+
+        @test S3Path("s3://my_bucket") ==
+              S3Path((), "", "s3://my_bucket", true, nothing, cfg)
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun?versionId=xyz") == S3Path(
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, "xyz", cfg
+        )
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz") == S3Path(
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg
+        )
+
+        @test S3Path("s3://my_bucket/?versionId=xyz") ==
+              S3Path((), "/", "s3://my_bucket", true, "xyz", cfg)
+
+        @test S3Path("s3://my_bucket?versionId=xyz") ==
+              S3Path((), "", "s3://my_bucket", true, "xyz", cfg)
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz&radtimes=foo") ==
+              S3Path(
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg
+        )
+
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?radtimes=foo&versionId=xyz") ==
+              S3Path(
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg
+        )
+    end
+
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
     if is_aws(config)
         @testset "S3Path versioning" begin
@@ -402,35 +465,82 @@ function s3path_tests(config)
             key_version_file = "test_versions"
             s3_put(config, bucket_name, key_version_file, "data.v1")
             s3_put(config, bucket_name, key_version_file, "data.v2")
-        
+
             # `s3_list_versions` returns versions in the order newest to oldest
-            versions = [d["VersionId"] for d in reverse!(s3_list_versions(config, bucket_name, key_version_file))]
-            @test length(versions) == 2
-            @test read(S3Path(bucket_name, key_version_file; config=config, version=first(versions)), String) == "data.v1"
-            @test read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String) == "data.v2"
-            @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
-                        read(S3Path(bucket_name, key_version_file; config=config), String))
-            @test isequal(read(S3Path(bucket_name, key_version_file; config=config, version=last(versions)), String),
-                        read(S3Path(bucket_name, key_version_file; config=config, version=nothing), String))
-        
+            versions = [
+                d["VersionId"] for
+                d in reverse!(s3_list_versions(config, bucket_name, key_version_file))
+            ]
+            v1, v2 = first(versions), last(versions)
+            @test read(
+                S3Path(bucket_name, key_version_file; config=config, version=v1), String
+            ) == "data.v1"
+            @test read(
+                S3Path(bucket_name, key_version_file; config=config, version=v2), String
+            ) == "data.v2"
+            @test isequal(
+                read(
+                    S3Path(bucket_name, key_version_file; config=config, version=v2), String
+                ),
+                read(S3Path(bucket_name, key_version_file; config=config), String),
+            )
+            @test isequal(
+                read(
+                    S3Path(bucket_name, key_version_file; config=config, version=v2), String
+                ),
+                read(
+                    S3Path(bucket_name, key_version_file; config=config, version=nothing),
+                    String,
+                ),
+            )
+
             unversioned_path = S3Path(bucket_name, key_version_file; config=config)
-            versioned_path = S3Path(bucket_name, key_version_file; config=config, version=last(versions))
-            @test versioned_path.version == last(versions)
+            versioned_path = S3Path(
+                bucket_name, key_version_file; config=config, version=v2
+            )
+            @test versioned_path.version == v2
             @test unversioned_path.version === nothing
             @test exists(versioned_path)
             @test exists(unversioned_path)
-            nonexistent_versioned_path = S3Path(bucket_name, key_version_file; config=config, version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir")
+            nonexistent_versioned_path = S3Path(
+                bucket_name,
+                key_version_file;
+                config=config,
+                version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir",
+            )
             @test !exists(nonexistent_versioned_path)
-        
-            versioned_path_v1 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=first(versions))
-            versioned_path_v2 = S3Path("s3://$(bucket_name)/$(key_version_file)"; version=last(versions))
-            @test versioned_path_v1.version == first(versions)
+
+            versioned_path_v1 = S3Path(
+                "s3://$(bucket_name)/$(key_version_file)"; version=v1
+            )
+            versioned_path_v2 = S3Path(
+                "s3://$(bucket_name)/$(key_version_file)"; version=v2
+            )
+            @test versioned_path_v1.version == v1
             @test !isequal(versioned_path_v1, unversioned_path)
             @test !isequal(versioned_path_v1, versioned_path_v2)
-        
+
+            versioned_path_v1_from_url = S3Path(
+                "s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"
+            )
+            @test versioned_path_v1_from_url.key == key_version_file
+            @test versioned_path_v1_from_url.version == v1
+            @test S3Path(
+                "s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"; version=v1
+            ).version == v1
+            @test_throws ArgumentError S3Path(
+                "s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"; version=v2
+            )
+
+            str_v1 = string(versioned_path_v1)
+            roundtripped_v1 = S3Path(str_v1; config=config)
+            @test isequal(versioned_path_v1, roundtripped_v1)
+            @test str_v1 ==
+                  "s3://" * bucket_name * "/" * key_version_file * "?versionId=" * v1
+
             @test isa(stat(versioned_path), Status)
             @test_throws ArgumentError write(versioned_path, "new_content")
-        
+
             rm(versioned_path)
             @test !exists(versioned_path)
             @test length(s3_list_versions(config, bucket_name, key_version_file)) == 1
@@ -448,7 +558,7 @@ function s3path_tests(config)
     if is_aws(config)
         @testset "Global config is not frozen at construction time" begin
             prev_config = global_aws_config()
-            
+
             # Setup: create a file holding a string `abc`
             path = S3Path("s3://$(bucket_name)/test_str.txt")
             write(path, "abc")
@@ -471,7 +581,7 @@ function s3path_tests(config)
         end
     end
 
-    # Broken on minio 
+    # Broken on minio
     if is_aws(config)
         AWSS3.s3_nuke_bucket(config, bucket_name)
     end
