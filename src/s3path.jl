@@ -7,13 +7,6 @@ struct S3Path{A<:AbstractS3PathConfig} <: AbstractPath
     config::A
 end
 
-@deprecate(
-    S3Path{A}(
-        segments, root, drive, isdirectory, config::A, version::Union{String,Nothing}
-    ) where {A<:AbstractAWSConfig},
-    S3Path{A}(segments, root, drive, isdirectory, version, config),
-)
-
 # constructor that converts but does not require type parameter
 function S3Path(
     segments,
@@ -25,18 +18,6 @@ function S3Path(
 )
     return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
 end
-
-@deprecate(
-    S3Path(
-        segments,
-        root::AbstractString,
-        drive::AbstractString,
-        isdirectory::Bool,
-        config::AbstractAWSConfig;
-        version::AbstractS3Version=nothing,
-    ),
-    S3Path(segments, root, drive, isdirectory, version, config),
-)
 
 """
     S3Path()
