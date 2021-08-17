@@ -117,7 +117,9 @@ function S3Path(
     return result
 end
 
-function Base.tryparse(::Type{<:S3Path}, str::AbstractString; config::AbstractS3PathConfig=nothing)
+function Base.tryparse(
+    ::Type{<:S3Path}, str::AbstractString; config::AbstractS3PathConfig=nothing
+)
     uri = URI(str)
     uri.scheme == "s3" || return nothing
 
@@ -204,7 +206,9 @@ end
 # Use `fp.config` unless it is nothing; in that case, get the latest `global_aws_config`
 get_config(fp::S3Path) = @something(fp.config, global_aws_config())
 
-FilePathsBase.exists(fp::S3Path) = s3_exists(get_config(fp), fp.bucket, fp.key; version=fp.version)
+function FilePathsBase.exists(fp::S3Path)
+    return s3_exists(get_config(fp), fp.bucket, fp.key; version=fp.version)
+end
 
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
