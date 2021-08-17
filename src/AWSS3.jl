@@ -37,7 +37,6 @@ export S3Path,
 
 using AWS
 using AWS.AWSServices: s3
-using Base: @deprecate
 using FilePathsBase
 using FilePathsBase: /, join
 using HTTP
@@ -50,11 +49,13 @@ using Dates
 using Base64
 using UUIDs
 using URIs
+using Compat: @something
 
 @service S3
 
 const SSDict = Dict{String,String}
 const AbstractS3Version = Union{AbstractString,Nothing}
+const AbstractS3PathConfig = Union{AbstractAWSConfig,Nothing}
 
 __init__() = FilePathsBase.register(S3Path)
 
