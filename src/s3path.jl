@@ -20,8 +20,8 @@ function S3Path(
     root::AbstractString,
     drive::AbstractString,
     isdirectory::Bool,
-    config::AbstractS3PathConfig,
     version::AbstractS3Version,
+    config::AbstractS3PathConfig,
 )
     return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
 end
