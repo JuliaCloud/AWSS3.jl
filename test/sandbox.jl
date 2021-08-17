@@ -17,11 +17,11 @@ sandbox.jl
 ===================================================================================================#
 
 
-runserver() = run(MINIO_SERVER, wait=false)
+runserver() = run(MINIO_SERVER; wait=false)
 
 makebucket() = s3_create_bucket(CONFIG, "test-bucket")
 
-rootpath() = S3Path("s3://test-bucket/", config=CONFIG)
+rootpath() = S3Path("s3://test-bucket/"; config=CONFIG)
 
 # assumes bucket made
 function makefiles()
@@ -31,12 +31,12 @@ function makefiles()
     write(joinpath(r, "testdir/testfile2.txt"), "we are 3 cool guys looking for other cool guys")
     write(joinpath(r, "testdir_empty."), "to hang out in our party mansion")
     write(joinpath(r, "testdir_empty/"), "")
-    r
+    return r
 end
 
 function init()
     runserver()
     sleep(1)
     makebucket()
-    makefiles()
+    return makefiles()
 end

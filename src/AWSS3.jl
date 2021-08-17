@@ -195,7 +195,7 @@ end
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
 function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
-    q = Dict("prefix"=>path, "delimiter"=>"", "max-keys"=>1)
+    q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
     isnothing(c) && return false
@@ -203,9 +203,9 @@ function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
 end
 
 function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
-    a = string(path)[1:end-1]*"."
+    a = string(path)[1:end-1] * "."
     # note that you are not allowed to use *both* `prefix` and `start-after`
-    q = Dict("delimiter"=>"", "max-keys"=>1, "start-after"=>a)
+    q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
     isnothing(c) && return false
@@ -218,7 +218,9 @@ end
 Is there an object in `bucket` at `path`?
 """
 function s3_exists(aws::AbstractAWSConfig, bucket, path; kw...)
-    (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(aws, bucket, path; kw...)
+    return (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(
+        aws, bucket, path; kw...
+    )
 end
 
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
@@ -507,11 +509,12 @@ function s3_list_objects(
 
         while more
             q = Dict{String,String}()
-            for (v, name) ∈ [(path_prefix, "prefix"),
-                             (delimiter, "delimiter"),
-                             (start_after, "start-after"),
-                             (token, "continuation-token"),
-                            ]
+            for (v, name) ∈ [
+                (path_prefix, "prefix"),
+                (delimiter, "delimiter"),
+                (start_after, "start-after"),
+                (token, "continuation-token"),
+            ]
                 isempty(v) || (q[name] = v)
             end
             if max_items !== nothing

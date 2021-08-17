@@ -211,7 +211,7 @@ function FilePathsBase.exists(fp::S3Path)
     return s3_exists(fp.config, fp.bucket, fp.key; version=fp.version)
 end
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
-function Base.isdir(fp::S3Path) 
+function Base.isdir(fp::S3Path)
     fp.isdirectory || return false
     if isempty(fp.segments)  # special handling of buckets themselves
         # may not be super efficient for those with billions of buckets, but really our best option
@@ -328,7 +328,8 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
         if hasparent(fp) && !exists(parent(fp))
             if recursive
                 # don't try to create buckets this way, minio at least really doesn't like it
-                isempty(parent(fp).segments) || mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
+                isempty(parent(fp).segments) ||
+                    mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
             else
                 error(
                     "The parent of $fp does not exist. " *
