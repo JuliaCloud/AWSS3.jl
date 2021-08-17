@@ -361,6 +361,8 @@ function s3path_tests(config)
             @test_throws ArgumentError("Invalid s3 path string: $bucket_name") S3Path(
                 bucket_name
             )
+
+            @test_throws ArgumentError S3Path("s3://bucket"; version="")
         end
 
         @test_skip @testset "Local" begin
@@ -535,8 +537,7 @@ function s3path_tests(config)
             str_v1 = string(versioned_path_v1)
             roundtripped_v1 = S3Path(str_v1; config=config)
             @test isequal(versioned_path_v1, roundtripped_v1)
-            @test str_v1 ==
-                  "s3://" * bucket_name * "/" * key_version_file * "?versionId=" * v1
+            @test str_v1 == "s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"
 
             @test isa(stat(versioned_path), Status)
             @test_throws ArgumentError write(versioned_path, "new_content")

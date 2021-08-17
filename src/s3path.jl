@@ -16,6 +16,7 @@ function S3Path(
     version::AbstractS3Version,
     config::AbstractS3PathConfig,
 )
+    check_empty_version(version)
     return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
 end
 
@@ -45,7 +46,6 @@ NOTES:
   latest `global_aws_config()` will be used in any operations involving the
   path. To "freeze" the config at construction time, explicitly pass an
   `AbstractAWSConfig` to the `config` keyword argument.
-- If `version` argument is `nothing`, will return latest version of object.
 """
 S3Path() = S3Path((), "/", "", true, nothing, nothing)
 
@@ -59,6 +59,7 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
+    check_empty_version(version)
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
         "/",
@@ -76,6 +77,7 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
+    check_empty_version(version)
     return S3Path(
         key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config
     )
@@ -87,9 +89,10 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
+    check_empty_version(version)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
-    if version !== nothing && !isempty(version)
+    if version !== nothing
         if result.version !== nothing && result.version != version
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end
@@ -118,7 +121,7 @@ function normalize_bucket_name(bucket)
 end
 
 function Base.print(io::IO, fp::S3Path)
-    if fp.version === nothing || isempty(fp.version)
+    if fp.version === nothing
         return print(io, fp.anchor, fp.key)
     end
     return print(io, fp.anchor, fp.key, "?versionId=", fp.version)
