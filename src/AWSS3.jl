@@ -263,7 +263,7 @@ function s3_exists(
     if version ≡ nothing
         s3_exists_unversioned(aws, bucket, path; version=version, kw...)
     else
-        s3_exists_versioned(aws, bucket, path; version=verion, kw...)
+        s3_exists_versioned(aws, bucket, path; version=version, kw...)
     end
 end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
