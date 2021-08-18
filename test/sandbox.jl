@@ -30,7 +30,7 @@ function makefiles()
     write(joinpath(r, "testdir/"), "")
     write(
         joinpath(r, "testdir/testfile2.txt"),
-        "we are 3 cool guys looking for other cool guys"
+        "we are 3 cool guys looking for other cool guys",
     )
     write(joinpath(r, "testdir_empty."), "to hang out in our party mansion")
     write(joinpath(r, "testdir_empty/"), "")
