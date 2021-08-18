@@ -223,7 +223,7 @@ which is preferred.  The reason for this is that support for versioning in the A
 """
 function s3_exists_versioned(aws::AbstractAWSConfig, bucket, path, version; kw...)
     @repeat 2 try
-        s3_get_meta(aws, bucket, path; version=version, kwargs...)
+        s3_get_meta(aws, bucket, path; version=version, kw...)
         return true
     catch e
         @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
