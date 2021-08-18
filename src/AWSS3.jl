@@ -265,9 +265,7 @@ Returns a boolean whether an object exists at  `path` in `bucket`.
 See [`s3_exists_versioned`](@ref) to check for specific versions.
 """
 function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path)
-    return (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(
-        aws, bucket, path
-    )
+    return (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(aws, bucket, path)
 end
 
 """
@@ -278,9 +276,7 @@ Returns a boolean whether an object exists at `path` in `bucket`.
 Note that the AWS API's support for object versioning is quite limited and this
 check will involve `try` `catch` logic if `version` is not `nothing`.
 """
-function s3_exists(
-    aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing
-)
+function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing)
     if version ≡ nothing
         s3_exists_unversioned(aws, bucket, path)
     else
