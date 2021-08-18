@@ -195,17 +195,6 @@ function awss3_tests(config)
         @test s3_exists(bucket_name, key_name)
     end
 
-    if is_aws(config)
-        @testset "Empty and Delete Bucket" begin
-            AWSS3.s3_nuke_bucket(config, bucket_name)
-            @test !in(bucket_name, s3_list_buckets(config))
-        end
-
-        @testset "Delete Non-Existant Bucket" begin
-            @test_throws AWS.AWSException s3_delete_bucket(config, bucket_name)
-        end
-    end
-
     # these tests are needed because lack of functionality of the underlying AWS API makes certain
     # seemingly inane tasks incredibly tricky: for example checking if an "object" (file or
     # directory) exists is very subtle
@@ -232,5 +221,16 @@ function awss3_tests(config)
 
         # but it is still a directory and not an object
         @test !s3_exists(bucket_name, "testdir")
+    end
+
+    if is_aws(config)
+        @testset "Empty and Delete Bucket" begin
+            AWSS3.s3_nuke_bucket(config, bucket_name)
+            @test !in(bucket_name, s3_list_buckets(config))
+        end
+
+        @testset "Delete Non-Existant Bucket" begin
+            @test_throws AWS.AWSException s3_delete_bucket(config, bucket_name)
+        end
     end
 end
