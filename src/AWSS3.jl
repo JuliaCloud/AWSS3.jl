@@ -258,7 +258,7 @@ function s3_exists(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kw...
 )
     if version ≡ nothing
-        s3_exists_unversioned(aws, bucket, path; version=version, kw...)
+        s3_exists_unversioned(aws, bucket, path; kw...)
     else
         s3_exists_versioned(aws, bucket, path; version=version, kw...)
     end
