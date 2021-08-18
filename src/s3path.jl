@@ -305,6 +305,16 @@ Base.isreadable(fp::S3Path) = true
 Base.iswritable(fp::S3Path) = true
 Base.ismount(fp::S3Path) = false
 
+"""
+    mkdir(fp::S3Path; recursive=false, exist_ok=false)
+
+Create an empty directory at the S3 path `fp`.  If `recursive`, this will create any previously non-existent
+directories which would contain `fp`.  An error will be thrown if an object exists at `fp` unless `exist_ok`.
+
+Note that empty directories in S3 are actually 0-byte objects with the naming convention of a directory.
+
+This will *not* create a bucket.
+"""
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
     fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
 

@@ -221,7 +221,7 @@ function awss3_tests(config)
         @test isfile(S3Path(bucket_name, "testdir."))
         @test !isdir(S3Path(bucket_name, "testdir."))
         @test !s3_exists(bucket_name, "testdir")
-        
+
         s3_put(bucket_name, "testdir/testfile.txt", "what up")
         @test s3_exists(bucket_name, "testdir/testfile.txt")
         @test isfile(S3Path(bucket_name, "testdir/testfile.txt"))
