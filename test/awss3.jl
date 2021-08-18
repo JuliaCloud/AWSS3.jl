@@ -210,28 +210,27 @@ function awss3_tests(config)
     # seemingly inane tasks incredibly tricky: for example checking if an "object" (file or
     # directory) exists is very subtle
     @testset "path naming edge cases" begin
-        s3_create_bucket("name-tests")
         # this seemingly arbitrary operation is needed because of the insanely tricky way we
         # need to check for directories
-        s3_put("name-tests", "testdir.", "") # create an empty file called `testdir.`
-        s3_put("name-tests", "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
-        @test s3_exists("name-tests", "testdir/")
-        @test isdir(S3Path("name-tests", "testdir/"))
-        @test !isfile(S3Path("name-tests", "testdir/"))
-        @test s3_exists("name-tests", "testdir.")
-        @test isfile(S3Path("name-tests", "testdir."))
-        @test !isdir(S3Path("name-tests", "testdir."))
-        @test !s3_exists("name-tests", "testdir")
+        s3_put(bucket_name, "testdir.", "") # create an empty file called `testdir.`
+        s3_put(bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
+        @test s3_exists(bucket_name, "testdir/")
+        @test isdir(S3Path(bucket_name, "testdir/"))
+        @test !isfile(S3Path(bucket_name, "testdir/"))
+        @test s3_exists(bucket_name, "testdir.")
+        @test isfile(S3Path(bucket_name, "testdir."))
+        @test !isdir(S3Path(bucket_name, "testdir."))
+        @test !s3_exists(bucket_name, "testdir")
         
-        s3_put("name-tests", "testdir/testfile.txt", "what up")
-        @test s3_exists("name-tests", "testdir/testfile.txt")
-        @test isfile(S3Path("name-tests", "testdir/testfile.txt"))
+        s3_put(bucket_name, "testdir/testfile.txt", "what up")
+        @test s3_exists(bucket_name, "testdir/testfile.txt")
+        @test isfile(S3Path(bucket_name, "testdir/testfile.txt"))
         # make sure the directory still "exists" even though there's a key in there now
-        @test s3_exists("name-tests", "testdir/")
-        @test isdir(S3Path("name-tests", "testdir/"))
-        @test !isfile(S3Path("name-tests", "testdir/"))
+        @test s3_exists(bucket_name, "testdir/")
+        @test isdir(S3Path(bucket_name, "testdir/"))
+        @test !isfile(S3Path(bucket_name, "testdir/"))
 
         # but it is still a directory and not an object
-        @test !s3_exists("name-tests", "testdir")
+        @test !s3_exists(bucket_name, "testdir")
     end
 end

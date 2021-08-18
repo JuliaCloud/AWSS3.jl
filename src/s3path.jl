@@ -55,7 +55,7 @@ S3Path{A}() where {A<:AbstractS3PathConfig} = S3Path()
 function S3Path(
     bucket::AbstractString,
     key::AbstractString;
-    isdirectory::Bool=false,
+    isdirectory::Bool=endswith(key, "/"),
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
