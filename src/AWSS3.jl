@@ -248,7 +248,6 @@ function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path; kw...)
         aws, bucket, path; kw...
     )
 end
-s3_exists_unversioned(a...; kw...) = s3_exists_unversioned(global_aws_config(), a...; kw...)
 
 """
     s3_exists([::AbstractAWSConfig], bucket, path; version=nothing, kwargs...)
