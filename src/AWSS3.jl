@@ -195,7 +195,7 @@ end
 
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
-function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
+function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
     q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
@@ -203,7 +203,27 @@ function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
     return get(c, "Key", "") == path
 end
 
-function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
+"""
+    _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
+
+Internal, called by [`s3_exists`](@ref).
+
+Checks whether the given directory exists.  This is a bit subtle because of how the
+AWS API handles empty directories.  Empty directories are really just 0-byte nodes
+which are named like directories, i.e. their name has a trailing `"/"`.
+
+What this function does is, given a directory name `dir/`, check for all keys which
+are lexographically greater than `dir.`.  The reason for this is that, if `dir/`
+is a 0-byte node, checking for it directly will not reveal its existence due to
+some rather peculiar design choices on the part of the S3 developers.
+
+In all such cases, if the directory exists it will be seen in the *first* item
+returned from `S3.list_objects_v2`: for empty directories this is because using
+`start-after` explicitly excludes `dir.` and `dir/` is next, for directories
+with actual keys, it is guaranteed that the first contained key will start with
+the directory name.
+"""
+function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
     a = chop(string(path)) * "."
     # note that you are not allowed to use *both* `prefix` and `start-after`
     q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
@@ -214,7 +234,7 @@ function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
 end
 
 """
-    s3_exists_versioned([::AbstractAWSConfig], bucket, path, version; kwargs...)
+    s3_exists_versioned([::AbstractAWSConfig], bucket, path, version)
 
 Check if the version specified by `version` of the object in bucket `bucket` exists at `path`.
 
@@ -222,10 +242,10 @@ Note that this function relies on error catching and may be less performant than
 which is preferred.  The reason for this is that support for versioning in the AWS API is very limited.
 """
 function s3_exists_versioned(
-    aws::AbstractAWSConfig, bucket, path, version::AbstractS3Version; kw...
+    aws::AbstractAWSConfig, bucket, path, version::AbstractS3Version
 )
     @repeat 2 try
-        s3_get_meta(aws, bucket, path; version=version, kw...)
+        s3_get_meta(aws, bucket, path; version=version)
         return true
     catch e
         @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
@@ -238,20 +258,20 @@ function s3_exists_versioned(
 end
 
 """
-    s3_exists_unversioned([::AbstractAWSConfig], bucket, path; kwargs...)
+    s3_exists_unversioned([::AbstractAWSConfig], bucket, path)
 
 Returns a boolean whether an object exists at  `path` in `bucket`.
 
 See [`s3_exists_versioned`](@ref) to check for specific versions.
 """
-function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path; kw...)
+function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path)
     return (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(
-        aws, bucket, path; kw...
+        aws, bucket, path
     )
 end
 
 """
-    s3_exists([::AbstractAWSConfig], bucket, path; version=nothing, kwargs...)
+    s3_exists([::AbstractAWSConfig], bucket, path; version=nothing)
 
 Returns a boolean whether an object exists at `path` in `bucket`.
 
@@ -259,12 +279,12 @@ Note that the AWS API's support for object versioning is quite limited and this
 check will involve `try` `catch` logic if `version` is not `nothing`.
 """
 function s3_exists(
-    aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kw...
+    aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing
 )
     if version ≡ nothing
-        s3_exists_unversioned(aws, bucket, path; kw...)
+        s3_exists_unversioned(aws, bucket, path)
     else
-        s3_exists_versioned(aws, bucket, path, version; kw...)
+        s3_exists_versioned(aws, bucket, path, version)
     end
 end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
