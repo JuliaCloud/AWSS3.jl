@@ -214,16 +214,54 @@ function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
 end
 
 """
-    s3_exists([::AbstractAWSConfig], bucket, path [version=], kwargs...)
+    s3_exists_versioned([::AbstractAWSConfig], bucket, path, version; kwargs...)
 
-Is there an object in `bucket` at `path`?
+Check if the version specified by `version` of the object in bucket `bucket` exists at `path`.
+
+Note that this function relies on error catching and may be less performant than [`s3_exists`](@ref)
+which is preferred.  The reason for this is that support for versioning in the AWS API is very limited.
 """
-function s3_exists(aws::AbstractAWSConfig, bucket, path; kw...)
+function s3_exists_versioned(aws::AbstractAWSConfig, bucket, path, version; kw...)
+    @repeat 2 try
+        s3_get_meta(aws, bucket, path; version=version, kwargs...)
+        return true
+    catch e
+        @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
+        end
+
+        @ignore if ecode(e) in ["404", "NoSuchKey", "AccessDenied"]
+            return false
+        end
+    end
+end
+s3_exists_versioned(a...; kw...) = s3_exists_unversioned(global_aws_config(), a...; kw...)
+
+"""
+    s3_exists_unversioned([::AbstractAWSConfig], bucket, path; kwargs...)
+
+Returns a boolean whether an object exists at  `path` in `bucket`.
+
+See [`s3_exists_versioned`](@ref) to check for specific versions.
+"""
+function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path; kw...)
     return (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(
         aws, bucket, path; kw...
     )
 end
+s3_exists_unversioned(a...; kw...) = s3_exists_unversioned(global_aws_config(), a...; kw...)
 
+"""
+    s3_exists([::AbstractAWSConfig], bucket, path; version=nothing, kwargs...)
+
+Returns a boolean whether an object exists at  `path` in `bucket`.
+"""
+function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kw...)
+    if version ≡ nothing
+        s3_exists_unversioned(aws, bucket, path; version=version, kw...)
+    else
+        s3_exists_versioned(aws, bucket, path; version=verion, kw...)
+    end
+end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 
 """

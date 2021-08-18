@@ -184,7 +184,12 @@ function FilePathsBase.parents(fp::S3Path)
     end
 end
 
-# Use `fp.config` unless it is nothing; in that case, get the latest `global_aws_config`
+"""
+    get_config(fp::S3Path)
+
+Returns the AWS configuration used by the path `fp`.  This can be stored within the path itself, but if not
+it will be fetched with `AWS.global_aws_config()`.
+"""
 get_config(fp::S3Path) = @something(fp.config, global_aws_config())
 
 function FilePathsBase.exists(fp::S3Path)
@@ -196,18 +201,10 @@ function Base.isdir(fp::S3Path)
     fp.isdirectory || return false
     if isempty(fp.segments)  # special handling of buckets themselves
         # may not be super efficient for those with billions of buckets, but really our best option
-        fp.bucket ∈ s3_list_buckets(fp.config)
+        fp.bucket ∈ s3_list_buckets(get_config(fp))
     else
         exists(fp)
     end
-
-    objects = s3_list_objects(get_config(fp), fp.bucket, key; max_items=1)
-
-    # `objects` is a `Channel`, so we call iterate to see if there are any objects that
-    # match our directory key.
-    # NOTE: `iterate` should handle waiting on a value to become available or return `nothing`
-    # if the channel is closed without inserting anything.
-    return iterate(objects) !== nothing
 end
 
 function FilePathsBase.walkpath(fp::S3Path; kwargs...)
@@ -492,6 +489,12 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
     end
 end
 
+"""
+    read(fp::S3Path; byte_range=nothing)
+
+Fetch data from the S3 path as a `Vector{UInt8}`.  A subset of the object can be specified with
+`byte_range` which should be a contiguous integer range, e.g. `1:4`.
+"""
 function Base.read(fp::S3Path; byte_range=nothing)
     return Vector{UInt8}(
         s3_get(

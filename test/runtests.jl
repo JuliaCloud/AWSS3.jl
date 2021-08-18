@@ -32,6 +32,7 @@ include("awss3.jl") # creates `s3path_tests(config)`
 
         try
             run(minio_server; wait=false)
+            sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
             config = global_aws_config(
                 MinioConfig(
                     "http://localhost:$port"; username="minioadmin", password="minioadmin"

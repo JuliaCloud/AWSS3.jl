@@ -205,4 +205,25 @@ function awss3_tests(config)
             @test_throws AWS.AWSException s3_delete_bucket(config, bucket_name)
         end
     end
+
+    # these tests are needed because lack of functionality of the underlying AWS API makes certain
+    # seemingly inane tasks incredibly tricky: for example checking if an "object" (file or
+    # directory) exists is very subtle
+    @testset "path naming edge cases" begin
+        s3_create_bucket("name-tests")
+        # this seemingly arbitrary operation is needed because of the insanely tricky way we
+        # need to check for directories
+        s3_put("name-tests", "testdir.", "")
+        s3_put("name-tests", "testdir/", "")
+        @test s3_exists("name-tests", "testdir/")
+        @test s3_exists("name-tests", "testdir.")
+        @test !s3_exists("name-tests", "testdir")
+        # the below is just to make sure this thing doesn't fail
+        @test_nowarn s3_put("name-tests", "testdir/testfile.txt", "what up")
+        @test s3_exists("name-tests", "testdir/testfile.txt")
+        # make sure the directory still "exists" even though there's a key in there now
+        @test s3_exists("name-tests", "testdir/")
+        # but it is still a directory and not an object
+        @test !s3_exists("name-tests", "testdir")
+    end
 end
