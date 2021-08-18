@@ -552,11 +552,11 @@ function s3_list_objects(
 
         while more
             q = Dict{String,String}()
-            for (v, name) in [
-                (path_prefix, "prefix"),
-                (delimiter, "delimiter"),
-                (start_after, "start-after"),
-                (token, "continuation-token"),
+            for (name, v) in [
+                ("prefix", path_prefix),
+                ("delimiter", delimiter),
+                ("start-after", start_after),
+                ("continuation-token", token),
             ]
                 isempty(v) || (q[name] = v)
             end
