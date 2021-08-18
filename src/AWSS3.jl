@@ -234,7 +234,7 @@ function s3_exists_versioned(aws::AbstractAWSConfig, bucket, path, version; kw..
         end
     end
 end
-s3_exists_versioned(a...; kw...) = s3_exists_unversioned(global_aws_config(), a...; kw...)
+s3_exists_versioned(a...; kw...) = s3_exists_versioned(global_aws_config(), a...; kw...)
 
 """
     s3_exists_unversioned([::AbstractAWSConfig], bucket, path; kwargs...)
