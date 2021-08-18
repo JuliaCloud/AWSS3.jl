@@ -204,7 +204,7 @@ function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
 end
 
 function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
-    a = chop(string(path))* "."
+    a = chop(string(path)) * "."
     # note that you are not allowed to use *both* `prefix` and `start-after`
     q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
