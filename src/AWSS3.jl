@@ -199,7 +199,7 @@ function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
     q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
-    isnothing(c) && return false
+    c ≡ nothing && return false
     return get(c, "Key", "") == path
 end
 
@@ -209,7 +209,7 @@ function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
     q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
-    isnothing(c) && return false
+    c ≡ nothing && return false
     return startswith(get(c, "Key", ""), path)
 end
 
