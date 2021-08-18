@@ -13,6 +13,8 @@ export S3Path,
     s3_put,
     s3_get,
     s3_get_file,
+    s3_exists_versioned,
+    s3_exists_unversioned,
     s3_exists,
     s3_delete,
     s3_copy,
@@ -204,7 +206,7 @@ function _s3_exists_file(aws::AbstractAWSConfig, bucket, path; kw...)
 end
 
 function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path; kw...)
-    a = string(path)[1:end-1] * "."
+    a = string(path)[1:(end - 1)] * "."
     # note that you are not allowed to use *both* `prefix` and `start-after`
     q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
@@ -255,7 +257,9 @@ s3_exists_unversioned(a...; kw...) = s3_exists_unversioned(global_aws_config(), 
 
 Returns a boolean whether an object exists at  `path` in `bucket`.
 """
-function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kw...)
+function s3_exists(
+    aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kw...
+)
     if version ≡ nothing
         s3_exists_unversioned(aws, bucket, path; version=version, kw...)
     else
@@ -548,7 +552,7 @@ function s3_list_objects(
 
         while more
             q = Dict{String,String}()
-            for (v, name) ∈ [
+            for (v, name) in [
                 (path_prefix, "prefix"),
                 (delimiter, "delimiter"),
                 (start_after, "start-after"),
