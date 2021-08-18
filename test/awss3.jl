@@ -213,16 +213,24 @@ function awss3_tests(config)
         s3_create_bucket("name-tests")
         # this seemingly arbitrary operation is needed because of the insanely tricky way we
         # need to check for directories
-        s3_put("name-tests", "testdir.", "")
-        s3_put("name-tests", "testdir/", "")
+        s3_put("name-tests", "testdir.", "") # create an empty file called `testdir.`
+        s3_put("name-tests", "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
         @test s3_exists("name-tests", "testdir/")
+        @test isdir(S3Path("name-tests", "testdir/"))
+        @test !isfile(S3Path("name-tests", "testdir/"))
         @test s3_exists("name-tests", "testdir.")
+        @test isfile(S3Path("name-tests", "testdir."))
+        @test !isdir(S3Path("name-tests", "testdir."))
         @test !s3_exists("name-tests", "testdir")
-        # the below is just to make sure this thing doesn't fail
-        @test_nowarn s3_put("name-tests", "testdir/testfile.txt", "what up")
+        
+        s3_put("name-tests", "testdir/testfile.txt", "what up")
         @test s3_exists("name-tests", "testdir/testfile.txt")
+        @test isfile(S3Path("name-tests", "testdir/testfile.txt"))
         # make sure the directory still "exists" even though there's a key in there now
         @test s3_exists("name-tests", "testdir/")
+        @test isdir(S3Path("name-tests", "testdir/"))
+        @test !isfile(S3Path("name-tests", "testdir/"))
+
         # but it is still a directory and not an object
         @test !s3_exists("name-tests", "testdir")
     end
