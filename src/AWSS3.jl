@@ -221,7 +221,9 @@ Check if the version specified by `version` of the object in bucket `bucket` exi
 Note that this function relies on error catching and may be less performant than [`s3_exists`](@ref)
 which is preferred.  The reason for this is that support for versioning in the AWS API is very limited.
 """
-function s3_exists_versioned(aws::AbstractAWSConfig, bucket, path, version; kw...)
+function s3_exists_versioned(
+    aws::AbstractAWSConfig, bucket, path, version::AbstractS3Version; kw...
+)
     @repeat 2 try
         s3_get_meta(aws, bucket, path; version=version, kw...)
         return true
@@ -234,7 +236,6 @@ function s3_exists_versioned(aws::AbstractAWSConfig, bucket, path, version; kw..
         end
     end
 end
-s3_exists_versioned(a...; kw...) = s3_exists_versioned(global_aws_config(), a...; kw...)
 
 """
     s3_exists_unversioned([::AbstractAWSConfig], bucket, path; kwargs...)
@@ -252,7 +253,10 @@ end
 """
     s3_exists([::AbstractAWSConfig], bucket, path; version=nothing, kwargs...)
 
-Returns a boolean whether an object exists at  `path` in `bucket`.
+Returns a boolean whether an object exists at `path` in `bucket`.
+
+Note that the AWS API's support for object versioning is quite limited and this
+check will involve `try` `catch` logic if `version` is not `nothing`.
 """
 function s3_exists(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kw...
@@ -260,7 +264,7 @@ function s3_exists(
     if version ≡ nothing
         s3_exists_unversioned(aws, bucket, path; kw...)
     else
-        s3_exists_versioned(aws, bucket, path; version=version, kw...)
+        s3_exists_versioned(aws, bucket, path, version; kw...)
     end
 end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
