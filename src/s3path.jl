@@ -16,7 +16,6 @@ function S3Path(
     version::AbstractS3Version,
     config::AbstractS3PathConfig,
 )
-    check_empty_version(version)
     return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
 end
 
@@ -59,7 +58,6 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
-    check_empty_version(version)
     return S3Path(
         Tuple(filter!(!isempty, split(key, "/"))),
         "/",
@@ -77,7 +75,6 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
-    check_empty_version(version)
     return S3Path(
         key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config
     )
@@ -89,7 +86,6 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
-    check_empty_version(version)
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     if version !== nothing

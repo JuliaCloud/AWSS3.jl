@@ -59,12 +59,6 @@ const AbstractS3PathConfig = Union{AbstractAWSConfig,Nothing}
 
 __init__() = FilePathsBase.register(S3Path)
 
-function check_empty_version(v::AbstractS3Version)
-    if v !== nothing && isempty(v)
-        throw(ArgumentError("Version should be nothing, not empty string"))
-    end
-end
-
 """
     s3_arn(resource)
     s3_arn(bucket,path)
@@ -110,7 +104,6 @@ function s3_get(
     return_stream::Bool=false,
     kwargs...,
 )
-    check_empty_version(version)
     @repeat 4 try
         args = Dict{String,Any}("return_raw" => raw, "return_stream" => return_stream)
         if version !== nothing
@@ -151,7 +144,6 @@ function s3_get_file(
     version::AbstractS3Version=nothing,
     kwargs...,
 )
-    check_empty_version(version)
     stream = s3_get(aws, bucket, path; version=version, return_stream=true, kwargs...)
 
     open(filename, "w") do file
@@ -171,7 +163,6 @@ function s3_get_file(
     version::AbstractS3Version=nothing,
     kwargs...,
 )
-    check_empty_version(version)
     i = start(buckets)
 
     @repeat length(buckets) try
@@ -193,7 +184,6 @@ Retrieves metadata from an object without returning the object itself.
 function s3_get_meta(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    check_empty_version(version)
     if version === nothing
         S3.head_object(bucket, path; aws_config=aws, kwargs...)
     else
@@ -213,7 +203,6 @@ Is there an object in `bucket` at `path`?
 function s3_exists(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    check_empty_version(version)
     @repeat 2 try
         s3_get_meta(aws, bucket, path; version=version, kwargs...)
 
@@ -239,7 +228,6 @@ s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 function s3_delete(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    check_empty_version(version)
     if version === nothing
         S3.delete_object(bucket, path; aws_config=aws, kwargs...)
     else
