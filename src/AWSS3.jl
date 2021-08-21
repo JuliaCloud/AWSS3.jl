@@ -105,9 +105,9 @@ function s3_get(
     kwargs...,
 )
     @repeat 4 try
-        args = Dict{String,Any}("return_raw" => raw, "return_stream" => return_stream)
+        params = Dict{String,Any}("return_raw" => raw, "return_stream" => return_stream)
         if version !== nothing && !isempty(version)
-            args["versionId"] = version
+            params["versionId"] = version
         end
 
         if byte_range ≢ nothing
@@ -118,10 +118,10 @@ function s3_get(
         end
 
         if !isempty(headers)
-            args["headers"] = headers
+            params["headers"] = headers
         end
 
-        return S3.get_object(bucket, path, args; aws_config=aws, kwargs...)
+        return S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
     catch e
         @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"]
         end
