@@ -184,13 +184,12 @@ Retrieves metadata from an object without returning the object itself.
 function s3_get_meta(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    if version === nothing || isempty(version)
-        S3.head_object(bucket, path; aws_config=aws, kwargs...)
-    else
-        S3.head_object(
-            bucket, path, Dict("versionId" => version); aws_config=aws, kwargs...
-        )
+    params = Dict{String,Any}()
+    if version !== nothing && !isempty(version)
+        params["versionId"] = version
     end
+
+    return S3.head_object(bucket, path, params; aws_config=aws, kwargs...)
 end
 
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
@@ -228,13 +227,12 @@ s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 function s3_delete(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    if version === nothing || isempty(version)
-        S3.delete_object(bucket, path; aws_config=aws, kwargs...)
-    else
-        S3.delete_object(
-            bucket, path, Dict("versionId" => version); aws_config=aws, kwargs...
-        )
+    params = Dict{String,Any}()
+    if version !== nothing && !isempty(version)
+        params["versionId"] = version
     end
+
+    return S3.delete_object(bucket, path, params; aws_config=aws, kwargs...)
 end
 
 s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
