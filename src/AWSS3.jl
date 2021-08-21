@@ -125,7 +125,10 @@ function s3_get(
 
         return S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
     catch e
+        #! format: off
+        # https://github.com/domluna/JuliaFormatter.jl/issues/459
         @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"] end
+        #! format: on
     end
 end
 
@@ -170,7 +173,9 @@ function s3_get_file(
         bucket, i = next(buckets, i)
         s3_get_file(aws, bucket, path, filename; version=version, kwargs...)
     catch e
+        #! format: off
         @retry if ecode(e) in ["NoSuchKey", "AccessDenied"] end
+        #! format: on
     end
 end
 
@@ -247,7 +252,9 @@ function s3_exists_versioned(
         s3_get_meta(aws, bucket, path; version=version)
         return true
     catch e
+        #! format: off
         @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"] end
+        #! format: on
 
         @ignore if ecode(e) in ["404", "NoSuchKey", "AccessDenied"]
             return false
@@ -366,7 +373,9 @@ function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
             )
         end
     catch e
+        #! format: off
         @ignore if ecode(e) == "BucketAlreadyOwnedByYou" end
+        #! format: on
     end
 end
 
@@ -437,11 +446,8 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
 end
 
 function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs...)
-    tags = Dict(
-        "Tagging" => Dict(
-            "TagSet" => Dict("Tag" => [Dict("Key" => k, "Value" => v) for (k, v) in tags]),
-        ),
-    )
+    tag_set = Dict("Tag" => [Dict("Key" => k, "Value" => v) for (k, v) in tags])
+    tags = Dict("Tagging" => Dict("TagSet" => tag_set))
 
     tags = XMLDict.node_xml(tags)
 
@@ -590,7 +596,9 @@ function s3_list_objects(
                     end
                 end
             catch e
+                #! format: off
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
+                #! format: on
             end
         end
     end
@@ -749,6 +757,7 @@ function s3_begin_multipart_upload(
     path,
     args=Dict{String,Any}();
     kwargs...,
+    # format trick: using this comment to force use of multiple lines
 )
     return S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...)
 end

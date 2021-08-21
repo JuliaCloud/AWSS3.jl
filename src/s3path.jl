@@ -404,10 +404,15 @@ function FilePathsBase.sync(
                 throw(ArgumentError("Unable to sync directory $src to non-directory $dst"))
             # Create an index of all of the source files
             src_paths = collect(walkpath(src))
+
+            #! format: off
+            # https://github.com/domluna/JuliaFormatter.jl/issues/458
             index = Dict(
                 Tuple(setdiff(p.segments, src.segments)) => i
                 for (i, p) in enumerate(src_paths)
             )
+            #! format: on
+
             for dst_path in walkpath(dst)
                 k = Tuple(setdiff(dst_path.segments, dst.segments))
 
@@ -497,7 +502,9 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
                 end
                 S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp))
             catch e
+                #! format: off
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
+                #! format: on
             end
             token = _readdir_add_results!(results, response, key_length)
         end
