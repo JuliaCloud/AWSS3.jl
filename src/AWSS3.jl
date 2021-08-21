@@ -125,8 +125,7 @@ function s3_get(
 
         return S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
     catch e
-        @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"]
-        end
+        @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"] end
     end
 end
 
@@ -171,8 +170,7 @@ function s3_get_file(
         bucket, i = next(buckets, i)
         s3_get_file(aws, bucket, path, filename; version=version, kwargs...)
     catch e
-        @retry if ecode(e) in ["NoSuchKey", "AccessDenied"]
-        end
+        @retry if ecode(e) in ["NoSuchKey", "AccessDenied"] end
     end
 end
 
@@ -249,8 +247,7 @@ function s3_exists_versioned(
         s3_get_meta(aws, bucket, path; version=version)
         return true
     catch e
-        @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
-        end
+        @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"] end
 
         @ignore if ecode(e) in ["404", "NoSuchKey", "AccessDenied"]
             return false
@@ -368,8 +365,7 @@ function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
             )
         end
     catch e
-        @ignore if ecode(e) == "BucketAlreadyOwnedByYou"
-        end
+        @ignore if ecode(e) == "BucketAlreadyOwnedByYou" end
     end
 end
 
@@ -596,8 +592,7 @@ function s3_list_objects(
                     end
                 end
             catch e
-                @delay_retry if ecode(e) in ["NoSuchBucket"]
-                end
+                @delay_retry if ecode(e) in ["NoSuchBucket"] end
             end
         end
     end

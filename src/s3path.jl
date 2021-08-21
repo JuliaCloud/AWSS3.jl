@@ -494,8 +494,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
                 end
                 S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp))
             catch e
-                @delay_retry if ecode(e) in ["NoSuchBucket"]
-                end
+                @delay_retry if ecode(e) in ["NoSuchBucket"] end
             end
             token = _readdir_add_results!(results, response, key_length)
         end
