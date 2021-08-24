@@ -26,7 +26,6 @@ include("awss3.jl") # creates `s3path_tests(config)`
         # without access to the s3 bucket under which CI is performed.
         # We then run all tests with s3 directly.
 
-        # We use multiple directories so that Minio can support versioning.
         port = 9005
         minio_server = Minio.Server([mktempdir()]; address="localhost:$port")
 
