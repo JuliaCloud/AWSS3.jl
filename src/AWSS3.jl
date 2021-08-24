@@ -238,7 +238,7 @@ end
 
 Check if the version specified by `version` of the object in bucket `bucket` exists at `path`.
 
-Note that this function relies on error catching and may be less performant than [`s3_exists`](@ref)
+Note that this function relies on error catching and may be less performant than [`s3_exists_unversioned `](@ref)
 which is preferred.  The reason for this is that support for versioning in the AWS API is very limited.
 """
 function s3_exists_versioned(
