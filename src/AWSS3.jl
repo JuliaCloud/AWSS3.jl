@@ -219,7 +219,7 @@ some rather peculiar design choices on the part of the S3 developers.
 
 In all such cases, if the directory exists it will be seen in the *first* item
 returned from `S3.list_objects_v2`: for empty directories this is because using
-`start-after` explicitly excludes `dir.` and `dir/` is next, for directories
+`start-after` explicitly excludes `dir.` itself and `dir/` is next; for directories
 with actual keys, it is guaranteed that the first contained key will start with
 the directory name.
 """
