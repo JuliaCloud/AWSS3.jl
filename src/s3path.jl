@@ -55,7 +55,7 @@ S3Path{A}() where {A<:AbstractS3PathConfig} = S3Path()
 function S3Path(
     bucket::AbstractString,
     key::AbstractString;
-    isdirectory::Bool=false,
+    isdirectory::Bool=endswith(key, "/"),
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
@@ -183,7 +183,12 @@ function FilePathsBase.parents(fp::S3Path)
     end
 end
 
-# Use `fp.config` unless it is nothing; in that case, get the latest `global_aws_config`
+"""
+    get_config(fp::S3Path)
+
+Returns the AWS configuration used by the path `fp`.  This can be stored within the path itself, but if not
+it will be fetched with `AWS.global_aws_config()`.
+"""
 get_config(fp::S3Path) = @something(fp.config, global_aws_config())
 
 function FilePathsBase.exists(fp::S3Path)
@@ -192,21 +197,13 @@ end
 
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
-    if isempty(fp.segments)
-        key = ""
-    elseif fp.isdirectory
-        key = fp.key
+    fp.isdirectory || return false
+    if isempty(fp.segments)  # special handling of buckets themselves
+        # may not be super efficient for those with billions of buckets, but really our best option
+        fp.bucket ∈ s3_list_buckets(get_config(fp))
     else
-        return false
+        exists(fp)
     end
-
-    objects = s3_list_objects(get_config(fp), fp.bucket, key; max_items=1)
-
-    # `objects` is a `Channel`, so we call iterate to see if there are any objects that
-    # match our directory key.
-    # NOTE: `iterate` should handle waiting on a value to become available or return `nothing`
-    # if the channel is closed without inserting anything.
-    return iterate(objects) !== nothing
 end
 
 function FilePathsBase.walkpath(fp::S3Path; kwargs...)
@@ -267,6 +264,15 @@ function _walkpath!(
     end
 end
 
+"""
+    stat(fp::S3Path)
+
+Return the status struct for the S3 path analogously to `stat` for local directories.
+
+Note that this cannot be used on a directory.  This is because S3 is a pure key-value store and internally does
+not have a concept of directories.  In some cases, a directory may actually be an empty file, in which case
+you should use `s3_get_meta`.
+"""
 function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
     # ownership and permission settings
@@ -278,7 +284,7 @@ function Base.stat(fp::S3Path)
     s = 0
     last_modified = DateTime(0)
 
-    if exists(fp)
+    if isfile(fp)
         resp = s3_get_meta(get_config(fp), fp.bucket, fp.key; version=fp.version)
 
         # Example: "Thu, 03 Jan 2019 21:09:17 GMT"
@@ -298,6 +304,16 @@ Base.isreadable(fp::S3Path) = true
 Base.iswritable(fp::S3Path) = true
 Base.ismount(fp::S3Path) = false
 
+"""
+    mkdir(fp::S3Path; recursive=false, exist_ok=false)
+
+Create an empty directory at the S3 path `fp`.  If `recursive`, this will create any previously non-existent
+directories which would contain `fp`.  An error will be thrown if an object exists at `fp` unless `exist_ok`.
+
+Note that empty directories in S3 are actually 0-byte objects with the naming convention of a directory.
+
+This will *not* create a bucket.
+"""
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
     fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
 
@@ -306,7 +322,9 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
     else
         if hasparent(fp) && !exists(parent(fp))
             if recursive
-                mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
+                # don't try to create buckets this way, minio at least really doesn't like it
+                isempty(parent(fp).segments) ||
+                    mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
             else
                 error(
                     "The parent of $fp does not exist. " *
@@ -480,6 +498,12 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
     end
 end
 
+"""
+    read(fp::S3Path; byte_range=nothing)
+
+Fetch data from the S3 path as a `Vector{UInt8}`.  A subset of the object can be specified with
+`byte_range` which should be a contiguous integer range, e.g. `1:4`.
+"""
 function Base.read(fp::S3Path; byte_range=nothing)
     return Vector{UInt8}(
         s3_get(

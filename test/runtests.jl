@@ -26,14 +26,12 @@ include("awss3.jl") # creates `s3path_tests(config)`
         # without access to the s3 bucket under which CI is performed.
         # We then run all tests with s3 directly.
 
-        # We use multiple directories so that Minio can support versioning.
-        root = mktempdir()
-        dirs = [mkdir(joinpath(root, string(i))) for i in 1:12]
         port = 9005
-        minio_server = Minio.Server(dirs; address="localhost:$port")
+        minio_server = Minio.Server([mktempdir()]; address="localhost:$port")
 
         try
             run(minio_server; wait=false)
+            sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
             config = global_aws_config(
                 MinioConfig(
                     "http://localhost:$port"; username="minioadmin", password="minioadmin"

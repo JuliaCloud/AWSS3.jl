@@ -5,7 +5,7 @@ function awss3_tests(config)
     @testset "Create Bucket" begin
         s3_create_bucket(config, bucket_name)
         @test bucket_name in s3_list_buckets(config)
-        s3_enable_versioning(config, bucket_name)
+        is_aws(config) && s3_enable_versioning(config, bucket_name)
         sleep(1)
     end
 
@@ -156,7 +156,7 @@ function awss3_tests(config)
         # https://github.com/samoconnor/AWSS3.jl/issues/24
         ctype(key) = s3_get_meta(bucket_name, key)["Content-Type"]
 
-        for k in ["file.foo", "file", "file_html", "file/html", "foobar.html/file.htm"]
+        for k in ["file.foo", "file", "file_html", "file.d/html", "foobar.html/file.htm"]
             is_aws(config) && k == "file" && continue
             s3_put(config, bucket_name, k, "x")
             @test ctype(k) == "application/octet-stream"
@@ -193,6 +193,34 @@ function awss3_tests(config)
 
         s3_complete_multipart_upload(config, upload, tags)
         @test s3_exists(bucket_name, key_name)
+    end
+
+    # these tests are needed because lack of functionality of the underlying AWS API makes certain
+    # seemingly inane tasks incredibly tricky: for example checking if an "object" (file or
+    # directory) exists is very subtle
+    @testset "path naming edge cases" begin
+        # this seemingly arbitrary operation is needed because of the insanely tricky way we
+        # need to check for directories
+        s3_put(bucket_name, "testdir.", "") # create an empty file called `testdir.`
+        s3_put(bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
+        @test s3_exists(bucket_name, "testdir/")
+        @test isdir(S3Path(bucket_name, "testdir/"))
+        @test !isfile(S3Path(bucket_name, "testdir/"))
+        @test s3_exists(bucket_name, "testdir.")
+        @test isfile(S3Path(bucket_name, "testdir."))
+        @test !isdir(S3Path(bucket_name, "testdir."))
+        @test !s3_exists(bucket_name, "testdir")
+
+        s3_put(bucket_name, "testdir/testfile.txt", "what up")
+        @test s3_exists(bucket_name, "testdir/testfile.txt")
+        @test isfile(S3Path(bucket_name, "testdir/testfile.txt"))
+        # make sure the directory still "exists" even though there's a key in there now
+        @test s3_exists(bucket_name, "testdir/")
+        @test isdir(S3Path(bucket_name, "testdir/"))
+        @test !isfile(S3Path(bucket_name, "testdir/"))
+
+        # but it is still a directory and not an object
+        @test !s3_exists(bucket_name, "testdir")
     end
 
     if is_aws(config)

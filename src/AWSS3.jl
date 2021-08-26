@@ -194,19 +194,58 @@ end
 
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
-"""
-    s3_exists([::AbstractAWSConfig], bucket, path [version=], kwargs...)
+function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
+    q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
+    l = S3.list_objects_v2(bucket, q; aws_config=aws)
+    c = get(l, "Contents", nothing)
+    c ≡ nothing && return false
+    return get(c, "Key", "") == path
+end
 
-Is there an object in `bucket` at `path`?
 """
-function s3_exists(
-    aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
+    _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
+
+Internal, called by [`s3_exists`](@ref).
+
+Checks whether the given directory exists.  This is a bit subtle because of how the
+AWS API handles empty directories.  Empty directories are really just 0-byte nodes
+which are named like directories, i.e. their name has a trailing `"/"`.
+
+What this function does is, given a directory name `dir/`, check for all keys which
+are lexographically greater than `dir.`.  The reason for this is that, if `dir/`
+is a 0-byte node, checking for it directly will not reveal its existence due to
+some rather peculiar design choices on the part of the S3 developers.
+
+In all such cases, if the directory exists it will be seen in the *first* item
+returned from `S3.list_objects_v2`: for empty directories this is because using
+`start-after` explicitly excludes `dir.` itself and `dir/` is next; for directories
+with actual keys, it is guaranteed that the first contained key will start with
+the directory name.
+"""
+function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
+    a = chop(string(path)) * "."
+    # note that you are not allowed to use *both* `prefix` and `start-after`
+    q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
+    l = S3.list_objects_v2(bucket, q; aws_config=aws)
+    c = get(l, "Contents", nothing)
+    c ≡ nothing && return false
+    return startswith(get(c, "Key", ""), path)
+end
+
+"""
+    s3_exists_versioned([::AbstractAWSConfig], bucket, path, version)
+
+Check if the version specified by `version` of the object in bucket `bucket` exists at `path`.
+
+Note that this function relies on error catching and may be less performant than [`s3_exists_unversioned `](@ref)
+which is preferred.  The reason for this is that support for versioning in the AWS API is very limited.
+"""
+function s3_exists_versioned(
+    aws::AbstractAWSConfig, bucket, path, version::AbstractS3Version
 )
     @repeat 2 try
-        s3_get_meta(aws, bucket, path; version=version, kwargs...)
-
+        s3_get_meta(aws, bucket, path; version=version)
         return true
-
     catch e
         @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
         end
@@ -217,6 +256,32 @@ function s3_exists(
     end
 end
 
+"""
+    s3_exists_unversioned([::AbstractAWSConfig], bucket, path)
+
+Returns a boolean whether an object exists at  `path` in `bucket`.
+
+See [`s3_exists_versioned`](@ref) to check for specific versions.
+"""
+function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path)
+    return (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(aws, bucket, path)
+end
+
+"""
+    s3_exists([::AbstractAWSConfig], bucket, path; version=nothing)
+
+Returns a boolean whether an object exists at `path` in `bucket`.
+
+Note that the AWS API's support for object versioning is quite limited and this
+check will involve `try` `catch` logic if `version` is not `nothing`.
+"""
+function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing)
+    if version ≡ nothing
+        s3_exists_unversioned(aws, bucket, path)
+    else
+        s3_exists_versioned(aws, bucket, path, version)
+    end
+end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 
 """
@@ -491,24 +556,24 @@ function s3_list_objects(
     bucket,
     path_prefix="";
     delimiter="/",
+    start_after="",
     max_items=nothing,
     kwargs...,
 )
     return Channel() do chnl
         more = true
         num_objects = 0
-        marker = ""
+        token = ""
 
         while more
             q = Dict{String,String}()
-            if path_prefix != ""
-                q["prefix"] = path_prefix
-            end
-            if delimiter != ""
-                q["delimiter"] = delimiter
-            end
-            if marker != ""
-                q["marker"] = marker
+            for (name, v) in [
+                ("prefix", path_prefix),
+                ("delimiter", delimiter),
+                ("start-after", start_after),
+                ("continuation-token", token),
+            ]
+                isempty(v) || (q[name] = v)
             end
             if max_items !== nothing
                 # Note: AWS seems to only return up to 1000 items
@@ -517,28 +582,17 @@ function s3_list_objects(
 
             @repeat 4 try
                 # Request objects
-                r = S3.list_objects(bucket, q; aws_config=aws, kwargs...)
+                r = S3.list_objects_v2(bucket, q; aws_config=aws, kwargs...)
 
-                # Add each object from the response and update our object count / marker
+                token = get(r, "NextContinuationToken", "")
+                isempty(token) && (more = false)
                 if haskey(r, "Contents")
                     l = isa(r["Contents"], Vector) ? r["Contents"] : [r["Contents"]]
                     for object in l
                         put!(chnl, object)
                         num_objects += 1
-                        marker = object["Key"]
                     end
-                    # It's possible that the response doesn't have "Contents" and just has a prefix,
-                    # in which case we should just save the next marker and iterate.
-                elseif haskey(r, "Prefix")
-                    put!(chnl, Dict("Key" => r["Prefix"]))
-                    num_objects += 1
-                    marker = haskey(r, "NextMarker") ? r["NextMarker"] : r["Prefix"]
                 end
-
-                # Continue looping if the results were truncated and we haven't exceeded out max_items (if specified)
-                more =
-                    r["IsTruncated"] == "true" &&
-                    (max_items === nothing || num_objects < max_items)
             catch e
                 @delay_retry if ecode(e) in ["NoSuchBucket"]
                 end
