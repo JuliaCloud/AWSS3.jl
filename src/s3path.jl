@@ -24,23 +24,23 @@ end
     S3Path(str; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
 
 Construct a new AWS S3 path type which should be of the form
-"s3://<bucket>/prefix/to/my/object".
+`"s3://<bucket>/prefix/to/my/object"`.
 
 NOTES:
 
-- Directories are required to have a trailing "/" due to how S3
+- Directories are required to have a trailing `/` due to how S3
   distinguishes files from folders, as internally they're just
   keys to objects.
-- Objects p"s3://bucket/a" and p"s3://bucket/a/b" can co-exist.
-  If both of these objects exist listing the keys for p"s3://bucket/a" returns
-  [p"s3://bucket/a"] while p"s3://bucket/a/" returns [p"s3://bucket/a/b"].
-- The drive property will return "s3://<bucket>"
+- Objects `p"s3://bucket/a"` and `p"s3://bucket/a/b"` can co-exist.
+  If both of these objects exist listing the keys for `p"s3://bucket/a"` returns
+  `[p"s3://bucket/a"]` while `p"s3://bucket/a/"` returns `[p"s3://bucket/a/b"]`.
+- The drive property will return `"s3://<bucket>"`
 - On top of the standard path properties (e.g., `segments`, `root`, `drive`,
   `separator`), `S3Path`s also support `bucket` and `key` properties for your
   convenience.
 - If `version` argument is `nothing`, will return latest version of object. Version
-  can be provided via either kwarg `version` or as suffix "?versionId=<object_version>"
-  of `str`, e.g., "s3://<bucket>/prefix/to/my/object?versionId=<object_version>".
+  can be provided via either kwarg `version` or as suffix `"?versionId=<object_version>"`
+  of `str`, e.g., `"s3://<bucket>/prefix/to/my/object?versionId=<object_version>"`.
 - If `config` is left at its default value of `nothing`, then the
   latest `global_aws_config()` will be used in any operations involving the
   path. To "freeze" the config at construction time, explicitly pass an
