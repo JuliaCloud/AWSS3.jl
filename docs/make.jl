@@ -17,6 +17,5 @@ makedocs(;
 )
 
 deploydocs(repo="github.com/JuliaCloud/AWSS3.jl.git",
-           target="build",
            push_preview=true,
           )
