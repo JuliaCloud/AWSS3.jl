@@ -12,6 +12,4 @@ makedocs(;
     pages=["Home" => "index.md", "API" => "api.md"],
 )
 
-deploydocs(repo="github.com/JuliaCloud/AWSS3.jl.git",
-           push_preview=true,
-          )
+deploydocs(repo="github.com/JuliaCloud/AWSS3.jl.git", push_preview=true)
