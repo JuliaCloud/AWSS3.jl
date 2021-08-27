@@ -16,4 +16,21 @@ AWS S3 Interface for Julia
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: http://juliacloud.github.io/AWSS3.jl/stable/
 
+## Example
+```julia
+using AWSS3
+using AWS # for `global_aws_config`
+
+aws = global_aws_config(; region="us-east-2") # pass keyword arguments to change defaults
+
+s3_create_bucket(aws, "my.bucket")
+
+# if the config is omitted it will try to infer it as usual from AWS.jl
+s3_delete_bucket("my.bucket")
+
+p = S3Path("s3://my.bucket/test1.txt")  # provides an filesystem-like interface
+write(p, "some data")
+
+read(p, byte_range=1:4)  # returns b"some"
+```
 
