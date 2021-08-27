@@ -88,9 +88,11 @@ from `path` in `bucket`.
 - `header::Dict{String,String}`: pass in an HTTP header to the request.
 
 As an example of how to set custom HTTP headers, the below is equivalent to
-`s3_get(aws, bucket, path; byte_range=range)`.
+`s3_get(aws, bucket, path; byte_range=range)`:
 
-`s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))`
+```julia
+s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))
+```
 """
 function s3_get(
     aws::AbstractAWSConfig,
@@ -686,7 +688,7 @@ s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b..
 # Optional Arguments
 - `data_type=`; `Content-Type` header.
 - `encoding=`; `Content-Encoding` header.
-- `acl=`; 'x-amz-acl' header for setting access permissions with canned config.
+- `acl=`; `x-amz-acl` header for setting access permissions with canned config.
     See [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl).
 - `metadata::Dict=`; `x-amz-meta-` headers.
 - `tags::Dict=`; `x-amz-tagging-` headers
@@ -1014,7 +1016,9 @@ This function is NOT exported on purpose. AWS does not officially support this t
 although it is a very nice utility one this is not exported just as a safe measure against
 accidentally blowing up your bucket.
 
-*Warning: It will delete all versions of objects in the given bucket and then the bucket itself.*
+!!! warning
+
+    It will delete all versions of objects in the given bucket and then the bucket itself.
 """
 function s3_nuke_bucket(aws::AbstractAWSConfig, bucket_name)
     for v in s3_list_versions(aws, bucket_name)
