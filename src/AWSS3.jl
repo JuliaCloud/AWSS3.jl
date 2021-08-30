@@ -108,11 +108,11 @@ function s3_get(
 )
     @repeat 4 try
         params = Dict{String,Any}("return_raw" => raw, "return_stream" => return_stream)
-        if version !== nothing && !isempty(version)
+        if version !== nothing
             params["versionId"] = version
         end
 
-        if byte_range ≢ nothing
+        if byte_range !== nothing
             headers = copy(headers)  # make sure we don't mutate existing object
             # we make sure we stick to the Julia convention of 1-based indexing
             a, b = (first(byte_range) - 1), (last(byte_range) - 1)
@@ -187,7 +187,7 @@ function s3_get_meta(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
     params = Dict{String,Any}()
-    if version !== nothing && !isempty(version)
+    if version !== nothing
         params["versionId"] = version
     end
 
@@ -295,7 +295,7 @@ function s3_delete(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
     params = Dict{String,Any}()
-    if version !== nothing && !isempty(version)
+    if version !== nothing
         params["versionId"] = version
     end
 

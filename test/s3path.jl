@@ -418,6 +418,7 @@ function s3path_tests(config)
 
     @testset "tryparse" begin
         cfg = global_aws_config()
+        ver = String('A':'Z') * String('0':'5')
 
         @test S3Path("s3://my_bucket/prefix/that/is/fun") == S3Path(
             ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, nothing, cfg
@@ -433,29 +434,32 @@ function s3path_tests(config)
         @test S3Path("s3://my_bucket") ==
               S3Path((), "", "s3://my_bucket", true, nothing, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun?versionId=xyz") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, "xyz", cfg
+        @test S3Path("s3://my_bucket/prefix/that/is/fun?versionId=$ver") == S3Path(
+            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, ver, cfg
         )
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg
-        )
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=$ver") ==
+              S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, ver, cfg)
 
-        @test S3Path("s3://my_bucket/?versionId=xyz") ==
-              S3Path((), "/", "s3://my_bucket", true, "xyz", cfg)
+        @test S3Path("s3://my_bucket/?versionId=$ver") ==
+              S3Path((), "/", "s3://my_bucket", true, ver, cfg)
 
-        @test S3Path("s3://my_bucket?versionId=xyz") ==
-              S3Path((), "", "s3://my_bucket", true, "xyz", cfg)
+        @test S3Path("s3://my_bucket?versionId=$ver") ==
+              S3Path((), "", "s3://my_bucket", true, ver, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=xyz&radtimes=foo") ==
-              S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg
-        )
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=$ver&radtimes=foo") ==
+              S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, ver, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun/?radtimes=foo&versionId=xyz") ==
-              S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg
-        )
+        @test S3Path("s3://my_bucket/prefix/that/is/fun/?radtimes=foo&versionId=$ver") ==
+              S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, ver, cfg)
+
+        @test_throws ArgumentError S3Path("s3://my_bucket/?versionId=")
+        @test_throws ArgumentError S3Path("s3://my_bucket/?versionId=xyz")
+    end
+
+    @testset "version is empty" begin
+        @test_throws ArgumentError S3Path("my_bucket", "path"; version="")
+        @test_throws ArgumentError S3Path("s3://my_bucket/"; version="")
     end
 
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio

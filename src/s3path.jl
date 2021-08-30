@@ -1,3 +1,5 @@
+const VERSION_ID_REGEX = r"^[0-9a-zA-Z\._]{32}$"
+
 struct S3Path{A<:AbstractS3PathConfig} <: AbstractPath
     segments::Tuple{Vararg{String}}
     root::String
@@ -5,18 +7,32 @@ struct S3Path{A<:AbstractS3PathConfig} <: AbstractPath
     isdirectory::Bool
     version::Union{String,Nothing}
     config::A
+
+    # Inner constructor performs no data checking and is only meant for direct use by
+    # deserialization.
+    function S3Path{A}(
+        segments, root, drive, isdirectory, version, config::A
+    ) where {A<:AbstractS3PathConfig}
+        return new(segments, root, drive, isdirectory, version, config)
+    end
 end
 
-# constructor that converts but does not require type parameter
 function S3Path(
-    segments,
-    root::AbstractString,
-    drive::AbstractString,
-    isdirectory::Bool,
-    version::AbstractS3Version,
-    config::AbstractS3PathConfig,
-)
-    return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
+    segments, root, drive, isdirectory, version::AbstractString, config::A
+) where {A<:AbstractS3PathConfig}
+    # Validate the `version` string provided is valid. Having this check during construction
+    # allows us to fail early instead of having to wait to make an API call to fail.
+    if !occursin(VERSION_ID_REGEX, version)
+        throw(ArgumentError("`version` string is invalid: $(repr(version))"))
+    end
+
+    return S3Path{A}(segments, root, drive, isdirectory, version, config)
+end
+
+function S3Path(
+    segments, root, drive, isdirectory, version::Nothing, config::A
+) where {A<:AbstractS3PathConfig}
+    return S3Path{A}(segments, root, drive, isdirectory, version, config)
 end
 
 """
@@ -45,7 +61,6 @@ NOTES:
   latest `global_aws_config()` will be used in any operations involving the
   path. To "freeze" the config at construction time, explicitly pass an
   `AbstractAWSConfig` to the `config` keyword argument.
-- If `version` argument is `nothing`, will return latest version of object.
 """
 S3Path() = S3Path((), "/", "", true, nothing, nothing)
 
@@ -89,7 +104,7 @@ function S3Path(
 )
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
-    if version !== nothing && !isempty(version)
+    if version !== nothing
         if result.version !== nothing && result.version != version
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end
@@ -119,7 +134,7 @@ end
 
 function Base.print(io::IO, fp::S3Path)
     print(io, fp.anchor, fp.key)
-    fp.version !== nothing && !isempty(fp.version) && print(io, "?versionId=", fp.version)
+    fp.version !== nothing && print(io, "?versionId=", fp.version)
     return nothing
 end
 

@@ -223,6 +223,39 @@ function awss3_tests(config)
         @test !s3_exists(bucket_name, "testdir")
     end
 
+    @testset "Version is empty" begin
+        # Create the file to ensure we're only testing `version`
+        k = "version_empty.txt"
+        s3_put(config, bucket_name, k, "v1")
+        s3_put(config, bucket_name, k, "v2")
+
+        if is_aws(config)
+            @test_throws AWSException s3_get(bucket_name, k; version="")
+            @test_throws AWSException s3_get_meta(bucket_name, k; version="")
+            @test_throws AWSException s3_exists(bucket_name, k; version="")
+            @test_throws AWSException s3_delete(bucket_name, k; version="")
+        else
+            # Using an empty string as the version returns the latest version
+            @test s3_get(bucket_name, k; version="") == "v2"
+            @test s3_get_meta(bucket_name, k; version="") isa AbstractDict
+            @test s3_exists(bucket_name, k; version="")
+            @test s3_delete(bucket_name, k; version="") == UInt8[]
+        end
+    end
+
+    @testset "Version is nothing" begin
+        # Create the file to ensure we're only testing `version`
+        k = "version_nothing.txt"
+        s3_put(config, bucket_name, k, "v1")
+        s3_put(config, bucket_name, k, "v2")
+
+        # Using an empty string as the version returns the latest version
+        @test s3_get(bucket_name, k; version=nothing) == "v2"
+        @test s3_get_meta(bucket_name, k; version=nothing) isa AbstractDict
+        @test s3_exists(bucket_name, k; version=nothing)
+        @test s3_delete(bucket_name, k; version=nothing) == UInt8[]
+    end
+
     if is_aws(config)
         @testset "Empty and Delete Bucket" begin
             AWSS3.s3_nuke_bucket(config, bucket_name)
