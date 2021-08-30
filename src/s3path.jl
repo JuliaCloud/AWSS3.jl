@@ -139,11 +139,13 @@ function Base.print(io::IO, fp::S3Path)
 end
 
 function Base.:(==)(a::S3Path, b::S3Path)
-    return a.segments == b.segments &&
-           a.root == b.root &&
-           a.drive == b.drive &&
-           a.isdirectory == b.isdirectory &&
-           a.version == b.version
+    return (
+        a.segments == b.segments &&
+        a.root == b.root &&
+        a.drive == b.drive &&
+        a.isdirectory == b.isdirectory &&
+        a.version == b.version
+    )
 end
 
 function Base.getproperty(fp::S3Path, attr::Symbol)
@@ -402,10 +404,15 @@ function FilePathsBase.sync(
                 throw(ArgumentError("Unable to sync directory $src to non-directory $dst"))
             # Create an index of all of the source files
             src_paths = collect(walkpath(src))
+
+            #! format: off
+            # https://github.com/domluna/JuliaFormatter.jl/issues/458
             index = Dict(
-                Tuple(setdiff(p.segments, src.segments)) => i for
-                (i, p) in enumerate(src_paths)
+                Tuple(setdiff(p.segments, src.segments)) => i
+                for (i, p) in enumerate(src_paths)
             )
+            #! format: on
+
             for dst_path in walkpath(dst)
                 k = Tuple(setdiff(dst_path.segments, dst.segments))
 
@@ -471,10 +478,11 @@ end
 function _readdir_add_results!(results, response, key_length)
     sizehint!(results, length(results) + parse(Int, response["KeyCount"]))
 
-    _retrieve_prefixes!(
-        results, get(response, "CommonPrefixes", nothing), "Prefix", key_length
-    )
-    _retrieve_prefixes!(results, get(response, "Contents", nothing), "Key", key_length)
+    common_prefixes = get(response, "CommonPrefixes", nothing)
+    _retrieve_prefixes!(results, common_prefixes, "Prefix", key_length)
+
+    contents = get(response, "Contents", nothing)
+    _retrieve_prefixes!(results, contents, "Key", key_length)
 
     return get(response, "NextContinuationToken", nothing)
 end
@@ -494,8 +502,9 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
                 end
                 S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp))
             catch e
-                @delay_retry if ecode(e) in ["NoSuchBucket"]
-                end
+                #! format: off
+                @delay_retry if ecode(e) in ["NoSuchBucket"] end
+                #! format: on
             end
             token = _readdir_add_results!(results, response, key_length)
         end
@@ -545,8 +554,10 @@ function Base.write(
 )
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
     MAX_HTTP_BYTES = 2147483647
-    fp.version === nothing ||
+    if fp.version !== nothing
         throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
+    end
+
     if !multipart || length(content) < MAX_HTTP_BYTES
         return s3_put(get_config(fp), fp.bucket, fp.key, content)
     else

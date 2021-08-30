@@ -420,13 +420,11 @@ function s3path_tests(config)
         cfg = global_aws_config()
         ver = String('A':'Z') * String('0':'5')
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, nothing, cfg
-        )
+        @test S3Path("s3://my_bucket/prefix/path") ==
+              S3Path(("prefix", "path"), "/", "s3://my_bucket", false, nothing, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun/") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, nothing, cfg
-        )
+        @test S3Path("s3://my_bucket/prefix/path/") ==
+              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, nothing, cfg)
 
         @test S3Path("s3://my_bucket/") ==
               S3Path((), "/", "s3://my_bucket", true, nothing, cfg)
@@ -434,12 +432,11 @@ function s3path_tests(config)
         @test S3Path("s3://my_bucket") ==
               S3Path((), "", "s3://my_bucket", true, nothing, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun?versionId=$ver") == S3Path(
-            ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", false, ver, cfg
-        )
+        @test S3Path("s3://my_bucket/prefix/path?versionId=$ver") ==
+              S3Path(("prefix", "path"), "/", "s3://my_bucket", false, ver, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=$ver") ==
-              S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, ver, cfg)
+        @test S3Path("s3://my_bucket/prefix/path/?versionId=$ver") ==
+              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
 
         @test S3Path("s3://my_bucket/?versionId=$ver") ==
               S3Path((), "/", "s3://my_bucket", true, ver, cfg)
@@ -447,11 +444,11 @@ function s3path_tests(config)
         @test S3Path("s3://my_bucket?versionId=$ver") ==
               S3Path((), "", "s3://my_bucket", true, ver, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun/?versionId=$ver&radtimes=foo") ==
-              S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, ver, cfg)
+        @test S3Path("s3://my_bucket/prefix/path/?versionId=$ver&radtimes=foo") ==
+              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
 
-        @test S3Path("s3://my_bucket/prefix/that/is/fun/?radtimes=foo&versionId=$ver") ==
-              S3Path(("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, ver, cfg)
+        @test S3Path("s3://my_bucket/prefix/path/?radtimes=foo&versionId=$ver") ==
+              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
 
         @test_throws ArgumentError S3Path("s3://my_bucket/?versionId=")
         @test_throws ArgumentError S3Path("s3://my_bucket/?versionId=xyz")
@@ -466,88 +463,60 @@ function s3path_tests(config)
     if is_aws(config)
         @testset "S3Path versioning" begin
             s3_enable_versioning(config, bucket_name)
-            key_version_file = "test_versions"
-            s3_put(config, bucket_name, key_version_file, "data.v1")
-            s3_put(config, bucket_name, key_version_file, "data.v2")
+            key = "test_versions"
+            s3_put(config, bucket_name, key, "data.v1")
+            s3_put(config, bucket_name, key, "data.v2")
 
             # `s3_list_versions` returns versions in the order newest to oldest
-            versions = [
-                d["VersionId"] for
-                d in reverse!(s3_list_versions(config, bucket_name, key_version_file))
-            ]
-            v1, v2 = first(versions), last(versions)
-            @test read(
-                S3Path(bucket_name, key_version_file; config=config, version=v1), String
-            ) == "data.v1"
-            @test read(
-                S3Path(bucket_name, key_version_file; config=config, version=v2), String
-            ) == "data.v2"
-            @test isequal(
-                read(
-                    S3Path(bucket_name, key_version_file; config=config, version=v2), String
-                ),
-                read(S3Path(bucket_name, key_version_file; config=config), String),
-            )
-            @test isequal(
-                read(
-                    S3Path(bucket_name, key_version_file; config=config, version=v2), String
-                ),
-                read(
-                    S3Path(bucket_name, key_version_file; config=config, version=nothing),
-                    String,
-                ),
-            )
+            listed_versions = s3_list_versions(config, bucket_name, key)
+            versions = [d["VersionId"] for d in reverse!(listed_versions)]
 
-            unversioned_path = S3Path(bucket_name, key_version_file; config=config)
-            versioned_path = S3Path(
-                bucket_name, key_version_file; config=config, version=v2
-            )
+            v1, v2 = first(versions), last(versions)
+            @test read(S3Path(bucket_name, key; config=config, version=v1), String) ==
+                  "data.v1"
+            @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
+                  "data.v2"
+            @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
+                  read(S3Path(bucket_name, key; config=config), String)
+            @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
+                  read(S3Path(bucket_name, key; config=config, version=nothing), String)
+
+            unversioned_path = S3Path(bucket_name, key; config=config)
+            versioned_path = S3Path(bucket_name, key; config=config, version=v2)
             @test versioned_path.version == v2
             @test unversioned_path.version === nothing
             @test exists(versioned_path)
             @test exists(unversioned_path)
-            nonexistent_versioned_path = S3Path(
-                bucket_name,
-                key_version_file;
-                config=config,
-                version="feVMBvDgNiKSpMS17fKNJK3GV05bl8ir",
-            )
-            @test !exists(nonexistent_versioned_path)
 
-            versioned_path_v1 = S3Path(
-                "s3://$(bucket_name)/$(key_version_file)"; version=v1
-            )
-            versioned_path_v2 = S3Path(
-                "s3://$(bucket_name)/$(key_version_file)"; version=v2
-            )
+            dne = "feVMBvDgNiKSpMS17fKNJK3GV05bl8ir"
+            dne_versioned_path = S3Path(bucket_name, key; config=config, version=dne)
+            @test !exists(dne_versioned_path)
+
+            versioned_path_v1 = S3Path("s3://$bucket_name/$key"; version=v1)
+            versioned_path_v2 = S3Path("s3://$bucket_name/$key"; version=v2)
             @test versioned_path_v1.version == v1
-            @test !isequal(versioned_path_v1, unversioned_path)
-            @test !isequal(versioned_path_v1, versioned_path_v2)
+            @test versioned_path_v1 != unversioned_path
+            @test versioned_path_v1 != versioned_path_v2
 
-            versioned_path_v1_from_url = S3Path(
-                "s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"
-            )
-            @test versioned_path_v1_from_url.key == key_version_file
+            versioned_path_v1_from_url = S3Path("s3://$bucket_name/$key?versionId=$v1")
+            @test versioned_path_v1_from_url.key == key
             @test versioned_path_v1_from_url.version == v1
-            @test S3Path(
-                "s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"; version=v1
-            ).version == v1
-            @test_throws ArgumentError S3Path(
-                "s3://$(bucket_name)/$(key_version_file)?versionId=$(v1)"; version=v2
-            )
+            @test S3Path("s3://$bucket_name/$key?versionId=$v1"; version=v1).version == v1
+            @test_throws ArgumentError begin
+                S3Path("s3://$bucket_name/$key?versionId=$v1"; version=v2)
+            end
 
             str_v1 = string(versioned_path_v1)
             roundtripped_v1 = S3Path(str_v1; config=config)
             @test isequal(versioned_path_v1, roundtripped_v1)
-            @test str_v1 ==
-                  "s3://" * bucket_name * "/" * key_version_file * "?versionId=" * v1
+            @test str_v1 == "s3://" * bucket_name * "/" * key * "?versionId=" * v1
 
             @test isa(stat(versioned_path), Status)
             @test_throws ArgumentError write(versioned_path, "new_content")
 
             rm(versioned_path)
             @test !exists(versioned_path)
-            @test length(s3_list_versions(config, bucket_name, key_version_file)) == 1
+            @test length(s3_list_versions(config, bucket_name, key)) == 1
         end
     end
 

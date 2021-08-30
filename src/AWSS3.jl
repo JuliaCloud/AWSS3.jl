@@ -125,8 +125,10 @@ function s3_get(
 
         return S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
     catch e
-        @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"]
-        end
+        #! format: off
+        # https://github.com/domluna/JuliaFormatter.jl/issues/459
+        @delay_retry if retry && ecode(e) in ["NoSuchBucket", "NoSuchKey"] end
+        #! format: on
     end
 end
 
@@ -171,8 +173,9 @@ function s3_get_file(
         bucket, i = next(buckets, i)
         s3_get_file(aws, bucket, path, filename; version=version, kwargs...)
     catch e
-        @retry if ecode(e) in ["NoSuchKey", "AccessDenied"]
-        end
+        #! format: off
+        @retry if ecode(e) in ["NoSuchKey", "AccessDenied"] end
+        #! format: on
     end
 end
 
@@ -200,7 +203,7 @@ function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
     q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
-    c ≡ nothing && return false
+    c === nothing && return false
     return get(c, "Key", "") == path
 end
 
@@ -230,7 +233,7 @@ function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
     q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
-    c ≡ nothing && return false
+    c === nothing && return false
     return startswith(get(c, "Key", ""), path)
 end
 
@@ -249,8 +252,9 @@ function s3_exists_versioned(
         s3_get_meta(aws, bucket, path; version=version)
         return true
     catch e
-        @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"]
-        end
+        #! format: off
+        @delay_retry if ecode(e) in ["NoSuchBucket", "404", "NoSuchKey", "AccessDenied"] end
+        #! format: on
 
         @ignore if ecode(e) in ["404", "NoSuchKey", "AccessDenied"]
             return false
@@ -266,7 +270,8 @@ Returns a boolean whether an object exists at  `path` in `bucket`.
 See [`s3_exists_versioned`](@ref) to check for specific versions.
 """
 function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path)
-    return (endswith(path, "/") ? _s3_exists_dir : _s3_exists_file)(aws, bucket, path)
+    f = endswith(path, '/') ? _s3_exists_dir : _s3_exists_file
+    return f(aws, bucket, path)
 end
 
 """
@@ -278,10 +283,10 @@ Note that the AWS API's support for object versioning is quite limited and this
 check will involve `try` `catch` logic if `version` is not `nothing`.
 """
 function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing)
-    if version ≡ nothing
-        s3_exists_unversioned(aws, bucket, path)
-    else
+    if version !== nothing
         s3_exists_versioned(aws, bucket, path, version)
+    else
+        s3_exists_unversioned(aws, bucket, path)
     end
 end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
@@ -368,8 +373,9 @@ function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
             )
         end
     catch e
-        @ignore if ecode(e) == "BucketAlreadyOwnedByYou"
-        end
+        #! format: off
+        @ignore if ecode(e) == "BucketAlreadyOwnedByYou" end
+        #! format: on
     end
 end
 
@@ -412,7 +418,7 @@ function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; 
         <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             <Status>$status</Status>
         </VersioningConfiguration>
-    """
+        """
 
     return s3(
         "PUT",
@@ -440,12 +446,8 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
 end
 
 function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs...)
-    tags = Dict(
-        "Tagging" => Dict(
-            "TagSet" =>
-                Dict("Tag" => [Dict("Key" => k, "Value" => v) for (k, v) in tags]),
-        ),
-    )
+    tag_set = Dict("Tag" => [Dict("Key" => k, "Value" => v) for (k, v) in tags])
+    tags = Dict("Tagging" => Dict("TagSet" => tag_set))
 
     tags = XMLDict.node_xml(tags)
 
@@ -536,9 +538,7 @@ function s3_list_buckets(aws::AbstractAWSConfig=global_aws_config(); kwargs...)
     r = S3.list_buckets(; aws_config=aws, kwargs...)
     buckets = r["Buckets"]
 
-    if isempty(buckets)
-        return []
-    end
+    isempty(buckets) && return []
 
     buckets = buckets["Bucket"]
     return [b["Name"] for b in (isa(buckets, Vector) ? buckets : [buckets])]
@@ -596,8 +596,9 @@ function s3_list_objects(
                     end
                 end
             catch e
-                @delay_retry if ecode(e) in ["NoSuchBucket"]
-                end
+                #! format: off
+                @delay_retry if ecode(e) in ["NoSuchBucket"] end
+                #! format: on
             end
         end
     end
@@ -751,7 +752,12 @@ end
 s3_put(a...; b...) = s3_put(global_aws_config(), a...; b...)
 
 function s3_begin_multipart_upload(
-    aws::AbstractAWSConfig, bucket, path, args=Dict{String,Any}(); kwargs...
+    aws::AbstractAWSConfig,
+    bucket,
+    path,
+    args=Dict{String,Any}();
+    kwargs...,
+    # format trick: using this comment to force use of multiple lines
 )
     return S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...)
 end
