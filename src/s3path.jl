@@ -5,6 +5,14 @@ struct S3Path{A<:AbstractAWSConfig} <: AbstractPath
     isdirectory::Bool
     version::Union{String,Nothing}
     config::A
+
+    # Inner constructor performs no data checking and is only meant for direct use by
+    # deserialization.
+    function S3Path{A}(
+        segments, root, drive, isdirectory, version, config::A
+    ) where {A<:AbstractAWSConfig}
+        return new(segments, root, drive, isdirectory, version, config)
+    end
 end
 
 @deprecate(
@@ -14,16 +22,11 @@ end
     S3Path{A}(segments, root, drive, isdirectory, version, config),
 )
 
-# constructor that converts but does not require type parameter
 function S3Path(
-    segments,
-    root::AbstractString,
-    drive::AbstractString,
-    isdirectory::Bool,
-    version::AbstractS3Version,
-    config::AbstractAWSConfig,
-)
-    return S3Path{typeof(config)}(segments, root, drive, isdirectory, version, config)
+    segments, root, drive, isdirectory, version, config::A
+) where {A<:AbstractAWSConfig}
+    version = _deprecate_empty_version(version, :S3Path)
+    return S3Path{A}(segments, root, drive, isdirectory, version, config)
 end
 
 @deprecate(
@@ -108,7 +111,7 @@ function S3Path(
 )
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
-    if version !== nothing && !isempty(version)
+    if version !== nothing
         if result.version !== nothing && result.version != version
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end

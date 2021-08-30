@@ -456,6 +456,13 @@ function s3path_tests(config)
               S3Path(
             ("prefix", "that", "is", "fun"), "/", "s3://my_bucket", true, "xyz", cfg
         )
+
+        @test_deprecated S3Path("s3://my_bucket/?versionId=")
+    end
+
+    @testset "version is empty" begin
+        @test_deprecated S3Path("my_bucket", "path"; version="")
+        @test_deprecated S3Path("s3://my_bucket/"; version="")
     end
 
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio

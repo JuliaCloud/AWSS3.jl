@@ -58,6 +58,16 @@ const AbstractS3Version = Union{AbstractString,Nothing}
 
 __init__() = FilePathsBase.register(S3Path)
 
+function _deprecate_empty_version(version::AbstractString, funcsym::Symbol)
+    if isempty(version)
+        msg = "`version=\"\"` is deprecated, use `version=nothing` instead."
+        Base.depwarn(msg, funcsym)
+        version = nothing
+    end
+    return version
+end
+_deprecate_empty_version(version::Nothing, funcsym::Symbol) = version
+
 """
     s3_arn(resource)
     s3_arn(bucket,path)
@@ -103,9 +113,11 @@ function s3_get(
     return_stream::Bool=false,
     kwargs...,
 )
+    version = _deprecate_empty_version(version, :s3_get)
+
     @repeat 4 try
         args = Dict{String,Any}("return_raw" => raw, "return_stream" => return_stream)
-        if version !== nothing && !isempty(version)
+        if version !== nothing
             args["versionId"] = version
         end
 
@@ -183,7 +195,9 @@ Retrieves metadata from an object without returning the object itself.
 function s3_get_meta(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    if version === nothing || isempty(version)
+    version = _deprecate_empty_version(version, :s3_get_meta)
+
+    if version === nothing
         S3.head_object(bucket, path; aws_config=aws, kwargs...)
     else
         S3.head_object(
@@ -227,7 +241,9 @@ s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 function s3_delete(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
 )
-    if version === nothing || isempty(version)
+    version = _deprecate_empty_version(version, :s3_delete)
+
+    if version === nothing
         S3.delete_object(bucket, path; aws_config=aws, kwargs...)
     else
         S3.delete_object(
