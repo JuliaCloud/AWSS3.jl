@@ -99,14 +99,14 @@ end
 # To avoid a breaking change.
 function S3Path(
     str::AbstractString;
-    isdirectory::Union{Bool, Nothing}=nothing,
+    isdirectory::Union{Bool,Nothing}=nothing,
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     ver = if version !== nothing
-        if  result.version !== nothing && result.version != version
+        if result.version !== nothing && result.version != version
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end
         version
@@ -119,14 +119,7 @@ function S3Path(
 
     # Warning: We need to use the full constructor because reconstructing with the bucket
     # and key results in inconsistent `root` fields.
-    return S3Path(
-        result.segments,
-        result.root,
-        result.drive,
-        is_dir,
-        ver,
-        result.config,
-    )
+    return S3Path(result.segments, result.root, result.drive, is_dir, ver, result.config)
 end
 
 function Base.tryparse(
@@ -275,14 +268,15 @@ function _walkpath!(
             child = if prefix.segments == fp.segments
                 popfirst!(objects)
                 continue
-            # If the filpath is a direct descendant of our prefix then check if it
-            # is a directory too
+                # If the filpath is a direct descendant of our prefix then check if it
+                # is a directory too
             elseif last(_parents) == prefix
                 popfirst!(objects)
                 # If our current path is a prefix for the next path then we can assume that
                 # the current path should be a directory without needing to call `isdir`
                 next = Base.peek(objects)
-                is_dir = (next !== nothing && startswith(next["Key"], fp.key)) || isdir(fp)
+                is_dir =
+                    (next !== nothing && startswith(next["Key"], fp.key)) || isdir(fp)
                 # Reconstruct our next object and explicitly specify whether it is a
                 # directory.
                 S3Path(
@@ -292,13 +286,13 @@ function _walkpath!(
                     config=fp.config,
                     version=fp.version,
                 )
-            # If our filepath is a distance descendant of the prefix then start filling in
-            # the intermediate paths
+                # If our filepath is a distance descendant of the prefix then start filling in
+                # the intermediate paths
             elseif prefix in _parents
                 i = findfirst(==(prefix), _parents)
                 _parents[i + 1]
-            # Otherwise we've established that the current filepath isn't a descendant
-            # of the prefix and we should exit
+                # Otherwise we've established that the current filepath isn't a descendant
+                # of the prefix and we should exit
             else
                 return nothing
             end

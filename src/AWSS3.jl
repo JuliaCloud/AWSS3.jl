@@ -562,7 +562,7 @@ function s3_list_objects(
     max_items=nothing,
     kwargs...,
 )
-    return Channel(ctype=LittleDict, csize=128) do chnl
+    return Channel(; ctype=LittleDict, csize=128) do chnl
         more = true
         num_objects = 0
         token = ""
