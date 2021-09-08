@@ -105,22 +105,27 @@ function S3Path(
 )
     result = tryparse(S3Path, str; config=config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
-    if version !== nothing
-        if result.version !== nothing && result.version != version
+    ver = if version !== nothing
+        if  result.version !== nothing && result.version != version
             throw(ArgumentError("Conflicting object versions in `version` and `str`"))
         end
-        result = S3Path(result.bucket, result.key; version=version, config=result.config)
+        version
+    else
+        result.version
     end
 
     # Replace the parsed isdirectory field with an explicit passed in argument.
     is_dir = isdirectory === nothing ? result.isdirectory : isdirectory
 
+    # Warning: We need to use the full constructor because reconstructing with the bucket
+    # and key results in inconsistent `root` fields.
     return S3Path(
-        result.bucket,
-        result.key;
-        isdirectory=is_dir,
-        config=result.config,
-        version=ver,
+        result.segments,
+        result.root,
+        result.drive,
+        is_dir,
+        ver,
+        result.config,
     )
 end
 
