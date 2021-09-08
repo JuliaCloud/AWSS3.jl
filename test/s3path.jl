@@ -8,6 +8,7 @@ function test_s3_constructors(ps::PathSet)
     @test S3Path(bucket_name, "pathset-root/bar/qux/"; isdirectory=true) == ps.qux
     @test S3Path(bucket_name, p"pathset-root/bar/qux"; isdirectory=true) == ps.qux
     @test S3Path(bucket_name, p"/pathset-root/bar/qux"; isdirectory=true) == ps.qux
+    @test S3Path("s3://$bucket_name/pathset-root/bar/qux"; isdirectory=true) == ps.qux
 end
 
 function test_s3_parents(ps::PathSet)
@@ -449,6 +450,12 @@ function s3path_tests(config)
 
         @test S3Path("s3://my_bucket/prefix/path/?radtimes=foo&versionId=$ver") ==
               S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
+
+        # Test to mark inconsistent root string behaviour when reconstructing parsed paths.
+        parsed = tryparse(S3Path, "s3://my_bucket")
+        @test_broken parsed == S3Path(
+            parsed.bucket, parsed.key; version=parsed.version, config=parsed.config
+        )
 
         @test_throws ArgumentError S3Path("s3://my_bucket/?versionId=")
         @test_throws ArgumentError S3Path("s3://my_bucket/?versionId=xyz")

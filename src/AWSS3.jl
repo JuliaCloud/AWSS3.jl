@@ -40,7 +40,7 @@ using AWS.AWSServices: s3
 using FilePathsBase
 using FilePathsBase: /, join
 using HTTP
-using OrderedCollections: OrderedDict
+using OrderedCollections: OrderedDict, LittleDict
 using SymDict
 using Retry
 using XMLDict
@@ -562,7 +562,7 @@ function s3_list_objects(
     max_items=nothing,
     kwargs...,
 )
-    return Channel() do chnl
+    return Channel(; ctype=LittleDict, csize=128) do chnl
         more = true
         num_objects = 0
         token = ""
