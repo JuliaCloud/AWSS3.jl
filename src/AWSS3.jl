@@ -617,14 +617,14 @@ function s3_directory_stat(aws::AbstractAWSConfig, bucket, path)
     tmlast = typemin(DateTime)
     # setting delimiter is needed to get all objects within path,
     # additionally, we have to make sure the path ends with "/" or it will pick up extra stuff
-    endswith(path, "/") || (path = path*"/")
-    for obj ∈ s3_list_objects(aws, bucket, path, delimiter="")
+    endswith(path, "/") || (path = path * "/")
+    for obj in s3_list_objects(aws, bucket, path; delimiter="")
         s += parse(Int, get(obj, "Size", "0"))
         t = get(obj, "LastModified", nothing)
         t = t ≡ nothing ? tmlast : DateTime(t[1:(end - 4)])
         tmlast = max(tmlast, t)
     end
-    s, tmlast
+    return s, tmlast
 end
 s3_directory_stat(a...) = s3_directory_stat(global_aws_config(), a...)
 
