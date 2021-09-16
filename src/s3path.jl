@@ -324,9 +324,10 @@ end
 
 Return the status struct for the S3 path analogously to `stat` for local directories.
 
-Note that this cannot be used on a directory.  This is because S3 is a pure key-value store and internally does
-not have a concept of directories.  In some cases, a directory may actually be an empty file, in which case
-you should use `s3_get_meta`.
+Note that the AWS API does not offer this functionality for directories, so in those
+cases it is obtained using a list of contained objects.  Even though this list is
+obtained in a single call, in some cases it may be very large, so this operation
+may be slow for directories containing a large number of nodes.
 """
 function Base.stat(fp::S3Path)
     # Currently AWSS3 would require a s3_get_acl call to fetch
@@ -347,8 +348,11 @@ function Base.stat(fp::S3Path)
             resp["Last-Modified"][1:(end - 4)], dateformat"e, d u Y H:M:S"
         )
         s = parse(Int, resp["Content-Length"])
-        blocks = ceil(Int, s / 4096)
+    elseif isdir(fp)
+        s, last_modified = s3_directory_stat(get_config(fp), fp.bucket, fp.key)
     end
+
+    blocks = cld(s, 4096)
 
     return Status(0, 0, m, 0, u, g, 0, s, blksize, blocks, last_modified, last_modified)
 end
@@ -403,7 +407,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
                 rm(f; recursive=recursive, kwargs...)
             end
         elseif length(files) > 0
-            error("S3 path $object is not empty. Use `recursive=true` to delete.")
+            error("S3 path $fp is not empty. Use `recursive=true` to delete.")
         end
     end
 

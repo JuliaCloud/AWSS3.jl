@@ -603,8 +603,30 @@ function s3_list_objects(
         end
     end
 end
+s3_list_objects(a...; kw...) = s3_list_objects(global_aws_config(), a...; kw...)
 
-s3_list_objects(a...) = s3_list_objects(global_aws_config(), a...)
+"""
+    s3_directory_stat([::AbstractAWSConfig], bucket, path)
+
+Determine the properties of an S3 "directory", size and time of last modification, that cannot be determined
+directly with the standard AWS API.  This returns a tuple `(s, tmlast)` where `s` is the size in bytes, and
+`tmlast` is the time of the latest modification to a file within that directory.
+"""
+function s3_directory_stat(aws::AbstractAWSConfig, bucket, path)
+    s = 0
+    tmlast = typemin(DateTime)
+    # setting delimiter is needed to get all objects within path,
+    # additionally, we have to make sure the path ends with "/" or it will pick up extra stuff
+    endswith(path, "/") || (path = path*"/")
+    for obj ∈ s3_list_objects(aws, bucket, path, delimiter="")
+        s += parse(Int, get(obj, "Size", "0"))
+        t = get(obj, "LastModified", nothing)
+        t = t ≡ nothing ? tmlast : DateTime(t[1:(end - 4)])
+        tmlast = max(tmlast, t)
+    end
+    s, tmlast
+end
+s3_directory_stat(a...) = s3_directory_stat(global_aws_config(), a...)
 
 """
     s3_list_keys([::AbstractAWSConfig], bucket, [path_prefix]; kwargs...)

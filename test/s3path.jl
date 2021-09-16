@@ -156,6 +156,14 @@ function test_s3_properties(ps::PathSet)
         @test fp2.bucket == "mybucket"
         @test fp2.key == "path/to/some/prefix/"
         @test fp2.version === nothing
+
+        fp3 = S3Path(ps.root.bucket, "/another/testdir/")
+        strs = ["what up", "what else up", "what up again"]
+        write(fp3 / "testfile1.txt", strs[1])
+        write(fp3 / "testfile2.txt", strs[2])
+        write(fp3 / "inner" / "testfile3.txt", strs[3])
+        @test stat(fp3).size == sum(ncodeunits.(strs))
+        rm(S3Path(ps.root.bucket, "/another/"), recursive=true)  # otherwise subsequent tests may fail
     end
 end
 
