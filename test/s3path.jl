@@ -163,7 +163,7 @@ function test_s3_properties(ps::PathSet)
         write(fp3 / "testfile2.txt", strs[2])
         write(fp3 / "inner" / "testfile3.txt", strs[3])
         @test stat(fp3).size == sum(ncodeunits.(strs))
-        rm(S3Path(ps.root.bucket, "/another/"), recursive=true)  # otherwise subsequent tests may fail
+        rm(S3Path(ps.root.bucket, "/another/"); recursive=true)  # otherwise subsequent tests may fail
     end
 end
 
