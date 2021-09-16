@@ -374,7 +374,6 @@ Note that there is no direct functionality for this in the S3 API so it may be s
 """
 dirlastmodified(fp::S3Path) = _dirstat(fp)[2]
 
-
 # Need API for accessing object ACL permissions for this to work
 FilePathsBase.isexecutable(fp::S3Path) = false
 Base.isreadable(fp::S3Path) = true
