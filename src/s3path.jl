@@ -355,7 +355,7 @@ end
 
 function _dirstat(fp::S3Path)
     isdir(fp) || throw(ArgumentError("$fp is not a directory"))
-    s, _ = s3_directory_stat(get_config(fp), fp.bucket, fp.key)
+    return s, _ = s3_directory_stat(get_config(fp), fp.bucket, fp.key)
 end
 
 """
