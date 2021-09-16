@@ -162,7 +162,7 @@ function test_s3_properties(ps::PathSet)
         write(fp3 / "testfile1.txt", strs[1])
         write(fp3 / "testfile2.txt", strs[2])
         write(fp3 / "inner" / "testfile3.txt", strs[3])
-        @test stat(fp3).size == sum(ncodeunits.(strs))
+        @test AWSS3.dirsize(fp3) == sum(ncodeunits.(strs))
         rm(S3Path(ps.root.bucket, "/another/"); recursive=true)  # otherwise subsequent tests may fail
     end
 end
