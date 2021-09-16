@@ -613,8 +613,8 @@ Determine the properties of an S3 "directory", size and time of last modificatio
 directly with the standard AWS API.  This returns a tuple `(s, tmlast)` where `s` is the size in bytes, and
 `tmlast` is the time of the latest modification to a file within that directory.
 """
-function s3_directory_stat(aws::AbstractAWSConfig, bucket, path)
-    s = 0
+function s3_directory_stat(aws::AbstractAWSConfig, bucket::AbstractString, path::AbstractString)
+    s = 0  # total size in bytes
     tmlast = typemin(DateTime)
     # setting delimiter is needed to get all objects within path,
     # additionally, we have to make sure the path ends with "/" or it will pick up extra stuff
