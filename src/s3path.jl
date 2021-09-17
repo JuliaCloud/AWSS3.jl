@@ -353,14 +353,13 @@ function Base.stat(fp::S3Path)
     return Status(0, 0, m, 0, u, g, 0, s, blksize, blocks, last_modified, last_modified)
 end
 
-#NOTE: to be implemented in FilePathsBase
 """
     diskusage(fp::S3Path)
 
 Compute the *total* size of all contents of a directory.  Note that there is no direct functionality
 for this in the S3 API so it may be slow.
 """
-function diskusage(fp::S3Path)
+function FilePathsBase.diskusage(fp::S3Path)
     return if isfile(fp)
         stat(fp).size
     else
