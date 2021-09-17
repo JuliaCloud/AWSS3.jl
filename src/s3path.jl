@@ -353,26 +353,26 @@ function Base.stat(fp::S3Path)
     return Status(0, 0, m, 0, u, g, 0, s, blksize, blocks, last_modified, last_modified)
 end
 
-function _dirstat(fp::S3Path)
-    isdir(fp) || throw(ArgumentError("$fp is not a directory"))
-    return s, _ = s3_directory_stat(get_config(fp), fp.bucket, fp.key)
+#NOTE: to be implemented in FilePathsBase
+"""
+    diskusage(fp::S3Path)
+
+Compute the *total* size of all contents of a directory.  Note that there is no direct functionality
+for this in the S3 API so it may be slow.
+"""
+function diskusage(fp::S3Path) 
+    return isfile(fp) ? stat(fp).size : s3_directory_stat(get_config(fp), fp.bucket, fp.key)[1]
 end
 
 """
-    dirsize(fp::S3Path)
+    lastmodified(fp::S3Path)
 
-Compute the *total* size of all contents of a directory.  Note that there is no direct functionality for this
-in the S3 API so it may be slow.
+Returns a `DateTime` corresponding to the latest time at which the object (or, in the case of a
+directory, any contained object) was modified.
 """
-dirsize(fp::S3Path) = _dirstat(fp)[1]
-
-"""
-    dirlastmodified(fp::S3Path)
-
-Returns the `DateTime` corresponding to the last time at which any object contained in the directory was modified.
-Note that there is no direct functionality for this in the S3 API so it may be slow.
-"""
-dirlastmodified(fp::S3Path) = _dirstat(fp)[2]
+function lastmodified(fp::S3Path)
+    return isfile(fp) ? stat(fp).mtime : s3_directory_stat(get_config(fp), fp.bucket, fp.key)[2]
+end
 
 # Need API for accessing object ACL permissions for this to work
 FilePathsBase.isexecutable(fp::S3Path) = false
