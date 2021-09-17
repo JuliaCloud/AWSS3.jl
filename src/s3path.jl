@@ -360,8 +360,12 @@ end
 Compute the *total* size of all contents of a directory.  Note that there is no direct functionality
 for this in the S3 API so it may be slow.
 """
-function diskusage(fp::S3Path) 
-    return isfile(fp) ? stat(fp).size : s3_directory_stat(get_config(fp), fp.bucket, fp.key)[1]
+function diskusage(fp::S3Path)
+    return if isfile(fp)
+        stat(fp).size
+    else
+        s3_directory_stat(get_config(fp), fp.bucket, fp.key)[1]
+    end
 end
 
 """
@@ -371,7 +375,11 @@ Returns a `DateTime` corresponding to the latest time at which the object (or, i
 directory, any contained object) was modified.
 """
 function lastmodified(fp::S3Path)
-    return isfile(fp) ? stat(fp).mtime : s3_directory_stat(get_config(fp), fp.bucket, fp.key)[2]
+    return if isfile(fp)
+        stat(fp).mtime
+    else
+        s3_directory_stat(get_config(fp), fp.bucket, fp.key)[2]
+    end
 end
 
 # Need API for accessing object ACL permissions for this to work
