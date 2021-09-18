@@ -164,7 +164,7 @@ function test_s3_properties(ps::PathSet)
             write(fp3 / "testfile2.txt", strs[2])
             write(fp3 / "inner" / "testfile3.txt", strs[3])
             @test AWSS3.diskusage(fp3) == sum(ncodeunits.(strs))
-    
+
             # we deliberately pick an older file to compare to so we
             # can be confident timestamps are different
             @test AWSS3.lastmodified(fp3) > AWSS3.lastmodified(ps.foo)
