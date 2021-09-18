@@ -353,6 +353,34 @@ function Base.stat(fp::S3Path)
     return Status(0, 0, m, 0, u, g, 0, s, blksize, blocks, last_modified, last_modified)
 end
 
+"""
+    diskusage(fp::S3Path)
+
+Compute the *total* size of all contents of a directory.  Note that there is no direct functionality
+for this in the S3 API so it may be slow.
+"""
+function FilePathsBase.diskusage(fp::S3Path)
+    return if isfile(fp)
+        stat(fp).size
+    else
+        s3_directory_stat(get_config(fp), fp.bucket, fp.key)[1]
+    end
+end
+
+"""
+    lastmodified(fp::S3Path)
+
+Returns a `DateTime` corresponding to the latest time at which the object (or, in the case of a
+directory, any contained object) was modified.
+"""
+function lastmodified(fp::S3Path)
+    return if isfile(fp)
+        stat(fp).mtime
+    else
+        s3_directory_stat(get_config(fp), fp.bucket, fp.key)[2]
+    end
+end
+
 # Need API for accessing object ACL permissions for this to work
 FilePathsBase.isexecutable(fp::S3Path) = false
 Base.isreadable(fp::S3Path) = true
@@ -403,7 +431,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
                 rm(f; recursive=recursive, kwargs...)
             end
         elseif length(files) > 0
-            error("S3 path $object is not empty. Use `recursive=true` to delete.")
+            error("S3 path $fp is not empty. Use `recursive=true` to delete.")
         end
     end
 
