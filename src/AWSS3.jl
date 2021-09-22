@@ -230,8 +230,7 @@ the directory name.
 """
 function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
     a = chop(string(path)) * "."
-    # note that you are not allowed to use *both* `prefix` and `start-after`
-    q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
+    q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a, "prefix" => path)
     l = S3.list_objects_v2(bucket, q; aws_config=aws)
     c = get(l, "Contents", nothing)
     c === nothing && return false
