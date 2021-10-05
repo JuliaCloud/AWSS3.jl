@@ -52,7 +52,7 @@ using UUIDs
 using URIs
 using Compat: @something
 
-@service S3
+@service S3 use_response_type = true
 
 const SSDict = Dict{String,String}
 const AbstractS3Version = Union{AbstractString,Nothing}
@@ -80,8 +80,6 @@ from `path` in `bucket`.
 - `version=`: version of object to get.
 - `retry=true`: try again on "NoSuchBucket", "NoSuchKey"
                 (common if object was recently created).
-- `raw=false`:  return response as `Vector{UInt8}`
-                (by default return type depends on `Content-Type` header).
 - `byte_range=nothing`:  given an iterator of `(start_byte, end_byte)` gets only
     the range of bytes of the object from `start_byte` to `end_byte`.  For example,
     `byte_range=1:4` gets bytes 1 to 4 inclusive.  Arguments should use the Julia convention
@@ -101,14 +99,14 @@ function s3_get(
     path;
     version::AbstractS3Version=nothing,
     retry::Bool=true,
-    byte_range::Union{Nothing,AbstractVector}=nothing,
     raw::Bool=false,
+    byte_range::Union{Nothing,AbstractVector}=nothing,
     headers::AbstractDict{<:AbstractString,<:Any}=Dict{String,Any}(),
     return_stream::Bool=false,
     kwargs...,
 )
     @repeat 4 try
-        params = Dict{String,Any}("return_raw" => raw, "return_stream" => return_stream)
+        params = Dict{String,Any}()
         if version !== nothing
             params["versionId"] = version
         end
@@ -124,7 +122,14 @@ function s3_get(
             params["headers"] = headers
         end
 
-        return S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
+        r = S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
+        return if raw
+            r.body
+        elseif return_stream
+            r.io
+        else
+            parse(r)
+        end
     catch e
         #! format: off
         # https://github.com/domluna/JuliaFormatter.jl/issues/459
@@ -195,14 +200,15 @@ function s3_get_meta(
         params["versionId"] = version
     end
 
-    return S3.head_object(bucket, path, params; aws_config=aws, kwargs...)
+    r = S3.head_object(bucket, path, params; aws_config=aws, kwargs...).response
+    return Dict(r.headers)
 end
 
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
 function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
     q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
-    l = S3.list_objects_v2(bucket, q; aws_config=aws)
+    l = parse(S3.list_objects_v2(bucket, q; aws_config=aws))
     c = get(l, "Contents", nothing)
     c === nothing && return false
     return get(c, "Key", "") == path
@@ -232,7 +238,7 @@ function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
     a = chop(string(path)) * "."
     # note that you are not allowed to use *both* `prefix` and `start-after`
     q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a)
-    l = S3.list_objects_v2(bucket, q; aws_config=aws)
+    l = parse(S3.list_objects_v2(bucket, q; aws_config=aws))
     c = get(l, "Contents", nothing)
     c === nothing && return false
     return startswith(get(c, "Key", ""), path)
@@ -305,7 +311,7 @@ function s3_delete(
         params["versionId"] = version
     end
 
-    return S3.delete_object(bucket, path, params; aws_config=aws, kwargs...)
+    return parse(S3.delete_object(bucket, path, params; aws_config=aws, kwargs...))
 end
 
 s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
@@ -337,13 +343,15 @@ function s3_copy(
         headers["x-amz-acl"] = acl
     end
 
-    return S3.copy_object(
-        to_bucket,
-        to_path,
-        "$bucket/$path",
-        Dict("headers" => headers);
-        aws_config=aws,
-        kwargs...,
+    return parse(
+        S3.copy_object(
+            to_bucket,
+            to_path,
+            "$bucket/$path",
+            Dict("headers" => headers);
+            aws_config=aws,
+            kwargs...,
+        ),
     )
 end
 
@@ -356,23 +364,25 @@ s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
 """
 function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     @protected try
-        if aws.region == "us-east-1"
-            S3.create_bucket(bucket; aws_config=aws, kwargs...)
-        else
-            bucket_config = """
-                                <CreateBucketConfiguration
-                                            xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-                                    <LocationConstraint>$(aws.region)</LocationConstraint>
-                                </CreateBucketConfiguration>
-                            """
+        parse(
+            if aws.region == "us-east-1"
+                S3.create_bucket(bucket; aws_config=aws, kwargs...)
+            else
+                bucket_config = """
+                                    <CreateBucketConfiguration
+                                                xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+                                        <LocationConstraint>$(aws.region)</LocationConstraint>
+                                    </CreateBucketConfiguration>
+                                """
 
-            S3.create_bucket(
-                bucket,
-                Dict("CreateBucketConfiguration" => bucket_config);
-                aws_config=aws,
-                kwargs...,
-            )
-        end
+                S3.create_bucket(
+                    bucket,
+                    Dict("CreateBucketConfiguration" => bucket_config);
+                    aws_config=aws,
+                    kwargs...,
+                )
+            end,
+        )
     catch e
         #! format: off
         @ignore if ecode(e) == "BucketAlreadyOwnedByYou" end
@@ -404,7 +414,7 @@ s3_put_cors("my_bucket", \"\"\"
 ```
 """
 function s3_put_cors(aws::AbstractAWSConfig, bucket, cors_config; kwargs...)
-    return S3.put_bucket_cors(bucket, cors_config; aws_config=aws, kwargs...)
+    return parse(S3.put_bucket_cors(bucket, cors_config; aws_config=aws, kwargs...))
 end
 
 s3_put_cors(a...; b...) = s3_put_cors(AWS.global_aws_config(), a...; b...)
@@ -426,6 +436,7 @@ function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; 
         "/$(bucket)?versioning",
         Dict("body" => versioning_config);
         aws_config=aws,
+        feature_set=AWS.FeatureSet(; use_response_type=true),
         kwargs...,
     )
 end
@@ -453,13 +464,21 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs.
     tags = XMLDict.node_xml(tags)
 
     if isempty(path)
-        s3("PUT", "/$(bucket)?tagging", Dict("body" => tags); aws_config=aws, kwargs...)
+        s3(
+            "PUT",
+            "/$(bucket)?tagging",
+            Dict("body" => tags);
+            feature_set=AWS.FeatureSet(; use_response_type=true),
+            aws_config=aws,
+            kwargs...,
+        )
     else
         s3(
             "PUT",
             "/$(bucket)/$(path)?tagging",
             Dict("body" => tags);
             aws_config=aws,
+            feature_set=AWS.FeatureSet(; use_response_type=true),
             kwargs...,
         )
     end
@@ -484,6 +503,7 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
         else
             tags = S3.get_object_tagging(bucket, path; aws_config=aws, kwargs...)
         end
+        tags = parse(tags)
 
         if isempty(tags["TagSet"])
             return SSDict()
@@ -511,11 +531,12 @@ or
 [object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html).
 """
 function s3_delete_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
-    if isempty(path)
+    r = if isempty(path)
         S3.delete_bucket_tagging(bucket; aws_config=aws, kwargs...)
     else
         S3.delete_object_tagging(bucket, path; aws_config=aws, kwargs...)
     end
+    return parse(r)
 end
 
 s3_delete_tags(a...; b...) = s3_delete_tags(global_aws_config(), a...; b...)
@@ -526,7 +547,7 @@ s3_delete_tags(a...; b...) = s3_delete_tags(global_aws_config(), a...; b...)
 [DELETE Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html).
 """
 function s3_delete_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
-    return S3.delete_bucket(bucket; aws_config=aws, kwargs...)
+    return parse(S3.delete_bucket(bucket; aws_config=aws, kwargs...))
 end
 s3_delete_bucket(a; b...) = s3_delete_bucket(global_aws_config(), a; b...)
 
@@ -536,7 +557,7 @@ s3_delete_bucket(a; b...) = s3_delete_bucket(global_aws_config(), a; b...)
 [List of all buckets owned by the sender of the request](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html).
 """
 function s3_list_buckets(aws::AbstractAWSConfig=global_aws_config(); kwargs...)
-    r = S3.list_buckets(; aws_config=aws, kwargs...)
+    r = parse(S3.list_buckets(; aws_config=aws, kwargs...))
     buckets = r["Buckets"]
 
     isempty(buckets) && return []
@@ -585,7 +606,7 @@ function s3_list_objects(
 
             @repeat 4 try
                 # Request objects
-                r = S3.list_objects_v2(bucket, q; aws_config=aws, kwargs...)
+                r = parse(S3.list_objects_v2(bucket, q; aws_config=aws, kwargs...))
 
                 token = get(r, "NextContinuationToken", "")
                 isempty(token) && (more = false)
@@ -653,15 +674,13 @@ function s3_list_versions(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs
     marker = ""
 
     while more
-        query = Dict{String,Any}(
-            "versions" => "", "prefix" => path_prefix, "return_raw" => true
-        )
+        query = Dict{String,Any}("versions" => "", "prefix" => path_prefix)
 
         if !isempty(marker)
             query["key-marker"] = marker
         end
 
-        r = S3.list_object_versions(bucket, query; aws_config=aws, kwargs...)
+        r = parse(S3.list_object_versions(bucket, query; aws_config=aws, kwargs...))
         r = parse_xml(String(r))
 
         more = r["IsTruncated"] == "true"
@@ -771,7 +790,7 @@ function s3_put(
 
     args = Dict("body" => data, "headers" => headers)
 
-    return S3.put_object(bucket, path, args; aws_config=aws, kwargs...)
+    return parse(S3.put_object(bucket, path, args; aws_config=aws, kwargs...))
 end
 
 s3_put(a...; b...) = s3_put(global_aws_config(), a...; b...)
@@ -784,7 +803,7 @@ function s3_begin_multipart_upload(
     kwargs...,
     # format trick: using this comment to force use of multiple lines
 )
-    return S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...)
+    return parse(S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...))
 end
 
 function s3_upload_part(
@@ -796,17 +815,17 @@ function s3_upload_part(
     kwargs...,
 )
     args["body"] = part_data
-    args["return_headers"] = true
 
-    _, headers = S3.upload_part(
-        upload["Bucket"],
-        upload["Key"],
-        part_number,
-        upload["UploadId"],
-        args;
-        aws_config=aws,
-        kwargs...,
-    )
+    headers =
+        S3.upload_part(
+            upload["Bucket"],
+            upload["Key"],
+            part_number,
+            upload["UploadId"],
+            args;
+            aws_config=aws,
+            kwargs...,
+        ).response.headers
 
     return Dict(headers)["ETag"]
 end
@@ -833,7 +852,7 @@ function s3_complete_multipart_upload(
         upload["Bucket"], upload["Key"], upload["UploadId"], args; aws_config=aws, kwargs...
     )
 
-    return response
+    return parse(response)
 end
 
 function s3_multipart_upload(

@@ -566,7 +566,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
                 if !isempty(token)
                     params["continuation-token"] = token
                 end
-                S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp))
+                parse(S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp)))
             catch e
                 #! format: off
                 @delay_retry if ecode(e) in ["NoSuchBucket"] end
