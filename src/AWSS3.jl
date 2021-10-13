@@ -817,18 +817,17 @@ function s3_upload_part(
 )
     args["body"] = part_data
 
-    headers =
-        S3.upload_part(
-            upload["Bucket"],
-            upload["Key"],
-            part_number,
-            upload["UploadId"],
-            args;
-            aws_config=aws,
-            kwargs...,
-        ).response.headers
+    response = S3.upload_part(
+        upload["Bucket"],
+        upload["Key"],
+        part_number,
+        upload["UploadId"],
+        args;
+        aws_config=aws,
+        kwargs...,
+    )
 
-    return Dict(headers)["ETag"]
+    return Dict(response.headers)["ETag"]
 end
 
 function s3_complete_multipart_upload(
