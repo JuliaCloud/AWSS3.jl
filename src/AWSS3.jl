@@ -80,6 +80,7 @@ from `path` in `bucket`.
 - `version=`: version of object to get.
 - `retry=true`: try again on "NoSuchBucket", "NoSuchKey"
                 (common if object was recently created).
+- `raw=false`:  return response as `Vector{UInt8}`
 - `byte_range=nothing`:  given an iterator of `(start_byte, end_byte)` gets only
     the range of bytes of the object from `start_byte` to `end_byte`.  For example,
     `byte_range=1:4` gets bytes 1 to 4 inclusive.  Arguments should use the Julia convention
@@ -123,10 +124,10 @@ function s3_get(
         end
 
         r = S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
-        return if raw
-            r.body
-        elseif return_stream
+        return if return_stream
             r.io
+        elseif raw
+            r.body
         else
             parse(r)
         end
