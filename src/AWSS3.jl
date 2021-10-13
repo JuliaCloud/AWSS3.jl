@@ -558,8 +558,8 @@ s3_delete_bucket(a; b...) = s3_delete_bucket(global_aws_config(), a; b...)
 [List of all buckets owned by the sender of the request](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html).
 """
 function s3_list_buckets(aws::AbstractAWSConfig=global_aws_config(); kwargs...)
-    r = parse(S3.list_buckets(; aws_config=aws, kwargs...))
-    buckets = r["Buckets"]
+    r = S3.list_buckets(; aws_config=aws, kwargs...)
+    buckets = parse(r)["Buckets"]
 
     isempty(buckets) && return []
 
