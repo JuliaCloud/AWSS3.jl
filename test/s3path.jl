@@ -192,7 +192,7 @@ function test_s3_folders_and_files(ps::PathSet)
         # I'm not sure if we want to support this in the future, but it may require more
         # overloading of AbstractPath methods to support properly.
         @test_broken p"s3://mybucket/path/to/some/prefix" !=
-                     p"s3://mybucket/path//to/some/prefix"
+            p"s3://mybucket/path//to/some/prefix"
 
         write(ps.root / "foobar", "I'm an object")
         if is_aws(config)
@@ -245,7 +245,7 @@ end
 function verify_files(path::S3Path)
     @test readdir(path) == ["emptydir/", "subdir1/", "test_01.txt"]
     @test readdir(path; join=true) ==
-          [path / "emptydir/", path / "subdir1/", path / "test_01.txt"]
+        [path / "emptydir/", path / "subdir1/", path / "test_01.txt"]
     @test readdir(path / "emptydir/") == []
     @test readdir(path / "emptydir/"; join=true) == []
     @test readdir(path / "subdir1/") == ["subdir2/", "test_02.txt", "test_03.txt"]
@@ -265,7 +265,7 @@ end
 function verify_files(path::AbstractPath)
     @test readdir(path) == ["emptydir", "subdir1", "test_01.txt"]
     VERSION >= v"1.4.0" && @test readdir(path; join=true) ==
-          [path / "emptydir", path / "subdir1", path / "test_01.txt"]
+        [path / "emptydir", path / "subdir1", path / "test_01.txt"]
     @test readdir(path / "emptydir/") == []
     VERSION >= v"1.4.0" && @test readdir(path / "emptydir/"; join=true) == []
     @test readdir(path / "subdir1/") == ["subdir2", "test_02.txt", "test_03.txt"]
@@ -402,11 +402,11 @@ function s3path_tests(config)
             @test p"s3://foo/" / "bar/" / "/baz" == p"s3://foo/bar/baz"
             # test joining `/` and string concatentation `*` play nice as expected
             @test p"s3://foo" * "/" / "bar" ==
-                  p"s3://foo" / "/" * "bar" ==
-                  p"s3://foo" / "bar"
+                p"s3://foo" / "/" * "bar" ==
+                p"s3://foo" / "bar"
             @test p"s3://foo" / "bar" * "baz" ==
-                  p"s3://foo/bar" * "baz" ==
-                  p"s3://foo" / "barbaz"
+                p"s3://foo/bar" * "baz" ==
+                p"s3://foo" / "barbaz"
             # test trailing slash on final piece is included
             @test p"s3://foo/bar" / "baz/" == p"s3://foo/bar/baz/"
         end
@@ -437,34 +437,34 @@ function s3path_tests(config)
         ver = String('A':'Z') * String('0':'5')
 
         @test S3Path("s3://my_bucket/prefix/path") ==
-              S3Path(("prefix", "path"), "/", "s3://my_bucket", false, nothing, cfg)
+            S3Path(("prefix", "path"), "/", "s3://my_bucket", false, nothing, cfg)
 
         @test S3Path("s3://my_bucket/prefix/path/") ==
-              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, nothing, cfg)
+            S3Path(("prefix", "path"), "/", "s3://my_bucket", true, nothing, cfg)
 
         @test S3Path("s3://my_bucket/") ==
-              S3Path((), "/", "s3://my_bucket", true, nothing, cfg)
+            S3Path((), "/", "s3://my_bucket", true, nothing, cfg)
 
         @test S3Path("s3://my_bucket") ==
-              S3Path((), "", "s3://my_bucket", true, nothing, cfg)
+            S3Path((), "", "s3://my_bucket", true, nothing, cfg)
 
         @test S3Path("s3://my_bucket/prefix/path?versionId=$ver") ==
-              S3Path(("prefix", "path"), "/", "s3://my_bucket", false, ver, cfg)
+            S3Path(("prefix", "path"), "/", "s3://my_bucket", false, ver, cfg)
 
         @test S3Path("s3://my_bucket/prefix/path/?versionId=$ver") ==
-              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
+            S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
 
         @test S3Path("s3://my_bucket/?versionId=$ver") ==
-              S3Path((), "/", "s3://my_bucket", true, ver, cfg)
+            S3Path((), "/", "s3://my_bucket", true, ver, cfg)
 
         @test S3Path("s3://my_bucket?versionId=$ver") ==
-              S3Path((), "", "s3://my_bucket", true, ver, cfg)
+            S3Path((), "", "s3://my_bucket", true, ver, cfg)
 
         @test S3Path("s3://my_bucket/prefix/path/?versionId=$ver&radtimes=foo") ==
-              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
+            S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
 
         @test S3Path("s3://my_bucket/prefix/path/?radtimes=foo&versionId=$ver") ==
-              S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
+            S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
 
         # Test to mark inconsistent root string behaviour when reconstructing parsed paths.
         parsed = tryparse(S3Path, "s3://my_bucket")
@@ -495,13 +495,13 @@ function s3path_tests(config)
 
             v1, v2 = first(versions), last(versions)
             @test read(S3Path(bucket_name, key; config=config, version=v1), String) ==
-                  "data.v1"
+                "data.v1"
             @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
-                  "data.v2"
+                "data.v2"
             @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
-                  read(S3Path(bucket_name, key; config=config), String)
+                read(S3Path(bucket_name, key; config=config), String)
             @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
-                  read(S3Path(bucket_name, key; config=config, version=nothing), String)
+                read(S3Path(bucket_name, key; config=config, version=nothing), String)
 
             unversioned_path = S3Path(bucket_name, key; config=config)
             versioned_path = S3Path(bucket_name, key; config=config, version=v2)

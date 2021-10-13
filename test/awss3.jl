@@ -62,7 +62,7 @@ function awss3_tests(config)
         s3_put(config, bucket_name, "byte_range", teststr)
         range = 3:6
         @test String(s3_get(config, bucket_name, "byte_range"; byte_range=range)) ==
-              teststr[range]
+            teststr[range]
     end
 
     @testset "Object Copy" begin
