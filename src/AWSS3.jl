@@ -364,31 +364,30 @@ s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
 [PUT Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html)
 """
 function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
-    @protected try
-        parse(
-            if aws.region == "us-east-1"
-                S3.create_bucket(bucket; aws_config=aws, kwargs...)
-            else
-                bucket_config = """
-                                    <CreateBucketConfiguration
-                                                xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-                                        <LocationConstraint>$(aws.region)</LocationConstraint>
-                                    </CreateBucketConfiguration>
-                                """
+    r = @protected try
+        if aws.region == "us-east-1"
+            S3.create_bucket(bucket; aws_config=aws, kwargs...)
+        else
+            bucket_config = """
+            <CreateBucketConfiguration
+            xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <LocationConstraint>$(aws.region)</LocationConstraint>
+            </CreateBucketConfiguration>
+            """
 
-                S3.create_bucket(
-                    bucket,
-                    Dict("CreateBucketConfiguration" => bucket_config);
-                    aws_config=aws,
-                    kwargs...,
-                )
-            end,
-        )
+            S3.create_bucket(
+                             bucket,
+                             Dict("CreateBucketConfiguration" => bucket_config);
+                             aws_config=aws,
+                             kwargs...,
+                            )
+        end
     catch e
         #! format: off
         @ignore if ecode(e) == "BucketAlreadyOwnedByYou" end
         #! format: on
     end
+    return parse(r)
 end
 
 s3_create_bucket(a) = s3_create_bucket(global_aws_config(), a)
@@ -427,19 +426,19 @@ s3_put_cors(a...; b...) = s3_put_cors(AWS.global_aws_config(), a...; b...)
 """
 function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; kwargs...)
     versioning_config = """
-        <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-            <Status>$status</Status>
-        </VersioningConfiguration>
-        """
+    <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+    <Status>$status</Status>
+    </VersioningConfiguration>
+    """
 
     return s3(
-        "PUT",
-        "/$(bucket)?versioning",
-        Dict("body" => versioning_config);
-        aws_config=aws,
-        feature_set=AWS.FeatureSet(; use_response_type=true),
-        kwargs...,
-    )
+              "PUT",
+              "/$(bucket)?versioning",
+              Dict("body" => versioning_config);
+              aws_config=aws,
+              feature_set=AWS.FeatureSet(; use_response_type=true),
+              kwargs...,
+             )
 end
 
 s3_enable_versioning(a; b...) = s3_enable_versioning(global_aws_config(), a; b...)
@@ -466,22 +465,22 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs.
 
     if isempty(path)
         s3(
-            "PUT",
-            "/$(bucket)?tagging",
-            Dict("body" => tags);
-            feature_set=AWS.FeatureSet(; use_response_type=true),
-            aws_config=aws,
-            kwargs...,
-        )
+           "PUT",
+           "/$(bucket)?tagging",
+           Dict("body" => tags);
+           feature_set=AWS.FeatureSet(; use_response_type=true),
+           aws_config=aws,
+           kwargs...,
+          )
     else
         s3(
-            "PUT",
-            "/$(bucket)/$(path)?tagging",
-            Dict("body" => tags);
-            aws_config=aws,
-            feature_set=AWS.FeatureSet(; use_response_type=true),
-            kwargs...,
-        )
+           "PUT",
+           "/$(bucket)/$(path)?tagging",
+           Dict("body" => tags);
+           aws_config=aws,
+           feature_set=AWS.FeatureSet(; use_response_type=true),
+           kwargs...,
+          )
     end
 end
 
@@ -499,12 +498,12 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     @protected try
         tags = []
 
-        if isempty(path)
-            tags = S3.get_bucket_tagging(bucket; aws_config=aws, kwargs...)
+        r = if isempty(path)
+            S3.get_bucket_tagging(bucket; aws_config=aws, kwargs...)
         else
-            tags = S3.get_object_tagging(bucket, path; aws_config=aws, kwargs...)
+            S3.get_object_tagging(bucket, path; aws_config=aws, kwargs...)
         end
-        tags = parse(tags)
+        tags = parse(r)
 
         if isempty(tags["TagSet"])
             return SSDict()
@@ -577,14 +576,14 @@ Returns an iterator of `Dict`s with keys `Key`, `LastModified`, `ETag`, `Size`,
 `Owner`, `StorageClass`.
 """
 function s3_list_objects(
-    aws::AbstractAWSConfig,
-    bucket,
-    path_prefix="";
-    delimiter="/",
-    start_after="",
-    max_items=nothing,
-    kwargs...,
-)
+                         aws::AbstractAWSConfig,
+                         bucket,
+                         path_prefix="";
+                         delimiter="/",
+                         start_after="",
+                         max_items=nothing,
+                         kwargs...,
+                        )
     return Channel(; ctype=LittleDict, csize=128) do chnl
         more = true
         num_objects = 0
@@ -593,11 +592,11 @@ function s3_list_objects(
         while more
             q = Dict{String,String}()
             for (name, v) in [
-                ("prefix", path_prefix),
-                ("delimiter", delimiter),
-                ("start-after", start_after),
-                ("continuation-token", token),
-            ]
+                              ("prefix", path_prefix),
+                              ("delimiter", delimiter),
+                              ("start-after", start_after),
+                              ("continuation-token", token),
+                             ]
                 isempty(v) || (q[name] = v)
             end
             if max_items !== nothing
@@ -636,8 +635,8 @@ directly with the standard AWS API.  This returns a tuple `(s, tmlast)` where `s
 `tmlast` is the time of the latest modification to a file within that directory.
 """
 function s3_directory_stat(
-    aws::AbstractAWSConfig, bucket::AbstractString, path::AbstractString
-)
+                           aws::AbstractAWSConfig, bucket::AbstractString, path::AbstractString
+                          )
     s = 0  # total size in bytes
     tmlast = typemin(DateTime)
     # setting delimiter is needed to get all objects within path,
@@ -712,12 +711,12 @@ function s3_purge_versions(aws::AbstractAWSConfig, bucket, path="", pattern=""; 
         if pattern == "" || occursin(pattern, v["Key"])
             if v["IsLatest"] != "true"
                 S3.delete_object(
-                    bucket,
-                    v["Key"],
-                    Dict("versionId" => v["VersionId"]);
-                    aws_config=aws,
-                    kwargs...,
-                )
+                                 bucket,
+                                 v["Key"],
+                                 Dict("versionId" => v["VersionId"]);
+                                 aws_config=aws,
+                                 kwargs...,
+                                )
             end
         end
     end
@@ -741,33 +740,33 @@ s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b..
                  (see also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref)).
 """
 function s3_put(
-    aws::AbstractAWSConfig,
-    bucket,
-    path,
-    data::Union{String,Vector{UInt8}},
-    data_type="",
-    encoding="";
-    acl::AbstractString="",
-    metadata::SSDict=SSDict(),
-    tags::AbstractDict=SSDict(),
-    kwargs...,
-)
+                aws::AbstractAWSConfig,
+                bucket,
+                path,
+                data::Union{String,Vector{UInt8}},
+                data_type="",
+                encoding="";
+                acl::AbstractString="",
+                metadata::SSDict=SSDict(),
+                tags::AbstractDict=SSDict(),
+                kwargs...,
+               )
     headers = Dict{String,Any}(["x-amz-meta-$k" => v for (k, v) in metadata])
 
     if isempty(data_type)
         data_type = "application/octet-stream"
         ext = splitext(path)[2]
         for (e, t) in [
-            (".html", "text/html"),
-            (".js", "application/javascript"),
-            (".pdf", "application/pdf"),
-            (".csv", "text/csv"),
-            (".txt", "text/plain"),
-            (".log", "text/plain"),
-            (".dat", "application/octet-stream"),
-            (".gz", "application/octet-stream"),
-            (".bz2", "application/octet-stream"),
-        ]
+                       (".html", "text/html"),
+                       (".js", "application/javascript"),
+                       (".pdf", "application/pdf"),
+                       (".csv", "text/csv"),
+                       (".txt", "text/plain"),
+                       (".log", "text/plain"),
+                       (".dat", "application/octet-stream"),
+                       (".gz", "application/octet-stream"),
+                       (".bz2", "application/octet-stream"),
+                      ]
             if ext == e
                 data_type = t
                 break
@@ -797,46 +796,46 @@ end
 s3_put(a...; b...) = s3_put(global_aws_config(), a...; b...)
 
 function s3_begin_multipart_upload(
-    aws::AbstractAWSConfig,
-    bucket,
-    path,
-    args=Dict{String,Any}();
-    kwargs...,
-    # format trick: using this comment to force use of multiple lines
-)
+                                   aws::AbstractAWSConfig,
+                                   bucket,
+                                   path,
+                                   args=Dict{String,Any}();
+                                   kwargs...,
+                                   # format trick: using this comment to force use of multiple lines
+                                  )
     return parse(S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...))
 end
 
 function s3_upload_part(
-    aws::AbstractAWSConfig,
-    upload,
-    part_number,
-    part_data;
-    args=Dict{String,Any}(),
-    kwargs...,
-)
+                        aws::AbstractAWSConfig,
+                        upload,
+                        part_number,
+                        part_data;
+                        args=Dict{String,Any}(),
+                        kwargs...,
+                       )
     args["body"] = part_data
 
     response = S3.upload_part(
-        upload["Bucket"],
-        upload["Key"],
-        part_number,
-        upload["UploadId"],
-        args;
-        aws_config=aws,
-        kwargs...,
-    )
+                              upload["Bucket"],
+                              upload["Key"],
+                              part_number,
+                              upload["UploadId"],
+                              args;
+                              aws_config=aws,
+                              kwargs...,
+                             )
 
     return Dict(response.headers)["ETag"]
 end
 
 function s3_complete_multipart_upload(
-    aws::AbstractAWSConfig,
-    upload,
-    parts::Vector{String},
-    args=Dict{String,Any}();
-    kwargs...,
-)
+                                      aws::AbstractAWSConfig,
+                                      upload,
+                                      parts::Vector{String},
+                                      args=Dict{String,Any}();
+                                      kwargs...,
+                                     )
     doc = XMLDocument()
     rootnode = setroot!(doc, ElementNode("CompleteMultipartUpload"))
 
@@ -849,15 +848,15 @@ function s3_complete_multipart_upload(
     args["body"] = string(doc)
 
     response = S3.complete_multipart_upload(
-        upload["Bucket"], upload["Key"], upload["UploadId"], args; aws_config=aws, kwargs...
-    )
+                                            upload["Bucket"], upload["Key"], upload["UploadId"], args; aws_config=aws, kwargs...
+                                           )
 
     return parse(response)
 end
 
 function s3_multipart_upload(
-    aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50; kwargs...
-)
+                             aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50; kwargs...
+                            )
     part_size = part_size_mb * 1024 * 1024
 
     upload = s3_begin_multipart_upload(aws, bucket, path)
@@ -879,34 +878,34 @@ end
 using MbedTLS
 
 function _s3_sign_url_v2(
-    aws::AbstractAWSConfig,
-    bucket,
-    path,
-    seconds=3600;
-    verb="GET",
-    content_type="application/octet-stream",
-    protocol="http",
-)
+                         aws::AbstractAWSConfig,
+                         bucket,
+                         path,
+                         seconds=3600;
+                         verb="GET",
+                         content_type="application/octet-stream",
+                         protocol="http",
+                        )
     path = HTTP.escapepath(path)
 
     expires = round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)
 
     query = SSDict(
-        "AWSAccessKeyId" => aws.credentials.access_key_id,
-        "x-amz-security-token" => aws.credentials.token,
-        "Expires" => string(expires),
-        "response-content-disposition" => "attachment",
-    )
+                   "AWSAccessKeyId" => aws.credentials.access_key_id,
+                   "x-amz-security-token" => aws.credentials.token,
+                   "Expires" => string(expires),
+                   "response-content-disposition" => "attachment",
+                  )
 
     if verb != "PUT"
         content_type = ""
     end
 
     to_sign =
-        "$verb\n\n$content_type\n$(query["Expires"])\n" *
-        "x-amz-security-token:$(query["x-amz-security-token"])\n" *
-        "/$bucket/$path?" *
-        "response-content-disposition=attachment"
+    "$verb\n\n$content_type\n$(query["Expires"])\n" *
+    "x-amz-security-token:$(query["x-amz-security-token"])\n" *
+    "/$bucket/$path?" *
+    "response-content-disposition=attachment"
 
     key = aws.credentials.secret_key
     query["Signature"] = strip(base64encode(digest(MD_SHA1, to_sign, key)))
@@ -916,14 +915,14 @@ function _s3_sign_url_v2(
 end
 
 function _s3_sign_url_v4(
-    aws::AbstractAWSConfig,
-    bucket,
-    path,
-    seconds=3600;
-    verb="GET",
-    content_type="application/octet-stream",
-    protocol="http",
-)
+                         aws::AbstractAWSConfig,
+                         bucket,
+                         path,
+                         seconds=3600;
+                         verb="GET",
+                         content_type="application/octet-stream",
+                         protocol="http",
+                        )
     path = HTTP.escapepath("/$bucket/$path")
 
     now_datetime = now(Dates.UTC)
@@ -947,13 +946,13 @@ function _s3_sign_url_v4(
     canonical_header_names = join(map(name -> lowercase(name), collect(keys(headers))), ";")
 
     query = OrderedDict{String,String}(
-        "X-Amz-Expires" => string(seconds),
-        "X-Amz-Algorithm" => "$scheme-$algorithm",
-        "X-Amz-Credential" => "$(aws.credentials.access_key_id)/$scope",
-        "X-Amz-Date" => datetime_stamp,
-        "X-Amz-Security-Token" => aws.credentials.token,
-        "X-Amz-SignedHeaders" => canonical_header_names,
-    )
+                                       "X-Amz-Expires" => string(seconds),
+                                       "X-Amz-Algorithm" => "$scheme-$algorithm",
+                                       "X-Amz-Credential" => "$(aws.credentials.access_key_id)/$scope",
+                                       "X-Amz-Date" => datetime_stamp,
+                                       "X-Amz-Security-Token" => aws.credentials.token,
+                                       "X-Amz-SignedHeaders" => canonical_header_names,
+                                      )
 
     if !isempty(aws.credentials.token)
         query["X-Amz-Security-Token"] = aws.credentials.token
@@ -962,27 +961,27 @@ function _s3_sign_url_v4(
     sort!(query; by=name -> lowercase(name))
 
     canonical_headers = join(
-        map(
-            header -> "$(lowercase(header.first)):$(lowercase(header.second))\n",
-            collect(headers),
-        ),
-    )
+                             map(
+                                 header -> "$(lowercase(header.first)):$(lowercase(header.second))\n",
+                                 collect(headers),
+                                ),
+                            )
 
     canonical_request = string(
-        "$verb\n",
-        "$path\n",
-        "$(HTTP.escapeuri(query))\n",
-        "$canonical_headers\n",
-        "$canonical_header_names\n",
-        "UNSIGNED-PAYLOAD",
-    )
+                               "$verb\n",
+                               "$path\n",
+                               "$(HTTP.escapeuri(query))\n",
+                               "$canonical_headers\n",
+                               "$canonical_header_names\n",
+                               "UNSIGNED-PAYLOAD",
+                              )
 
     string_to_sign = string(
-        "$scheme-$algorithm\n",
-        "$datetime_stamp\n",
-        "$scope\n",
-        bytes2hex(digest(MD_SHA256, canonical_request)),
-    )
+                            "$scheme-$algorithm\n",
+                            "$datetime_stamp\n",
+                            "$scope\n",
+                            bytes2hex(digest(MD_SHA256, canonical_request)),
+                           )
 
     key_secret = string(scheme, aws.credentials.secret_key)
     key_date = digest(MD_SHA256, date_stamp, key_secret)
@@ -1023,35 +1022,35 @@ Requests.put(URI(url), "Hello!";
 ```
 """
 function s3_sign_url(
-    aws::AbstractAWSConfig,
-    bucket,
-    path,
-    seconds=3600;
-    verb="GET",
-    content_type="application/octet-stream",
-    protocol="http",
-    signature_version="v4",
-)
+                     aws::AbstractAWSConfig,
+                     bucket,
+                     path,
+                     seconds=3600;
+                     verb="GET",
+                     content_type="application/octet-stream",
+                     protocol="http",
+                     signature_version="v4",
+                    )
     if signature_version == "v2"
         _s3_sign_url_v2(
-            aws,
-            bucket,
-            path,
-            seconds;
-            verb=verb,
-            content_type=content_type,
-            protocol=protocol,
-        )
+                        aws,
+                        bucket,
+                        path,
+                        seconds;
+                        verb=verb,
+                        content_type=content_type,
+                        protocol=protocol,
+                       )
     elseif signature_version == "v4"
         _s3_sign_url_v4(
-            aws,
-            bucket,
-            path,
-            seconds;
-            verb=verb,
-            content_type=content_type,
-            protocol=protocol,
-        )
+                        aws,
+                        bucket,
+                        path,
+                        seconds;
+                        verb=verb,
+                        content_type=content_type,
+                        protocol=protocol,
+                       )
     else
         throw(ArgumentError("Unknown signature version $signature_version"))
     end
