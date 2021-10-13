@@ -201,7 +201,7 @@ function s3_get_meta(
         params["versionId"] = version
     end
 
-    r = S3.head_object(bucket, path, params; aws_config=aws, kwargs...).response
+    r = S3.head_object(bucket, path, params; aws_config=aws, kwargs...)
     return Dict(r.headers)
 end
 
