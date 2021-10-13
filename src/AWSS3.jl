@@ -681,7 +681,7 @@ function s3_list_versions(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs
             query["key-marker"] = marker
         end
 
-        r = parse(S3.list_object_versions(bucket, query; aws_config=aws, kwargs...))
+        r = S3.list_object_versions(bucket, query; aws_config=aws, kwargs...)
         r = parse_xml(String(r))
 
         more = r["IsTruncated"] == "true"
