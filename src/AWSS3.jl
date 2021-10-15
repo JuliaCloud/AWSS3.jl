@@ -108,6 +108,7 @@ function s3_get(
 )
     @repeat 4 try
         params = Dict{String,Any}()
+        return_stream && (params["response_stream"] = Base.BufferStream())
         if version !== nothing
             params["versionId"] = version
         end
@@ -125,6 +126,7 @@ function s3_get(
 
         r = S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
         return if return_stream
+            close(r.io)
             r.io
         elseif raw
             r.body
