@@ -425,10 +425,10 @@ s3_put_cors(a...; b...) = s3_put_cors(AWS.global_aws_config(), a...; b...)
 """
 function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; kwargs...)
     versioning_config = """
-    <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-    <Status>$status</Status>
-    </VersioningConfiguration>
-    """
+        <VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Status>$status</Status>
+        </VersioningConfiguration>
+        """
 
     r = s3(
         "PUT",
