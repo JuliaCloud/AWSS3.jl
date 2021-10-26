@@ -497,7 +497,7 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
         else
             S3.get_object_tagging(bucket, path; aws_config=aws, kwargs...)
         end
-        tags = parse(r)
+        tags = Dict(r)
 
         if isempty(tags["TagSet"])
             return SSDict()
@@ -797,7 +797,7 @@ function s3_begin_multipart_upload(
     kwargs...,
     # format trick: using this comment to force use of multiple lines
 )
-    return parse(S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...))
+    return Dict(S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...))
 end
 
 function s3_upload_part(
