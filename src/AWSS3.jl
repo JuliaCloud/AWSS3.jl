@@ -60,6 +60,22 @@ const AbstractS3PathConfig = Union{AbstractAWSConfig,Nothing}
 
 __init__() = FilePathsBase.register(S3Path)
 
+# Declare new `parse` function to avoid type piracy
+# TODO: remove when changes are released: https://github.com/JuliaCloud/AWS.jl/pull/502
+function parse(r::AWS.Response, mime::MIME)
+    # AWS doesn't always return a Content-Type which results the parsing returning bytes
+    # instead of a dictionary. To address this we'll allow passing in the MIME type.
+    return try
+        AWS._rewind(r.io) do io
+            AWS._read(io, mime)
+        end
+    catch e
+        @warn "Failed to parse the following content as $mime:\n\"\"\"$(String(r.body))\"\"\""
+        rethrow(e)
+    end
+end
+parse(args...; kwargs...) = Base.parse(args...; kwargs...)
+
 """
     s3_arn(resource)
     s3_arn(bucket,path)
@@ -497,7 +513,7 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
         else
             S3.get_object_tagging(bucket, path; aws_config=aws, kwargs...)
         end
-        tags = Dict(r)
+        tags = parse(r, MIME"application/xml"())
 
         if isempty(tags["TagSet"])
             return SSDict()
@@ -797,7 +813,8 @@ function s3_begin_multipart_upload(
     kwargs...,
     # format trick: using this comment to force use of multiple lines
 )
-    return S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...)
+    r = S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...)
+    return parse(r, MIME"application/xml"())
 end
 
 function s3_upload_part(
