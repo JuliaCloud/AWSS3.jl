@@ -492,11 +492,12 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     @protected try
         tags = []
 
-        tags = if isempty(path)
+        r = if isempty(path)
             S3.get_bucket_tagging(bucket; aws_config=aws, kwargs...)
         else
             S3.get_object_tagging(bucket, path; aws_config=aws, kwargs...)
         end
+        tags = Dict(r)
 
         if isempty(tags["TagSet"])
             return SSDict()

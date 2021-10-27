@@ -70,38 +70,6 @@ function awss3_tests(config)
         @test s3_get(config, bucket_name, "key1.copy") == b"data1.v1"
     end
 
-    is_aws(config) && @testset "Sign URL" begin
-        for v in ["v2", "v4"]
-            url = s3_sign_url(config, bucket_name, "key1"; signature_version=v)
-            curl_output = ""
-
-            @repeat 3 try
-                curl_output = read(`curl -s -o - $url`, String)
-            catch e
-                @delay_retry if true
-                end
-            end
-
-            @test curl_output == "data1.v1"
-
-            fn = "/tmp/jl_qws_test_key1"
-            if isfile(fn)
-                rm(fn)
-            end
-
-            @repeat 3 try
-                s3_get_file(config, bucket_name, "key1", fn)
-            catch e
-                sleep(1)
-                @retry if true
-                end
-            end
-
-            @test read(fn, String) == "data1.v1"
-            rm(fn)
-        end
-    end
-
     @testset "Object exists" begin
         for key in ["key1", "key2", "key3", "key1.copy"]
             @test s3_exists(bucket_name, key)
@@ -122,34 +90,6 @@ function awss3_tests(config)
     @testset "Check Metadata" begin
         meta = s3_get_meta(config, bucket_name, "key1")
         @test meta["ETag"] == "\"68bc8898af64159b72f349b391a7ae35\""
-    end
-
-    is_aws(config) && @testset "Check Object Versions" begin
-        versions = s3_list_versions(config, bucket_name, "key3")
-        @test length(versions) == 3
-        @test (
-            s3_get(config, bucket_name, "key3"; version=versions[3]["VersionId"]) ==
-            b"data3.v1"
-        )
-        @test (
-            s3_get(config, bucket_name, "key3"; version=versions[2]["VersionId"]) ==
-            b"data3.v2"
-        )
-        @test (
-            s3_get(config, bucket_name, "key3"; version=versions[1]["VersionId"]) ==
-            b"data3.v3"
-        )
-
-        tmp_file = joinpath(tempdir(), "jl_qws_test_key3")
-        s3_get_file(config, bucket_name, "key3", tmp_file; version=versions[2]["VersionId"])
-        @test read(tmp_file) == b"data3.v2"
-    end
-
-    is_aws(config) && @testset "Purge Versions" begin
-        s3_purge_versions(config, bucket_name, "key3")
-        versions = s3_list_versions(config, bucket_name, "key3")
-        @test length(versions) == 1
-        @test s3_get(config, bucket_name, "key3") == b"data3.v3"
     end
 
     @testset "default Content-Type" begin
@@ -254,6 +194,66 @@ function awss3_tests(config)
         @test s3_get_meta(bucket_name, k; version=nothing) isa AbstractDict
         @test s3_exists(bucket_name, k; version=nothing)
         @test s3_delete(bucket_name, k; version=nothing) == UInt8[]
+    end
+
+    is_aws(config) && @testset "Sign URL" begin
+        for v in ["v2", "v4"]
+            url = s3_sign_url(config, bucket_name, "key1"; signature_version=v)
+            curl_output = ""
+
+            @repeat 3 try
+                curl_output = read(`curl -s -o - $url`, String)
+            catch e
+                @delay_retry if true
+                end
+            end
+
+            @test curl_output == "data1.v1"
+
+            fn = "/tmp/jl_qws_test_key1"
+            if isfile(fn)
+                rm(fn)
+            end
+
+            @repeat 3 try
+                s3_get_file(config, bucket_name, "key1", fn)
+            catch e
+                sleep(1)
+                @retry if true
+                end
+            end
+
+            @test read(fn, String) == "data1.v1"
+            rm(fn)
+        end
+    end
+
+    is_aws(config) && @testset "Check Object Versions" begin
+        versions = s3_list_versions(config, bucket_name, "key3")
+        @test length(versions) == 3
+        @test (
+            s3_get(config, bucket_name, "key3"; version=versions[3]["VersionId"]) ==
+            b"data3.v1"
+        )
+        @test (
+            s3_get(config, bucket_name, "key3"; version=versions[2]["VersionId"]) ==
+            b"data3.v2"
+        )
+        @test (
+            s3_get(config, bucket_name, "key3"; version=versions[1]["VersionId"]) ==
+            b"data3.v3"
+        )
+
+        tmp_file = joinpath(tempdir(), "jl_qws_test_key3")
+        s3_get_file(config, bucket_name, "key3", tmp_file; version=versions[2]["VersionId"])
+        @test read(tmp_file) == b"data3.v2"
+    end
+
+    is_aws(config) && @testset "Purge Versions" begin
+        s3_purge_versions(config, bucket_name, "key3")
+        versions = s3_list_versions(config, bucket_name, "key3")
+        @test length(versions) == 1
+        @test s3_get(config, bucket_name, "key3") == b"data3.v3"
     end
 
     if is_aws(config)
