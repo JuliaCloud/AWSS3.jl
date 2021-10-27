@@ -492,12 +492,11 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     @protected try
         tags = []
 
-        r = if isempty(path)
+        tags = if isempty(path)
             S3.get_bucket_tagging(bucket; aws_config=aws, kwargs...)
         else
             S3.get_object_tagging(bucket, path; aws_config=aws, kwargs...)
         end
-        tags = Dict(r)
 
         if isempty(tags["TagSet"])
             return SSDict()
@@ -797,7 +796,7 @@ function s3_begin_multipart_upload(
     kwargs...,
     # format trick: using this comment to force use of multiple lines
 )
-    return Dict(S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...))
+    return S3.create_multipart_upload(bucket, path, args; aws_config=aws, kwargs...)
 end
 
 function s3_upload_part(
