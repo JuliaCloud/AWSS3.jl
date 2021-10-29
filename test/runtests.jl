@@ -45,6 +45,8 @@ include("awss3.jl") # creates `s3path_tests(config)`
                 # Make sure we kill the server even if a test failed.
                 kill(minio_server)
             end
+        else
+            @warn "Skipping MinIO tests as they can only be run on Julia ≥ 1.5"
         end
     end
 
