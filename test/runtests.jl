@@ -12,6 +12,8 @@ using FilePathsBase.TestPaths
 using UUIDs: uuid4
 using JSON3
 
+const AWSS3_TESTSETS = split(get(ENV, "AWSS3_TESTSETS", "MinIO,S3"), ',')
+
 is_aws(config) = config isa AWSConfig
 
 # Load the test functions
@@ -20,7 +22,7 @@ include("awss3.jl") # creates `s3path_tests(config)`
 
 @testset "AWSS3.jl" begin
     @testset "MinIO" begin
-        if VERSION >= v"1.5"
+        if "MinIO" in AWSS3_TESTSETS && VERSION >= v"1.5"
             using Minio
             AWS.aws_account_number(::Minio.MinioConfig) = "123"
 
@@ -45,16 +47,22 @@ include("awss3.jl") # creates `s3path_tests(config)`
                 # Make sure we kill the server even if a test failed.
                 kill(minio_server)
             end
-        else
+        elseif VERSION < v"1.5"
             @warn "Skipping MinIO tests as they can only be run on Julia ≥ 1.5"
+        else
+            @warn "Skipping MinIO tests"
         end
     end
 
     @testset "S3" begin
-        # Set `AWSConfig` as the default for the following tests
-        aws = global_aws_config(AWSConfig())
+        if "S3" in AWSS3_TESTSETS
+            # Set `AWSConfig` as the default for the following tests
+            aws = global_aws_config(AWSConfig())
 
-        awss3_tests(aws)
-        s3path_tests(aws)
+            awss3_tests(aws)
+            s3path_tests(aws)
+        else
+            @warn "Skipping S3 tests"
+        end
     end
 end
