@@ -12,6 +12,8 @@ using FilePathsBase.TestPaths
 using UUIDs: uuid4
 using JSON3
 
+const AWSS3_TESTSETS = split(get(ENV, "AWSS3_TESTSETS", "MinIO,S3"), ',')
+
 is_aws(config) = config isa AWSConfig
 
 # Load the test functions
@@ -19,39 +21,49 @@ include("s3path.jl") # creates `awss3_tests(config)`
 include("awss3.jl") # creates `s3path_tests(config)`
 
 @testset "AWSS3.jl" begin
-    if VERSION >= v"1.5"
-        using Minio
-        AWS.aws_account_number(::Minio.MinioConfig) = "123"
+    @testset "MinIO" begin
+        if "MinIO" in AWSS3_TESTSETS && VERSION >= v"1.5"
+            using Minio
+            AWS.aws_account_number(::Minio.MinioConfig) = "123"
 
-        # We run most tests under Minio. This can be done locally by those
-        # without access to the s3 bucket under which CI is performed.
-        # We then run all tests with s3 directly.
+            # We run most tests under Minio. This can be done locally by those
+            # without access to the s3 bucket under which CI is performed.
+            # We then run all tests with s3 directly.
 
-        port = 9005
-        minio_server = Minio.Server([mktempdir()]; address="localhost:$port")
+            port = 9005
+            minio_server = Minio.Server([mktempdir()]; address="localhost:$port")
 
-        try
-            run(minio_server; wait=false)
-            sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
-            config = global_aws_config(
-                MinioConfig(
-                    "http://localhost:$port"; username="minioadmin", password="minioadmin"
-                ),
+            minio_config = MinioConfig(
+                "http://localhost:$port"; username="minioadmin", password="minioadmin"
             )
-            @testset "Minio" begin
+
+            try
+                run(minio_server; wait=false)
+                sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
+
+                config = global_aws_config(minio_config)
                 awss3_tests(config)
                 s3path_tests(config)
+            finally
+                # Make sure we kill the server even if a test failed.
+                kill(minio_server)
             end
-        finally
-            # Make sure we kill the server even if a test failed.
-            kill(minio_server)
+        elseif VERSION < v"1.5"
+            @warn "Skipping MinIO tests as they can only be run on Julia ≥ 1.5"
+        else
+            @warn "Skipping MinIO tests"
         end
     end
 
-    # Set `AWSConfig` as the default for the following tests
-    aws = global_aws_config(AWSConfig())
     @testset "S3" begin
-        awss3_tests(aws)
-        s3path_tests(aws)
+        if "S3" in AWSS3_TESTSETS
+            # Set `AWSConfig` as the default for the following tests
+            config = global_aws_config(AWSConfig())
+
+            awss3_tests(config)
+            s3path_tests(config)
+        else
+            @warn "Skipping S3 tests"
+        end
     end
 end

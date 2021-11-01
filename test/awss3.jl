@@ -1,12 +1,21 @@
-function awss3_tests(config)
-    bucket_name =
-        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+_has_failed(testset::Test.DefaultTestSet) = any(r -> !(r isa Test.Pass), testset.results)
 
-    @testset "Create Bucket" begin
+function awss3_tests(config)
+    bucket_name = begin
+        "ocaws.jl.test." * Dates.format(now(Dates.UTC), dateformat"yyyymmdd\tHHMMSS\z")
+    end
+
+    t = @testset "Create Bucket" begin
         s3_create_bucket(config, bucket_name)
+
         @test bucket_name in s3_list_buckets(config)
         is_aws(config) && s3_enable_versioning(config, bucket_name)
         sleep(1)
+    end
+
+    if _has_failed(t)
+        @warn "Bucket creation has failed. Skipping remaining tests which rely on bucket: $bucket_name"
+        return nothing
     end
 
     @testset "Bucket Tagging" begin
