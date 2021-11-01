@@ -34,3 +34,14 @@ write(p, "some data")
 read(p, byte_range=1:4)  # returns b"some"
 ```
 
+## Testing
+
+Some of the tests involve using a temporary AWS S3 bucket. For these tests to succeed you'll
+need to set your current AWS profile to use a role which allows for `s3:*` access to the `arn:aws:s3:::ocaws.jl.test.*` resource.
+
+If you do not have AWS access or lack the required permission you can use the
+`AWSS3_TESTSETS` environmental variable to control which testsets run:
+
+```bash
+AWSS3_TESTSETS=MinIO julia --project -e 'using Pkg; Pkg.test()'
+```
