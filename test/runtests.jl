@@ -41,9 +41,8 @@ include("awss3.jl") # creates `s3path_tests(config)`
                 run(minio_server; wait=false)
                 sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
 
-                config = global_aws_config(minio_config)
-                awss3_tests(config)
-                s3path_tests(config)
+                awss3_tests(minio_config)
+                s3path_tests(minio_config)
             finally
                 # Make sure we kill the server even if a test failed.
                 kill(minio_server)
@@ -58,10 +57,10 @@ include("awss3.jl") # creates `s3path_tests(config)`
     @testset "S3" begin
         if "S3" in AWSS3_TESTSETS
             # Set `AWSConfig` as the default for the following tests
-            config = global_aws_config(AWSConfig())
+            aws_config = AWSConfig()
 
-            awss3_tests(config)
-            s3path_tests(config)
+            awss3_tests(aws_config)
+            s3path_tests(aws_config)
         else
             @warn "Skipping S3 tests"
         end
