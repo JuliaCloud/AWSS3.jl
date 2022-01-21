@@ -549,6 +549,12 @@ function s3path_tests(config)
         @test AWSS3.get_config(path) !== nothing
     end
 
+    @testset "No-op constructor" begin
+        path = S3Path("s3://$(bucket_name)/test_str.txt")
+        path2 = S3Path(path)
+        @test path == path2
+    end
+
     # Minio does not care about regions, so this test doesn't work there
     if is_aws(config)
         @testset "Global config is not frozen at construction time" begin
