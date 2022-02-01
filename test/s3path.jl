@@ -434,7 +434,9 @@ function s3path_tests(config)
 
     @testset "Arrow <-> S3Path (de)serialization" begin
         ver = String('A':'Z') * String('0':'5')
-        paths = [S3Path("s3://$(bucket_name)/a"), S3Path("s3://$(bucket_name)/b?versionId=$ver")]
+        paths = [
+            S3Path("s3://$(bucket_name)/a"), S3Path("s3://$(bucket_name)/b?versionId=$ver")
+        ]
         tbl = Arrow.Table(Arrow.tobuffer((; paths=paths)))
         @test all(tbl.paths .== paths)
         push!(paths, S3Path("s3://$(bucket_name)/c"; config=config))
