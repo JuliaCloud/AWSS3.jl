@@ -648,6 +648,10 @@ ArrowTypes.JuliaType(::Val{S3PATH_ARROW_NAME}, ::Any) = S3Path
 ArrowTypes.fromarrow(::Type{<:S3Path}, uri_string) = S3Path(uri_string)
 
 function ArrowTypes.toarrow(path::S3Path)
-    isnothing(path.config) || throw(ArgumentError("`path.config` must be `nothing` to serialize `path::S3Path` to Arrow"))
+    isnothing(path.config) || throw(
+        ArgumentError(
+            "`path.config` must be `nothing` to serialize `path::S3Path` to Arrow"
+         ),
+    )
     return string(path)
 end
