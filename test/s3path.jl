@@ -437,6 +437,7 @@ function s3path_tests(config)
         paths = [
             S3Path("s3://$(bucket_name)/a"),
             S3Path("s3://$(bucket_name)/b?versionId=$ver"),
+            # format trick: using this comment to force use of multiple lines
         ]
         tbl = Arrow.Table(Arrow.tobuffer((; paths=paths)))
         @test all(tbl.paths .== paths)
