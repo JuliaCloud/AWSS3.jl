@@ -64,6 +64,8 @@ NOTES:
 """
 S3Path() = S3Path((), "/", "", true, nothing, nothing)
 
+S3Path(path::S3Path) = path
+
 # below definition needed by FilePathsBase
 S3Path{A}() where {A<:AbstractS3PathConfig} = S3Path()
 
