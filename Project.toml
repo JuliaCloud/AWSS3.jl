@@ -1,6 +1,6 @@
 name = "AWSS3"
 uuid = "1c724243-ef5b-51ab-93f4-b0a88ac62a95"
-version = "0.9.3"
+version = "0.9.4"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
@@ -22,7 +22,7 @@ XMLDict = "228000da-037f-5747-90a9-8195ccbf91a5"
 AWS = "1.63.1"
 Compat = "3.29.0"
 EzXML = "0.9, 1"
-FilePathsBase = "0.9.11"
+FilePathsBase = "=0.9.11, =0.9.12, =0.9.13, =0.9.14, =0.9.15"
 HTTP = "0.8, 0.9"
 JSON3 = "1"
 MbedTLS = "0.6, 0.7, 1"
