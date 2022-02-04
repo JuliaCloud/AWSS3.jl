@@ -26,8 +26,10 @@ jobs:
         arch:
           - x64
         exclude:
-          # Skip testing earliest version on macOS to make CI faster
-          - version: "1.3"
+          # Only testing a single version of macOS to make CI faster.
+          # Note: Ideally this would be the latest version of Julia but lately
+          # Julia 1.7.1 is generating segmentation faults only on CI.
+          - version: "1"
             os: macOS-latest
     steps:
       - uses: actions/checkout@v2
