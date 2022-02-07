@@ -443,7 +443,7 @@ function s3path_tests(config)
         tbl = Arrow.Table(Arrow.tobuffer((; paths=paths)))
         @test all(tbl.paths .== paths)
         push!(paths, S3Path("s3://$(bucket_name)/c"; config=config))
-        @test_throws Arrow.tobuffer((; paths=paths)) ArgumentError
+        @test_throws ArgumentError Arrow.tobuffer((; paths=paths))
     end
 
     @testset "tryparse" begin
