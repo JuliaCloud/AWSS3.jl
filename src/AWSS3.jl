@@ -38,6 +38,7 @@ export S3Path,
 
 using AWS
 using AWS.AWSServices: s3
+using ArrowTypes
 using FilePathsBase
 using FilePathsBase: /, join
 using HTTP

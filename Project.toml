@@ -4,6 +4,7 @@ version = "0.9.4"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
+ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -20,6 +21,7 @@ XMLDict = "228000da-037f-5747-90a9-8195ccbf91a5"
 
 [compat]
 AWS = "1.63.1"
+ArrowTypes = "1.2"
 Compat = "3.29.0"
 EzXML = "0.9, 1"
 FilePathsBase = "=0.9.11, =0.9.12, =0.9.13, =0.9.14, =0.9.15"
@@ -35,9 +37,10 @@ XMLDict = "0.3, 0.4"
 julia = "1.3"
 
 [extras]
+Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Minio = "4281f0d9-7ae0-406e-9172-b7277c1efa20"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "JSON3", "Minio"]
+test = ["Test", "Arrow", "JSON3", "Minio"]

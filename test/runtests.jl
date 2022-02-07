@@ -2,6 +2,7 @@ using AWS
 using AWS.AWSExceptions: AWSException
 using AWS.AWSServices: s3
 using AWSS3
+using Arrow
 using Test
 using Dates
 using Retry

@@ -640,3 +640,16 @@ function FilePathsBase.mktmpdir(parent::S3Path)
     fp = parent / string(uuid4(), "/")
     return mkdir(fp)
 end
+
+const S3PATH_ARROW_NAME = Symbol("JuliaLang.AWSS3.S3Path")
+ArrowTypes.arrowname(::Type{<:S3Path}) = S3PATH_ARROW_NAME
+ArrowTypes.ArrowType(::Type{<:S3Path}) = String
+ArrowTypes.JuliaType(::Val{S3PATH_ARROW_NAME}, ::Any) = S3Path
+ArrowTypes.fromarrow(::Type{<:S3Path}, uri_string) = S3Path(uri_string)
+
+function ArrowTypes.toarrow(path::S3Path)
+    if !isnothing(path.config)
+        throw(ArgumentError("`S3Path` config must be `nothing` to serialize to Arrow"))
+    end
+    return string(path)
+end

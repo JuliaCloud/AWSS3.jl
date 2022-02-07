@@ -433,6 +433,19 @@ function s3path_tests(config)
         rm(json_path)
     end
 
+    @testset "Arrow <-> S3Path (de)serialization" begin
+        ver = String('A':'Z') * String('0':'5')
+        paths = S3Path[
+            S3Path("s3://$(bucket_name)/a"),
+            S3Path("s3://$(bucket_name)/b?versionId=$ver"),
+            # format trick: using this comment to force use of multiple lines
+        ]
+        tbl = Arrow.Table(Arrow.tobuffer((; paths=paths)))
+        @test all(tbl.paths .== paths)
+        push!(paths, S3Path("s3://$(bucket_name)/c"; config=config))
+        @test_throws ArgumentError Arrow.tobuffer((; paths=paths))
+    end
+
     @testset "tryparse" begin
         cfg = global_aws_config()
         ver = String('A':'Z') * String('0':'5')
