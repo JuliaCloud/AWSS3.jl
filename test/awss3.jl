@@ -1,6 +1,7 @@
 function awss3_tests(config)
-    bucket_name =
-        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+    bucket_name = let df = dateformat"yyyymmdd\THHMMSS\Z"
+        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), df))
+    end
 
     @testset "Create Bucket" begin
         s3_create_bucket(config, bucket_name)
