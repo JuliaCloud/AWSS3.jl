@@ -20,7 +20,6 @@ include("s3path.jl") # creates `awss3_tests(config)`
 include("awss3.jl") # creates `s3path_tests(config)`
 
 @testset "AWSS3.jl" begin
-    #=
     if VERSION >= v"1.5"
         using Minio
         AWS.aws_account_number(::Minio.MinioConfig) = "123"
@@ -49,12 +48,13 @@ include("awss3.jl") # creates `s3path_tests(config)`
             kill(minio_server)
         end
     end
-    =#
 
     # Set `AWSConfig` as the default for the following tests
+    #=
     aws = global_aws_config(AWSConfig())
     @testset "S3" begin
         awss3_tests(aws)
         s3path_tests(aws)
     end
+    =#
 end
