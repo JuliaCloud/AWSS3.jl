@@ -50,11 +50,9 @@ include("awss3.jl") # creates `s3path_tests(config)`
     end
 
     # Set `AWSConfig` as the default for the following tests
-    #=
     aws = global_aws_config(AWSConfig())
     @testset "S3" begin
         awss3_tests(aws)
         s3path_tests(aws)
     end
-    =#
 end
