@@ -285,8 +285,9 @@ end
 
 # This is the main entrypoint for the S3Path tests
 function s3path_tests(config)
-    bucket_name =
-        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), "yyyymmddTHHMMSSZ"))
+    bucket_name = let df = dateformat"yyyymmdd\THHMMSS\Z"
+        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), df))
+    end
 
     s3_create_bucket(config, bucket_name)
     root = Path("s3://$bucket_name/pathset-root/")
