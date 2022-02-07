@@ -22,7 +22,7 @@ jobs:
           - "1"    # Latest release
         os:
           - ubuntu-latest
-          - macOS-latest
+          # - macOS-latest
         arch:
           - x64
         exclude:
