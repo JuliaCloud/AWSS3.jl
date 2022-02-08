@@ -269,8 +269,7 @@ function verify_files(path::AbstractPath)
     @test readdir(path / "emptydir/") == []
     VERSION >= v"1.4.0" && @test readdir(path / "emptydir/"; join=true) == []
     @test readdir(path / "subdir1/") == ["subdir2", "test_02.txt", "test_03.txt"]
-    VERSION >= v"1.4.0" && @test readdir(path / "subdir1/"; join=true) ==
-        string.([
+    VERSION >= v"1.4.0" && @test readdir(path / "subdir1/"; join=true) == String[
         path / "subdir1" / "subdir2",
         path / "subdir1" / "test_02.txt",
         path / "subdir1/" / "subdir1/test_03.txt",
