@@ -249,8 +249,7 @@ function verify_files(path::S3Path)
     @test readdir(path / "emptydir/") == []
     @test readdir(path / "emptydir/"; join=true) == []
     @test readdir(path / "subdir1/") == ["subdir2/", "test_02.txt", "test_03.txt"]
-    @test readdir(path / "subdir1/"; join=true) ==
-        string.([
+    @test readdir(path / "subdir1/"; join=true) == String[
         path / "subdir1/" / "subdir2/",
         path / "subdir1/" / "test_02.txt",
         path / "subdir1/" / "test_03.txt",
