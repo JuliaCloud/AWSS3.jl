@@ -1,4 +1,13 @@
-const VERSION_ID_REGEX = r"^[0-9a-zA-Z\._]{32}$"
+# Amazon states that version IDs are UTF-8 encoded, URL-ready, opaque strings no longer than
+# 1024 bytes
+# – https://docs.aws.amazon.com/AmazonS3/latest/userguide/versioning-workflows.html#version-ids
+#
+# In practise version IDs seems to be much narrower in scope:
+# https://github.com/JuliaCloud/AWSS3.jl/pull/199#issuecomment-901995960
+#
+# An unversioned object can be accessed using the "null" version ID. For details see:
+# https://github.com/JuliaCloud/AWSS3.jl/issues/241
+const VERSION_ID_REGEX = r"^(?:[0-9a-zA-Z\._]{32}|null)$"
 
 struct S3Path{A<:AbstractS3PathConfig} <: AbstractPath
     segments::Tuple{Vararg{String}}
@@ -124,6 +133,9 @@ function S3Path(
     return S3Path(result.segments, result.root, result.drive, is_dir, ver, result.config)
 end
 
+# Parses a URI in the S3 scheme as an S3Path combining the conventions documented in:
+# - https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html#accessing-a-bucket-using-S3-format
+# - https://docs.aws.amazon.com/AmazonS3/latest/userguide/RetMetaOfObjVersion.html
 function Base.tryparse(
     ::Type{<:S3Path}, str::AbstractString; config::AbstractS3PathConfig=nothing
 )
