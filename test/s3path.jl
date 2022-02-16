@@ -480,6 +480,9 @@ function s3path_tests(config)
         @test S3Path("s3://my_bucket/prefix/path/?radtimes=foo&versionId=$ver") ==
             S3Path(("prefix", "path"), "/", "s3://my_bucket", true, ver, cfg)
 
+        @test S3Path("s3://my_bucket/prefix/path?versionId=null") ==
+            S3Path(("prefix", "path"), "/", "s3://my_bucket", false, "null", cfg)
+
         # Test to mark inconsistent root string behaviour when reconstructing parsed paths.
         parsed = tryparse(S3Path, "s3://my_bucket")
         @test_broken parsed == S3Path(
@@ -553,6 +556,52 @@ function s3path_tests(config)
             rm(versioned_path)
             @test !exists(versioned_path)
             @test length(s3_list_versions(config, bucket_name, key)) == 1
+        end
+
+        @testset "S3Path null version" begin
+            b = let df = dateformat"yyyymmdd\THHMMSS\Z"
+                "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), df))
+            end
+            k = "object"
+
+            function versioning_enabled(config, bucket)
+                d = parse(S3.get_bucket_versioning(bucket; aws_config=config))
+                return get(d, "Status", "Disabled") == "Enabled"
+            end
+
+            function list_version_ids(args...)
+                return [d["VersionId"] for d in reverse!(s3_list_versions(args...))]
+            end
+
+            try
+                # Create a new bucket that we know does not have versioning enabled
+                s3_create_bucket(config, b)
+                @test !versioning_enabled(config, b)
+
+                # Create an object which will have versionId set to "null"
+                s3_put(config, b, k, "original")
+
+                versions = list_version_ids(config, b, k)
+                @test length(versions) == 1
+                @test versions[1] == "null"
+                @test read(S3Path(b, k; config=config, version=versions[1])) == b"original"
+
+                s3_enable_versioning(config, b)
+                @test versioning_enabled(config, b)
+
+                # Overwrite the original object with a new version
+                s3_put(config, b, k, "new and improved!")
+
+                versions = list_version_ids(config, b, k)
+                @test length(versions) == 2
+                @test versions[1] == "null"
+                @test versions[2] != "null"
+                @test read(S3Path(b, k; config=config, version=versions[1])) == b"original"
+                @test read(S3Path(b, k; config=config, version=versions[2])) ==
+                    b"new and improved!"
+            finally
+                AWSS3.s3_nuke_bucket(config, b)
+            end
         end
     end
 
