@@ -560,7 +560,7 @@ function s3path_tests(config)
 
         @testset "S3Path null version" begin
             b = let df = dateformat"yyyymmdd\THHMMSS\Z"
-                "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), df))
+                "ocaws.jl.test.null." * lowercase(Dates.format(now(Dates.UTC), df))
             end
             k = "object"
 
