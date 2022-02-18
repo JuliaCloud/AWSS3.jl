@@ -828,7 +828,7 @@ function s3_upload_part(
 )
     args["body"] = part_data
 
-    response = S3.upload_part(
+    r = S3.upload_part(
         upload["Bucket"],
         upload["Key"],
         part_number,
@@ -838,7 +838,21 @@ function s3_upload_part(
         kwargs...,
     )
 
-    return Dict(response.headers)["ETag"]
+    # Entity tag for the upload only available on a 200 response.
+    if r.status == 200
+        return Dict(r.headers)["ETag"]
+    else
+        # Probably not perfect but should provide more context into unexpected failures
+        msg = sprint() do io
+            print(io, "`s3_upload_part` request failed:\n\n")
+            print(io, r.response)
+            print(io, "\n\nStreamed body:\n\"\"\"")
+            write(io, r.io)
+            print(io, "\"\"\"\n")
+        end
+
+        error(msg)
+    end
 end
 
 function s3_complete_multipart_upload(
