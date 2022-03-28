@@ -151,6 +151,10 @@ function Base.tryparse(
     return S3Path(path, root, drive, isdirectory, version, config)
 end
 
+function Base.parse(::Type{P}, pth::P; kwargs...) where P<:S3Path
+    return pth
+end
+
 function normalize_bucket_name(bucket)
     return strip(startswith(bucket, "s3://") ? bucket : "s3://$bucket", '/')
 end
