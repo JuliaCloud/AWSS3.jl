@@ -141,7 +141,9 @@ function s3_get(
             params["headers"] = headers
         end
 
+        println("Attempting to get $path...")
         r = S3.get_object(bucket, path, params; aws_config=aws, kwargs...)
+        println("Retrieved $path...")
         return if return_stream
             close(r.io)
             r.io
