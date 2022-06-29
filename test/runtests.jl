@@ -5,7 +5,6 @@ using Arrow
 using Test
 using Dates
 using Retry
-using HTTP
 using FilePathsBase
 using FilePathsBase: /, join
 using FilePathsBase.TestPaths
