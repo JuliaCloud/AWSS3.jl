@@ -1,6 +1,6 @@
 name = "AWSS3"
 uuid = "1c724243-ef5b-51ab-93f4-b0a88ac62a95"
-version = "0.9.5"
+version = "0.9.6"
 
 [deps]
 AWS = "fbe9abb3-538b-5e4e-ba9e-bc94f4f92ebc"
