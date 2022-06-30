@@ -41,7 +41,6 @@ using AWS.AWSServices: s3
 using ArrowTypes
 using FilePathsBase
 using FilePathsBase: /, join
-using HTTP
 using OrderedCollections: OrderedDict, LittleDict
 using SymDict
 using Retry
@@ -788,7 +787,7 @@ function s3_put(
     headers["Content-Type"] = data_type
 
     if !isempty(tags)
-        headers["x-amz-tagging"] = HTTP.escapeuri(tags)
+        headers["x-amz-tagging"] = URIs.escapeuri(tags)
     end
 
     if !isempty(acl)
@@ -898,7 +897,7 @@ function _s3_sign_url_v2(
     content_type="application/octet-stream",
     protocol="http",
 )
-    path = HTTP.escapepath(path)
+    path = URIs.escapepath(path)
 
     expires = round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)
 
@@ -923,7 +922,7 @@ function _s3_sign_url_v2(
     query["Signature"] = strip(base64encode(digest(MD_SHA1, to_sign, key)))
 
     endpoint = string(protocol, "://", bucket, ".s3.", aws.region, ".amazonaws.com")
-    return "$endpoint/$path?$(HTTP.escapeuri(query))"
+    return "$endpoint/$path?$(URIs.escapeuri(query))"
 end
 
 function _s3_sign_url_v4(
@@ -935,7 +934,7 @@ function _s3_sign_url_v4(
     content_type="application/octet-stream",
     protocol="http",
 )
-    path = HTTP.escapepath("/$bucket/$path")
+    path = URIs.escapepath("/$bucket/$path")
 
     now_datetime = now(Dates.UTC)
     datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSS\\Z")
@@ -982,7 +981,7 @@ function _s3_sign_url_v4(
     canonical_request = string(
         "$verb\n",
         "$path\n",
-        "$(HTTP.escapeuri(query))\n",
+        "$(URIs.escapeuri(query))\n",
         "$canonical_headers\n",
         "$canonical_header_names\n",
         "UNSIGNED-PAYLOAD",
@@ -1004,7 +1003,7 @@ function _s3_sign_url_v4(
 
     query["X-Amz-Signature"] = bytes2hex(signature)
 
-    return string(protocol, "://", host, path, "?", HTTP.escapeuri(query))
+    return string(protocol, "://", host, path, "?", URIs.escapeuri(query))
 end
 
 """
