@@ -8,7 +8,6 @@ function awss3_tests(config)
         upper_dict = Dict("Foo-Bar" => 1)
         @test AWSS3.get_robust_case(lower_dict, "Foo-Bar") == 1
         @test AWSS3.get_robust_case(upper_dict, "Foo-Bar") == 1
-        @test AWSS3.get_robust_case(Dict(), "Foo-Bar")
         @test_throws KeyError("Foo-Bar") AWSS3.get_robust_case(Dict(), "Foo-Bar")
     end
 
