@@ -60,8 +60,9 @@ const AbstractS3PathConfig = Union{AbstractAWSConfig,Nothing}
 
 # Utility function to workaround https://github.com/JuliaCloud/AWS.jl/issues/547
 function get_robust_case(x, key)
-    haskey(x, key) && return x[key]
-    return x[lowercase(key)]
+    lkey = lowercase(key)
+    haskey(x, lkey) && return x[lkey]
+    return x[key]
 end
 
 __init__() = FilePathsBase.register(S3Path)
