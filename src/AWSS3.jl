@@ -58,6 +58,12 @@ const SSDict = Dict{String,String}
 const AbstractS3Version = Union{AbstractString,Nothing}
 const AbstractS3PathConfig = Union{AbstractAWSConfig,Nothing}
 
+# Utility function to workaround https://github.com/JuliaCloud/AWS.jl/issues/547
+function get_robust_case(x, key)
+    haskey(x, key) && return x[key]
+    return x[lowercase(key)]
+end
+
 __init__() = FilePathsBase.register(S3Path)
 
 # Declare new `parse` function to avoid type piracy
@@ -837,7 +843,7 @@ function s3_upload_part(
         kwargs...,
     )
 
-    return Dict(response.headers)["ETag"]
+    return get_robust_case(Dict(response.headers), "ETag")
 end
 
 function s3_complete_multipart_upload(

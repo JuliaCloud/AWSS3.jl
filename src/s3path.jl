@@ -333,10 +333,6 @@ function _walkpath!(
     end
 end
 
-function get_robust_case(x, key)
-    haskey(x, key) && return x[key]
-    return x[lowercase(key)]
-end
 """
     stat(fp::S3Path)
 
