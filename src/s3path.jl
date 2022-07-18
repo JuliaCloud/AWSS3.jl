@@ -358,9 +358,9 @@ function Base.stat(fp::S3Path)
 
         # Example: "Thu, 03 Jan 2019 21:09:17 GMT"
         last_modified = DateTime(
-            resp["Last-Modified"][1:(end - 4)], dateformat"e, d u Y H:M:S"
+            get_robust_case(resp, "Last-Modified")[1:(end - 4)], dateformat"e, d u Y H:M:S"
         )
-        s = parse(Int, resp["Content-Length"])
+        s = parse(Int, get_robust_case(resp, "Content-Length"))
         blocks = ceil(Int, s / 4096)
     end
 

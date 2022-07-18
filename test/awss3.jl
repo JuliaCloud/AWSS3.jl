@@ -3,6 +3,14 @@ function awss3_tests(config)
         "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), df))
     end
 
+    @testset "Robust key selection" begin
+        lower_dict = Dict("foo-bar" => 1)
+        upper_dict = Dict("Foo-Bar" => 1)
+        @test AWSS3.get_robust_case(lower_dict, "Foo-Bar") == 1
+        @test AWSS3.get_robust_case(upper_dict, "Foo-Bar") == 1
+        @test_throws KeyError("Foo-Bar") AWSS3.get_robust_case(Dict(), "Foo-Bar")
+    end
+
     @testset "Create Bucket" begin
         s3_create_bucket(config, bucket_name)
         @test bucket_name in s3_list_buckets(config)
