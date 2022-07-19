@@ -212,14 +212,18 @@ function s3_get_file(
 end
 
 """
-   s3_get_meta([::AbstractAWSConfig], bucket, path; [version=], kwargs...)
+    s3_get_meta([::AbstractAWSConfig], bucket, path; [version=], kwargs...)
 
 [HEAD Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html)
 
 Retrieves metadata from an object without returning the object itself.
 
 !!! warning
-    This function returns the headers from `S3.head_object` as `Dict` of key-value pairs. [HTTP/1.1 headers are case insensitive](https://datatracker.ietf.org/doc/html/rfc2616#section-4.2) while [HTTP/2 headers must be lowercase](https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2). Therefore, the casing of the keys of the returned dict may depend on the HTTP client implementation (e.g. via `AWS.DownloadsBackend` vs `AWS.HTTPBackend`).
+    This function returns the headers from `S3.head_object` as `Dict` of key-value pairs.
+    [HTTP/1.1 headers are case insensitive](https://datatracker.ietf.org/doc/html/rfc2616#section-4.2)
+    while [HTTP/2 headers must be lowercase](https://datatracker.ietf.org/doc/html/rfc7540#section-8.1.2).
+    Therefore, the casing of the keys of the returned dict may depend on the HTTP client implementation
+    (e.g. via `AWS.DownloadsBackend` vs `AWS.HTTPBackend`).
 """
 function s3_get_meta(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
