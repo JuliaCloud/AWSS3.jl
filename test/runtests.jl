@@ -64,5 +64,4 @@ include("awss3.jl") # creates `s3path_tests(config)`
             AWS.DEFAULT_BACKEND[] = prev_backend
         end
     end
-
 end
