@@ -435,7 +435,7 @@ function s3path_tests(config)
 
     @testset "Arrow <-> S3Path (de)serialization" begin
         ver = String('A':'Z') * String('0':'5')
-        paths = [
+        paths = Any[
             missing,
             S3Path("s3://$(bucket_name)/a"),
             S3Path("s3://$(bucket_name)/b?versionId=$ver"),
