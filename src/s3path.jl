@@ -656,7 +656,7 @@ end
 const S3PATH_ARROW_NAME = Symbol("JuliaLang.AWSS3.S3Path")
 ArrowTypes.arrowname(::Type{<:S3Path}) = S3PATH_ARROW_NAME
 ArrowTypes.ArrowType(::Type{<:S3Path}) = String
-ArrowTypes.JuliaType(::Val{S3PATH_ARROW_NAME}, ::Any) = S3Path
+ArrowTypes.JuliaType(::Val{S3PATH_ARROW_NAME}, ::Any) = S3Path{Nothing}
 ArrowTypes.fromarrow(::Type{<:S3Path}, uri_string) = S3Path(uri_string)
 
 function ArrowTypes.toarrow(path::S3Path)
