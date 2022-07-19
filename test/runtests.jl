@@ -51,8 +51,18 @@ include("awss3.jl") # creates `s3path_tests(config)`
 
     # Set `AWSConfig` as the default for the following tests
     aws = global_aws_config(AWSConfig())
-    @testset "S3" begin
-        awss3_tests(aws)
-        s3path_tests(aws)
+    
+    prev_backend = AWS.DownloadsBackend[]
+    for backend in (AWS.HTTPBackend, AWS.DownloadsBackend)
+        AWS.DEFAULT_BACKEND[] = backend()
+        try
+            @testset "S3 with $backend" begin
+                awss3_tests(aws)
+                s3path_tests(aws)
+            end
+        finally
+            AWS.DEFAULT_BACKEND[] = prev_backend
+        end
     end
+
 end
