@@ -98,7 +98,7 @@ function awss3_tests(config)
 
     @testset "Check Metadata" begin
         meta = s3_get_meta(config, bucket_name, "key1")
-        @test meta["ETag"] == "\"68bc8898af64159b72f349b391a7ae35\""
+        @test get_robust_case(meta, "ETag") == "\"68bc8898af64159b72f349b391a7ae35\""
     end
 
     @testset "default Content-Type" begin
