@@ -631,6 +631,7 @@ function s3path_tests(config)
             alt_region = prev_config.region == "us-east-2" ? "us-east-1" : "us-east-2"
             try
                 global_aws_config(; region=alt_region) # this is the wrong region!
+                println("Backend: $(AWS.DEFAULT_BACKEND[])")
                 read(path, String)
                 @test_throws AWS.AWSException read(path, String)
 
