@@ -631,9 +631,13 @@ function s3path_tests(config)
             alt_region = prev_config.region == "us-east-2" ? "us-east-1" : "us-east-2"
             try
                 global_aws_config(; region=alt_region) # this is the wrong region!
-                println("Backend: $(AWS.DEFAULT_BACKEND[])")
-                read(path, String)
-                @test_throws AWS.AWSException read(path, String)
+                
+                if AWS.DEFAULT_BACKEND[] isa AWS.DownloadsBackend
+                    # https://github.com/JuliaCloud/AWS.jl/issues/564
+                    @test_broken AWS.AWSException read(path, String)
+                else
+                    @test_throws AWS.AWSException read(path, String)
+                end
 
                 # restore the right region
                 global_aws_config(prev_config)
