@@ -240,7 +240,9 @@ function Base.isdir(fp::S3Path)
     fp.isdirectory || return false
     if isempty(fp.segments)  # special handling of buckets themselves
         try
-            S3.list_objects_v2(fp.bucket, Dict("max-keys"=>"0"); aws_config=get_config(fp))
+            S3.list_objects_v2(
+                fp.bucket, Dict("max-keys" => "0"); aws_config=get_config(fp)
+            )
             return true
         catch e
             if ecode(e) == "NoSuchBucket"
