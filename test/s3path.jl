@@ -427,8 +427,19 @@ function s3path_tests(config)
         @test isdir(path) == true
 
         # No Such Bucket
+        test_exception = AWSException(
+            "NoSuchBucket",
+            "",
+            nothing,
+            AWS.HTTP.Exceptions.StatusError(404, "", "", ""),
+            nothing,
+        )
+        patch = @patch AWSS3.S3.list_objects_v2(args...; kwargs...) = throw(test_exception)
+
         path = S3Path("s3://some_non_existent_bucket_7051649213"; config=config)
-        @test isdir(path) == false
+        apply(patch) do
+            @test isdir(path) == false
+        end
 
         # Other Error
         test_exception = AWSException(
