@@ -422,38 +422,40 @@ function s3path_tests(config)
     end
 
     @testset "isdir" begin
-        # Top level
-        path = S3Path("s3://$(bucket_name)"; config=config)
-        @test isdir(path) == true
-
-        # No Such Bucket
-        test_exception = AWSException(
-            "NoSuchBucket",
-            "",
-            nothing,
-            AWS.HTTP.Exceptions.StatusError(404, "", "", ""),
-            nothing,
-        )
-        patch = @patch AWSS3.S3.list_objects_v2(args...; kwargs...) = throw(test_exception)
-
-        path = S3Path("s3://some_non_existent_bucket_7051649213"; config=config)
-        apply(patch) do
-            @test isdir(path) == false
+        function _generate_exception(code)
+            return AWSException(
+                code, "", nothing, AWS.HTTP.Exceptions.StatusError(404, "", "", ""), nothing
+            )
         end
 
-        # Other Error
-        test_exception = AWSException(
-            "TestException",
-            "",
-            nothing,
-            AWS.HTTP.Exceptions.StatusError(404, "", "", ""),
-            nothing,
-        )
-        patch = @patch AWSS3.S3.list_objects_v2(args...; kwargs...) = throw(test_exception)
+        s3_path = S3Path("s3://$(bucket_name)"; config=config)
 
-        path = S3Path("s3://$(bucket_name)"; config=config)
-        apply(patch) do
-            @test_throws AWSException isdir(path)
+        @testset "top level bucket" begin
+            @testset "success" begin
+                @test isdir(s3_path) == true
+            end
+
+            @testset "NoSuchBucket" begin
+                test_exception = _generate_exception("NoSuchBucket")
+                patch = @patch function AWSS3.S3.list_objects_v2(args...; kwargs...)
+                    throw(test_exception)
+                end
+
+                apply(patch) do
+                    @test isdir(s3_path) == false
+                end
+            end
+
+            @testset "Other Exception" begin
+                test_exception = _generate_exception("TestException")
+                patch = @patch function AWSS3.S3.list_objects_v2(args...; kwargs...)
+                    throw(test_exception)
+                end
+
+                apply(patch) do
+                    @test_throws AWSException isdir(s3_path)
+                end
+            end
         end
     end
 
