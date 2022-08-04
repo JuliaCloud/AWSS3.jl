@@ -421,6 +421,31 @@ function s3path_tests(config)
         end
     end
 
+    @testset "isdir" begin
+        # Top level
+        path = S3Path("s3://$(bucket_name)"; config=config)
+        @test isdir(path) == true
+
+        # No Such Bucket
+        path = S3Path("s3://some_non_existent_bucket_7051649213"; config=config)
+        @test isdir(path) == false
+
+        # Other Error
+        test_exception = AWSException(
+            "TestException",
+            "",
+            nothing,
+            AWS.HTTP.Exceptions.StatusError(404, "", "", ""),
+            nothing,
+        )
+        patch = @patch AWSS3.S3.list_objects_v2(args...; kwargs...) = throw(test_exception)
+
+        path = S3Path("s3://$(bucket_name)"; config=config)
+        apply(patch) do
+            @test_throws AWSException isdir(path)
+        end
+    end
+
     @testset "JSON roundtripping" begin
         json_path = S3Path("s3://$(bucket_name)/test_json"; config=config)
         my_dict = Dict("key" => "value", "key2" => 5.0)

@@ -51,6 +51,7 @@ using Base64
 using UUIDs
 using URIs
 using Compat: @something
+using Mocking
 
 @service S3 use_response_type = true
 

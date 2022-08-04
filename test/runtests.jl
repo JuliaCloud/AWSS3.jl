@@ -10,6 +10,9 @@ using FilePathsBase: /, join
 using FilePathsBase.TestPaths
 using UUIDs: uuid4
 using JSON3
+using Mocking
+
+Mocking.activate()
 
 @service S3 use_response_type = true
 
