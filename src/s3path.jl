@@ -239,8 +239,18 @@ Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
     fp.isdirectory || return false
     if isempty(fp.segments)  # special handling of buckets themselves
-        # may not be super efficient for those with billions of buckets, but really our best option
-        fp.bucket ∈ s3_list_buckets(get_config(fp))
+        try
+            @mock S3.list_objects_v2(
+                fp.bucket, Dict("max-keys" => "0"); aws_config=get_config(fp)
+            )
+            return true
+        catch e
+            if ecode(e) == "NoSuchBucket"
+                return false
+            else
+                rethrow()
+            end
+        end
     else
         exists(fp)
     end

@@ -2,14 +2,17 @@ using AWS
 using AWS.AWSExceptions: AWSException
 using AWSS3
 using Arrow
-using Test
 using Dates
-using Retry
 using FilePathsBase
-using FilePathsBase: /, join
 using FilePathsBase.TestPaths
-using UUIDs: uuid4
+using FilePathsBase: /, join
 using JSON3
+using Mocking
+using Retry
+using Test
+using UUIDs: uuid4
+
+Mocking.activate()
 
 @service S3 use_response_type = true
 

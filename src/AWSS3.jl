@@ -39,18 +39,19 @@ export S3Path,
 using AWS
 using AWS.AWSServices: s3
 using ArrowTypes
+using Base64
+using Compat: @something
+using Dates
+using EzXML
 using FilePathsBase
 using FilePathsBase: /, join
+using Mocking
 using OrderedCollections: OrderedDict, LittleDict
-using SymDict
 using Retry
-using XMLDict
-using EzXML
-using Dates
-using Base64
-using UUIDs
+using SymDict
 using URIs
-using Compat: @something
+using UUIDs
+using XMLDict
 
 @service S3 use_response_type = true
 
