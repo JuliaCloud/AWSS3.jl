@@ -243,8 +243,18 @@ Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
 function Base.isdir(fp::S3Path)
     fp.isdirectory || return false
     if isempty(fp.segments)  # special handling of buckets themselves
-        # may not be super efficient for those with billions of buckets, but really our best option
-        fp.bucket ∈ s3_list_buckets(get_config(fp))
+        try
+            @mock S3.list_objects_v2(
+                fp.bucket, Dict("max-keys" => "0"); aws_config=get_config(fp)
+            )
+            return true
+        catch e
+            if ecode(e) == "NoSuchBucket"
+                return false
+            else
+                rethrow()
+            end
+        end
     else
         exists(fp)
     end
@@ -362,9 +372,9 @@ function Base.stat(fp::S3Path)
 
         # Example: "Thu, 03 Jan 2019 21:09:17 GMT"
         last_modified = DateTime(
-            resp["Last-Modified"][1:(end - 4)], dateformat"e, d u Y H:M:S"
+            get_robust_case(resp, "Last-Modified")[1:(end - 4)], dateformat"e, d u Y H:M:S"
         )
-        s = parse(Int, resp["Content-Length"])
+        s = parse(Int, get_robust_case(resp, "Content-Length"))
         blocks = ceil(Int, s / 4096)
     end
 
@@ -660,7 +670,7 @@ end
 const S3PATH_ARROW_NAME = Symbol("JuliaLang.AWSS3.S3Path")
 ArrowTypes.arrowname(::Type{<:S3Path}) = S3PATH_ARROW_NAME
 ArrowTypes.ArrowType(::Type{<:S3Path}) = String
-ArrowTypes.JuliaType(::Val{S3PATH_ARROW_NAME}, ::Any) = S3Path
+ArrowTypes.JuliaType(::Val{S3PATH_ARROW_NAME}, ::Any) = S3Path{Nothing}
 ArrowTypes.fromarrow(::Type{<:S3Path}, uri_string) = S3Path(uri_string)
 
 function ArrowTypes.toarrow(path::S3Path)
