@@ -151,8 +151,8 @@ function Base.tryparse(
     return S3Path(path, root, drive, isdirectory, version, config)
 end
 
-function Base.parse(::Type{P}, pth::P; kwargs...) where P<:S3Path
-    return pth
+function Base.parse(::Type{P}, p::P; kwargs...) where {P<:S3Path}
+    return p
 end
 
 function normalize_bucket_name(bucket)
