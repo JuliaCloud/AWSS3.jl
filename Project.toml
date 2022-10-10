@@ -22,7 +22,7 @@ XMLDict = "228000da-037f-5747-90a9-8195ccbf91a5"
 [compat]
 AWS = "1.63.1"
 ArrowTypes = "1.2"
-Compat = "3.29.0"
+Compat = "3.29.0, 4"
 EzXML = "0.9, 1"
 FilePathsBase = "0.9.11"
 JSON3 = "1"
