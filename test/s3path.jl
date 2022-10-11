@@ -421,6 +421,44 @@ function s3path_tests(config)
         end
     end
 
+    @testset "isdir" begin
+        function _generate_exception(code)
+            return AWSException(
+                code, "", nothing, AWS.HTTP.Exceptions.StatusError(404, "", "", ""), nothing
+            )
+        end
+
+        s3_path = S3Path("s3://$(bucket_name)"; config=config)
+
+        @testset "top level bucket" begin
+            @testset "success" begin
+                @test isdir(s3_path) == true
+            end
+
+            @testset "NoSuchBucket" begin
+                test_exception = _generate_exception("NoSuchBucket")
+                patch = @patch function AWSS3.S3.list_objects_v2(args...; kwargs...)
+                    throw(test_exception)
+                end
+
+                apply(patch) do
+                    @test isdir(s3_path) == false
+                end
+            end
+
+            @testset "Other Exception" begin
+                test_exception = _generate_exception("TestException")
+                patch = @patch function AWSS3.S3.list_objects_v2(args...; kwargs...)
+                    throw(test_exception)
+                end
+
+                apply(patch) do
+                    @test_throws AWSException isdir(s3_path)
+                end
+            end
+        end
+    end
+
     @testset "JSON roundtripping" begin
         json_path = S3Path("s3://$(bucket_name)/test_json"; config=config)
         my_dict = Dict("key" => "value", "key2" => 5.0)
@@ -435,13 +473,14 @@ function s3path_tests(config)
 
     @testset "Arrow <-> S3Path (de)serialization" begin
         ver = String('A':'Z') * String('0':'5')
-        paths = S3Path[
+        paths = Union{Missing,S3Path}[
+            missing,
             S3Path("s3://$(bucket_name)/a"),
             S3Path("s3://$(bucket_name)/b?versionId=$ver"),
             # format trick: using this comment to force use of multiple lines
         ]
         tbl = Arrow.Table(Arrow.tobuffer((; paths=paths)))
-        @test all(tbl.paths .== paths)
+        @test all(isequal.(tbl.paths, paths))
         push!(paths, S3Path("s3://$(bucket_name)/c"; config=config))
         @test_throws ArgumentError Arrow.tobuffer((; paths=paths))
     end
