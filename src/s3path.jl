@@ -610,7 +610,7 @@ function Base.readdir(fp::S3Path; join=false, sort=true)
         sort && sort!(results)
 
         # Return results, possibly joined with the root path if join=true
-        return join ? joinpath.(fp, results) : results
+        return join ? string.(joinpath.(fp, results)) : results
     else
         throw(ArgumentError("\"$fp\" is not a directory"))
     end
