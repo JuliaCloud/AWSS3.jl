@@ -98,12 +98,12 @@ function awss3_tests(config)
 
     @testset "Check Metadata" begin
         meta = s3_get_meta(config, bucket_name, "key1")
-        @test meta["ETag"] == "\"68bc8898af64159b72f349b391a7ae35\""
+        @test AWSS3.get_robust_case(meta, "ETag") == "\"68bc8898af64159b72f349b391a7ae35\""
     end
 
     @testset "default Content-Type" begin
         # https://github.com/samoconnor/AWSS3.jl/issues/24
-        ctype(key) = s3_get_meta(bucket_name, key)["Content-Type"]
+        ctype(key) = AWSS3.get_robust_case(s3_get_meta(bucket_name, key), "Content-Type")
 
         for k in ["file.foo", "file", "file_html", "file.d/html", "foobar.html/file.htm"]
             is_aws(config) && k == "file" && continue
