@@ -1,0 +1,82 @@
+# `aws cloudformation create-stack --stack-name AWSS3-jl-test --template-body file://awss3_jl_test.yaml --capabilities CAPABILITY_NAMED_IAM`
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  A stack for testing AWSS3.jl from public CI
+
+Parameters:
+  GitHubOrg:
+    Description: GitHub organization used as part of assuming the CI role
+    Type: String
+    AllowedPattern: ^[\w.-]+$
+    Default: JuliaCloud
+
+  GitHubRepo:
+    Description: GitHub repository used as part of assuming the CI role
+    Type: String
+    AllowedPattern: ^[\w.-]+$
+    Default: AWSS3.jl
+
+Resources:
+  PublicCIRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Role used for testing
+      RoleName: !Ref GitHubRepo
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              # Requires that an Identify Provider has been manually added in the AWS account.
+              # https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html#manage-oidc-provider-console
+              # https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services#adding-the-identity-provider-to-aws
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub:
+                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/trying
+                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/staging
+                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master
+
+  S3TestPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-S3TestPolicy
+      Roles:
+        - !Ref PublicCIRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: s3:ListAllMyBuckets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:GetBucketPolicyStatus
+              - s3:ListBucketByTags
+              - s3:GetBucketTagging
+              - s3:PutBucketTagging
+              - s3:ListBucketVersions
+              - s3:CreateBucket
+              - s3:ListBucket
+              - s3:GetBucketVersioning
+              - s3:DeleteBucket
+              - s3:PutBucketVersioning
+            Resource: arn:aws:s3:::ocaws.jl.test.*
+          - Effect: Allow
+            Action:
+              - s3:DeleteObjectTagging
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObjectVersion
+              - s3:GetObjectVersionTagging
+              - s3:PutObjectVersionTagging
+              - s3:GetObjectTagging
+              - s3:PutObjectTagging
+              - s3:DeleteObjectVersionTagging
+              - s3:DeleteObject
+              - s3:GetObjectVersion
+            Resource: arn:aws:s3:::ocaws.jl.test.*/*
