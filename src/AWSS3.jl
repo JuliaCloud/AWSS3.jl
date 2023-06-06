@@ -326,9 +326,18 @@ end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 
 """
-    s3_delete([::AbstractAWSConfig], bucket, path; [version=], kwargs...)
+    s3_delete([::AbstractAWSConfig], bucket, path; [version], kwargs...)
 
-[DELETE Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
+Deletes an object from a bucket. The `version` argument can be used to delete a specific
+version.
+
+# API Calls
+
+- [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+
+# Required Permissions
+
+- [`s3:DeleteObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObject)
 """
 function s3_delete(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
@@ -385,9 +394,18 @@ end
 s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
 
 """
-    s3_create_bucket([:AbstractAWSConfig], bucket; kwargs...)
+    s3_create_bucket([::AbstractAWSConfig], bucket; kwargs...)
 
-[PUT Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html)
+Creates a new S3 bucket with the globally unique `bucket` name. The bucket will be created
+AWS region associated with the `AbstractAWSConfig` (defaults to "us-east-1").
+
+# API Calls
+
+- [`CreateBucket`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+
+# Required Permissions
+
+- [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-CreateBucket)
 """
 function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     r = @protected try
@@ -445,9 +463,18 @@ end
 s3_put_cors(a...; b...) = s3_put_cors(AWS.global_aws_config(), a...; b...)
 
 """
-    s3_enable_versioning([::AbstractAWSConfig], bucket; kwargs...)
+    s3_enable_versioning([::AbstractAWSConfig], bucket, [status]; kwargs...)
 
-[Enable versioning for `bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html).
+Enables or disables versioning for all objects within the given `bucket`. Use `status` to
+either enable or disable versioning (respectively "Enabled" and "Suspended").
+
+# API Calls
+
+- [`PutBucketVersioning`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html)
+
+# Required Permissions
+
+- [`s3:PutBucketVersioning`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketVersioning)
 """
 function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; kwargs...)
     versioning_config = """
@@ -562,7 +589,18 @@ s3_delete_tags(a...; b...) = s3_delete_tags(global_aws_config(), a...; b...)
 """
     s3_delete_bucket([::AbstractAWSConfig], "bucket"; kwargs...)
 
-[DELETE Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html).
+Deletes an empty bucket. All objects in the bucket must be deleted before a bucket can be
+deleted.
+
+# API Calls
+
+- [`DeleteBucket`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
+
+# Required Permissions
+
+- [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteBucket)
+
+See also [`AWSS3.s3_nuke_bucket`](@ref).
 """
 function s3_delete_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     return parse(S3.delete_bucket(bucket; aws_config=aws, kwargs...))
@@ -572,7 +610,15 @@ s3_delete_bucket(a; b...) = s3_delete_bucket(global_aws_config(), a; b...)
 """
     s3_list_buckets([::AbstractAWSConfig]; kwargs...)
 
-[List of all buckets owned by the sender of the request](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html).
+Return a list of all of the buckets owned by the authenticated sender of the request.
+
+# API Calls
+
+- [`ListBuckets`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
+
+# Required Permissions
+
+- [`s3:ListAllMyBuckets`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListAllMyBuckets)
 """
 function s3_list_buckets(aws::AbstractAWSConfig=global_aws_config(); kwargs...)
     r = S3.list_buckets(; aws_config=aws, kwargs...)
@@ -684,7 +730,16 @@ s3_list_keys(a...; b...) = s3_list_keys(global_aws_config(), a...; b...)
 """
     s3_list_versions([::AbstractAWSConfig], bucket, [path_prefix]; kwargs...)
 
-[List object versions](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html) in `bucket` with optional `path_prefix`.
+List metadata about all versions of the objects in the `bucket` matching the matching the
+optional `path_prefix`.
+
+# API Calls
+
+- [`ListObjectVersions`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html)
+
+# Required Permissions
+
+- [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
 """
 function s3_list_versions(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs...)
     more = true
@@ -1062,15 +1117,32 @@ end
 s3_sign_url(a...; b...) = s3_sign_url(global_aws_config(), a...; b...)
 
 """
-    s3_nuke_bucket(bucket_name)
+    s3_nuke_bucket([::AbstractAWSConfig], bucket_name)
 
-This function is NOT exported on purpose. AWS does not officially support this type of action,
-although it is a very nice utility one this is not exported just as a safe measure against
-accidentally blowing up your bucket.
+Deletes a bucket including all of the object versions in that bucket. Users should not call
+this function unless they are certain they want to permanently delete all of the data that
+resides within this bucket.
+
+The `s3_nuke_bucket` is purposefully *not* exported as a safe guard against accidental
+usage.
 
 !!! warning
 
-    It will delete all versions of objects in the given bucket and then the bucket itself.
+    Permanent data loss will occur when using this function. Do not use this function unless
+    you understand the risks. By using this function you accept all responsibility around
+    any repercussions with the loss of this data.
+
+# API Calls
+
+- [`ListObjectVersions`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html)
+- [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+- [`DeleteBucket`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
+
+# Required Permissions
+
+- [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
+- [`s3:DeleteObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObject)
+- [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteBucket)
 """
 function s3_nuke_bucket(aws::AbstractAWSConfig, bucket_name)
     for v in s3_list_versions(aws, bucket_name)

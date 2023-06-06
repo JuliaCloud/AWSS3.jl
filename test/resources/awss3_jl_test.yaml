@@ -55,28 +55,28 @@ Resources:
             Resource: "*"
           - Effect: Allow
             Action:
-              - s3:GetBucketPolicyStatus
-              - s3:ListBucketByTags
-              - s3:GetBucketTagging
-              - s3:PutBucketTagging
-              - s3:ListBucketVersions
+              # - s3:GetBucketPolicyStatus
+              # - s3:ListBucketByTags
+              # - s3:GetBucketTagging
+              # - s3:PutBucketTagging
               - s3:CreateBucket
-              - s3:ListBucket
-              - s3:GetBucketVersioning
-              - s3:DeleteBucket
               - s3:PutBucketVersioning
+              - s3:ListBucketVersions
+              # - s3:ListBucket
+              # - s3:GetBucketVersioning
+              - s3:DeleteBucket
             Resource: arn:aws:s3:::ocaws.jl.test.*
           - Effect: Allow
             Action:
-              - s3:DeleteObjectTagging
-              - s3:PutObject
-              - s3:GetObject
-              - s3:DeleteObjectVersion
-              - s3:GetObjectVersionTagging
-              - s3:PutObjectVersionTagging
-              - s3:GetObjectTagging
-              - s3:PutObjectTagging
-              - s3:DeleteObjectVersionTagging
+          #     - s3:DeleteObjectTagging
+          #     - s3:PutObject
+          #     - s3:GetObject
+          #     - s3:DeleteObjectVersion
+          #     - s3:GetObjectVersionTagging
+          #     - s3:PutObjectVersionTagging
+          #     - s3:GetObjectTagging
+          #     - s3:PutObjectTagging
+          #     - s3:DeleteObjectVersionTagging
               - s3:DeleteObject
-              - s3:GetObjectVersion
+          #     - s3:GetObjectVersion
             Resource: arn:aws:s3:::ocaws.jl.test.*/*
