@@ -65,7 +65,7 @@ Resources:
               # - s3:ListBucket
               # - s3:GetBucketVersioning
               - s3:DeleteBucket
-            Resource: arn:aws:s3:::ocaws.jl.test.*
+            Resource: arn:aws:s3:::awss3.jl.test.*
           - Effect: Allow
             Action:
           #     - s3:DeleteObjectTagging
@@ -79,4 +79,4 @@ Resources:
           #     - s3:DeleteObjectVersionTagging
               - s3:DeleteObject
           #     - s3:GetObjectVersion
-            Resource: arn:aws:s3:::ocaws.jl.test.*/*
+            Resource: arn:aws:s3:::awss3.jl.test.*/*

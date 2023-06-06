@@ -1,6 +1,7 @@
 function awss3_tests(config)
+    # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
     bucket_name = let df = dateformat"yyyymmdd\THHMMSS\Z"
-        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), df))
+        lowercase("awss3.jl.test." * Dates.format(now(Dates.UTC), df))
     end
 
     @testset "Robust key selection" begin
