@@ -47,6 +47,16 @@ function awss3_tests(config)
         @test s3_get(config, bucket_name, "key2") == b"data2.v1"
         @test s3_get(bucket_name, "key3") == b"data3.v3"
         @test s3_get(bucket_name, "key4") == b"data3.v4"
+
+        try
+            s3_get(bucket_name, "key5")
+        catch e
+            e isa AWSException || rethrow()
+
+            # Will see a 403 status if we lack the `s3:ListBucket` permission.
+            @test e.cause.status == 404
+        end
+
         @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
     end
 
@@ -272,7 +282,7 @@ function awss3_tests(config)
             @test !in(bucket_name, s3_list_buckets(config))
         end
 
-        @testset "Delete Non-Existant Bucket" begin
+        @testset "Delete Non-Existent Bucket" begin
             @test_throws AWS.AWSException s3_delete_bucket(config, bucket_name)
         end
     end

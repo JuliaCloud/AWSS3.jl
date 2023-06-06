@@ -97,18 +97,17 @@ s3_arn(bucket, path) = s3_arn("$bucket/$path")
 """
     s3_get([::AbstractAWSConfig], bucket, path; <keyword arguments>)
 
-[Get Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html)
-from `path` in `bucket`.
+Retrieves an object from the `bucket` for a given `path`.
 
 # Optional Arguments
-- `version=`: version of object to get.
-- `retry=true`: try again on "NoSuchBucket", "NoSuchKey"
-                (common if object was recently created).
+- `version=nothing`: version of object to get.
+- `retry=true`: try again on "NoSuchBucket", "NoSuchKey" (common if object was recently
+  created).
 - `raw=false`:  return response as `Vector{UInt8}`
 - `byte_range=nothing`:  given an iterator of `(start_byte, end_byte)` gets only
-    the range of bytes of the object from `start_byte` to `end_byte`.  For example,
-    `byte_range=1:4` gets bytes 1 to 4 inclusive.  Arguments should use the Julia convention
-    of 1-based indexing.
+  the range of bytes of the object from `start_byte` to `end_byte`.  For example,
+  `byte_range=1:4` gets bytes 1 to 4 inclusive.  Arguments should use the Julia convention
+  of 1-based indexing.
 - `header::Dict{String,String}`: pass in an HTTP header to the request.
 
 As an example of how to set custom HTTP headers, the below is equivalent to
@@ -117,6 +116,19 @@ As an example of how to set custom HTTP headers, the below is equivalent to
 ```julia
 s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))
 ```
+
+# API Calls
+
+- [`GetObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+
+# Permissions
+
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
+- [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
+  when `version` is not set to `nothing`.
+- [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
+  (Optional): allows requests to non-existent objects to throw a exception with HTTP status
+  code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_get(
     aws::AbstractAWSConfig,
@@ -213,11 +225,22 @@ function s3_get_file(
 end
 
 """
-   s3_get_meta([::AbstractAWSConfig], bucket, path; [version=], kwargs...)
-
-[HEAD Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html)
+   s3_get_meta([::AbstractAWSConfig], bucket, path; [version], kwargs...)
 
 Retrieves metadata from an object without returning the object itself.
+
+# API Calls
+
+- [`HeadObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)
+
+# Permissions
+
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
+# - [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
+#   when `version` is not set to `nothing`.
+- [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
+  (Optional): allows requests to non-existent objects to throw a exception with HTTP status
+  code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_get_meta(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
@@ -497,19 +520,28 @@ end
 s3_enable_versioning(a; b...) = s3_enable_versioning(global_aws_config(), a; b...)
 
 """
-    s3_put_tags([::AbstractAWSConfig], bucket, [path,] tags::Dict; kwargs...)
+    s3_put_tags([::AbstractAWSConfig], bucket, [path], tags::Dict; kwargs...)
 
-PUT `tags` on
-[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTtagging.html)
-or
-[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUTtagging.html).
+Sets the tags for a bucket or an existing object. When `path` is specified then tagging
+is performed on the object, otherwise it is performed on the `bucket`.
 
-See also `tags=` option on [`s3_put`](@ref).
+See also [`s3_put_tags`](@ref), [`s3_delete_tags`](@ref), and [`s3_put`'s](@ref) `tag`
+option.
+
+# API Calls
+
+Bucket Tagging:
+- [`PutBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html)
+Object Tagging:
+- [`PutObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html)
+
+# Required Permissions
+
+Bucket Tagging:
+- [`s3:PutBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketTagging)
+Object Tagging:
+- [`s3:PutObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutObjectTagging)
 """
-function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
-    return s3_put_tags(aws, bucket, "", tags; kwargs...)
-end
-
 function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs...)
     tag_set = Dict("Tag" => [Dict("Key" => k, "Value" => v) for (k, v) in tags])
     tags = Dict("Tagging" => Dict("TagSet" => tag_set))
@@ -529,15 +561,33 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs.
     return parse(r)
 end
 
+function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
+    return s3_put_tags(aws, bucket, "", tags; kwargs...)
+end
+
 s3_put_tags(a...) = s3_put_tags(global_aws_config(), a...)
 
 """
     s3_get_tags([::AbstractAWSConfig], bucket, [path]; kwargs...)
 
-Get tags from
-[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETtagging.html)
-or
-[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html).
+Get the tags associated with a bucket or an existing object. When `path` is specified then
+tag retrieval is performed on the object, otherwise it is performed on the `bucket`.
+
+See also [`s3_put_tags`](@ref) and [`s3_delete_tags`](@ref).
+
+# API Calls
+
+Bucket Tagging:
+- [`GetBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html)
+Object Tagging:
+- [`GetObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+
+# Required Permissions
+
+Bucket Tagging:
+- [`s3:GetBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetBucketTagging)
+Object Tagging:
+- [`s3:GetObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectTagging)
 """
 function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     @protected try
@@ -570,10 +620,24 @@ s3_get_tags(a...; b...) = s3_get_tags(global_aws_config(), a...; b...)
 """
     s3_delete_tags([::AbstractAWSConfig], bucket, [path])
 
-Delete tags from
-[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETEtagging.html)
-or
-[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html).
+Delete the tags associated with a bucket or an existing object. When `path` is specified then
+tag deletion is performed on the object, otherwise it is performed on the `bucket`.
+
+See also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref).
+
+# API Calls
+
+Bucket Tagging:
+- [`DeleteBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html)
+Object Tagging:
+- [`DeleteObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html)
+
+# Required Permissions
+
+Bucket Tagging:
+- [`s3:PutBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketTagging)
+Object Tagging:
+- [`s3:DeleteObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectTagging)
 """
 function s3_delete_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     r = if isempty(path)

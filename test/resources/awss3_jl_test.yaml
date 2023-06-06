@@ -49,34 +49,55 @@ Resources:
         - !Ref PublicCIRole
       PolicyDocument:
         Version: 2012-10-17
+
+        # It isn't necessary to update the names of the tests which requires these permissions.
+        # However, when verifying the minimal set of permissions needed this work was done so it
+        # was also documented.
         Statement:
-          - Effect: Allow
-            Action: s3:ListAllMyBuckets
-            Resource: "*"
+          # - Effect: Allow
+          #   Action:
+          #     # For "Create Bucket" tests
+          #     - s3:ListAllMyBuckets
+          #   Resource: "*"
           - Effect: Allow
             Action:
-              # - s3:GetBucketPolicyStatus
-              # - s3:ListBucketByTags
-              # - s3:GetBucketTagging
-              # - s3:PutBucketTagging
-              - s3:CreateBucket
-              - s3:PutBucketVersioning
-              - s3:ListBucketVersions
-              # - s3:ListBucket
-              # - s3:GetBucketVersioning
-              - s3:DeleteBucket
+          #     # For "Create Bucket" tests
+          #     - s3:CreateBucket
+          #     - s3:PutBucketVersioning
+          #     - s3:ListBucketVersions
+
+          #     # For "Bucket Tagging" tests
+          #     # - s3:PutBucketTagging
+          #     # - s3:GetBucketTagging
+
+                # For "Create Objects" tests
+                - s3:ListBucket
+          #     # - s3:GetBucketPolicyStatus
+          #     # - s3:ListBucketByTags
+          #     # - s3:ListBucket
+          #     # - s3:GetBucketVersioning
+
+          #     # For "Empty and Delete Bucket" and "Delete Non-Existent Bucket" tests
+          #     - s3:DeleteBucket
+              
             Resource: arn:aws:s3:::awss3.jl.test.*
           - Effect: Allow
             Action:
-          #     - s3:DeleteObjectTagging
-          #     - s3:PutObject
-          #     - s3:GetObject
-          #     - s3:DeleteObjectVersion
-          #     - s3:GetObjectVersionTagging
-          #     - s3:PutObjectVersionTagging
-          #     - s3:GetObjectTagging
-          #     - s3:PutObjectTagging
-          #     - s3:DeleteObjectVersionTagging
-              - s3:DeleteObject
-          #     - s3:GetObjectVersion
+              # # For "Empty and Delete Bucket"
+              # - s3:DeleteObject
+
+              # For "Create Objects" tests
+              - s3:PutObject
+              - s3:GetObject
+              - s3:PutObjectTagging
+              - s3:GetObjectTagging
+              - s3:DeleteObjectTagging
+
+              # - s3:PutObject
+              # - s3:GetObject
+              # - s3:DeleteObjectVersion
+              # - s3:GetObjectVersionTagging
+              # - s3:PutObjectVersionTagging
+              # - s3:DeleteObjectVersionTagging
+              # - s3:GetObjectVersion
             Resource: arn:aws:s3:::awss3.jl.test.*/*
