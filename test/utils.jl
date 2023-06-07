@@ -11,9 +11,7 @@ function minio_server(body, dirs=[mktempdir()]; address="localhost:9005")
         sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
 
         config = MinioConfig(
-            "http://$address";
-            username="minioadmin",
-            password="minioadmin",
+            "http://$address"; username="minioadmin", password="minioadmin"
         )
         body(config)
     finally
@@ -28,7 +26,7 @@ function gen_bucket_name(prefix="awss3.jl.test.")
 end
 
 function assume_role(
-    aws_config::AbstractAWSConfig, role; duration=nothing, mfa_serial=nothing,
+    aws_config::AbstractAWSConfig, role; duration=nothing, mfa_serial=nothing
 )
     if startswith(role, "arn:aws:iam")
         role_arn = role
@@ -77,7 +75,7 @@ function assume_role(
             role_user["Arn"];
             expiry=DateTime(rstrip(role_creds["Expiration"], 'Z')),
             renew=() -> assume_role(aws_config, role_arn; duration, mfa_serial).credentials,
-        )
+        ),
     )
 end
 

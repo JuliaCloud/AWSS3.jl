@@ -897,7 +897,9 @@ specified then all objects in the bucket will be purged.
 - [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
 - [`s3:DeleteObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectVersion)
 """
-function s3_purge_versions(aws::AbstractAWSConfig, bucket, path_prefix="", pattern=""; kwargs...)
+function s3_purge_versions(
+    aws::AbstractAWSConfig, bucket, path_prefix="", pattern=""; kwargs...
+)
     for v in s3_list_versions(aws, bucket, path_prefix; kwargs...)
         if pattern == "" || occursin(pattern, v["Key"])
             if v["IsLatest"] != "true"
