@@ -25,27 +25,11 @@ include("s3path.jl") # creates `awss3_tests(config)`
 include("awss3.jl") # creates `s3path_tests(config)`
 
 @testset "AWSS3.jl" begin
+    # We can run most tests locally under MinIO without requring AWS credentials
     @testset "Minio" begin
-        # We run most tests under Minio. This can be done locally by those
-        # without access to the s3 bucket under which CI is performed.
-        # We then run all tests with s3 directly.
-
-        port = 9005
-        minio_server = Minio.Server([mktempdir()]; address="localhost:$port")
-
-        try
-            run(minio_server; wait=false)
-            sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
-            config = global_aws_config(
-                MinioConfig(
-                    "http://localhost:$port"; username="minioadmin", password="minioadmin"
-                ),
-            )
+        minio_server() do config
             awss3_tests(config)
             s3path_tests(config)
-        finally
-            # Make sure we kill the server even if a test failed.
-            kill(minio_server)
         end
     end
 

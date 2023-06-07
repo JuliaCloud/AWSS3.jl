@@ -3,13 +3,32 @@ const BUCKET_DATE_FORMAT = dateformat"yyyymmdd\THHMMSS\Z"
 is_aws(config) = config isa AWSConfig
 AWS.aws_account_number(::Minio.MinioConfig) = "123"
 
+function minio_server(body, dirs=[mktempdir()]; address="localhost:9005")
+    server = Minio.Server(dirs; address)
+
+    try
+        run(server; wait=false)
+        sleep(0.5)  # give the server just a bit of time, though it is amazingly fast to start
+
+        config = MinioConfig(
+            "http://$address";
+            username="minioadmin",
+            password="minioadmin",
+        )
+        body(config)
+    finally
+        # Make sure we kill the server even if a test failed.
+        kill(server)
+    end
+end
+
 function gen_bucket_name(prefix="awss3.jl.test.")
     # # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
     return lowercase(prefix * Dates.format(now(Dates.UTC), BUCKET_DATE_FORMAT))
 end
 
 function assume_role(
-    role; aws_config::AbstractAWSConfig, duration=nothing, mfa_serial=nothing,
+    aws_config::AbstractAWSConfig, role; duration=nothing, mfa_serial=nothing,
 )
     if startswith(role, "arn:aws:iam")
         role_arn = role
@@ -57,13 +76,19 @@ function assume_role(
             role_creds["SessionToken"],
             role_user["Arn"];
             expiry=DateTime(rstrip(role_creds["Expiration"], 'Z')),
-            renew=() -> assume_role(config, role_arn; duration, mfa_serial).credentials,
-        ),
+            renew=() -> assume_role(aws_config, role_arn; duration, mfa_serial).credentials,
+        )
     )
 end
 
+# TODO: We're ignoring assume role calls when using a `MinioConfig` as we don't yet support
+# this.
+function assume_role(config::MinioConfig, role; kwargs...)
+    return config
+end
+
 function assume_testset_role(role_suffix; base_config)
-    return assume_role("AWSS3.jl-$role_suffix"; aws_config=base_config)
+    return assume_role(base_config, "AWSS3.jl-$role_suffix")
 end
 
 function with_aws_config(f, config::AbstractAWSConfig)
