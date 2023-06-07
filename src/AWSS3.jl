@@ -123,9 +123,10 @@ s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first
 
 # Permissions
 
-- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject):
+  (conditional): required when `version === nothing`.
 - [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
-  when `version` is not set to `nothing`.
+  (conditional): required when `version !== nothing`.
 - [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
   (Optional): allows requests to non-existent objects to throw a exception with HTTP status
   code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
@@ -578,10 +579,10 @@ Object Tagging:
 
 # Permissions
 
-Bucket Tagging:
 - [`s3:PutBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketTagging)
-Object Tagging:
+  (conditional): required for when `path` is not specified (bucket tagging).
 - [`s3:PutObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutObjectTagging)
+  (conditional): required when `path` is specified (object tagging).
 """
 function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs...)
     tag_set = Dict("Tag" => [Dict("Key" => k, "Value" => v) for (k, v) in tags])
@@ -625,10 +626,10 @@ Object Tagging:
 
 # Permissions
 
-Bucket Tagging:
 - [`s3:GetBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetBucketTagging)
-Object Tagging:
+  (conditional): required for when `path` is not specified (bucket tagging).
 - [`s3:GetObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectTagging)
+  (conditional): required when `path` is specified (object tagging).
 """
 function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     @protected try
@@ -675,10 +676,10 @@ Object Tagging:
 
 # Permissions
 
-Bucket Tagging:
 - [`s3:PutBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketTagging)
-Object Tagging:
+  (conditional): required for when `path` is not specified (bucket tagging).
 - [`s3:DeleteObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectTagging)
+  (conditional): required when `path` is specified (object tagging).
 """
 function s3_delete_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     r = if isempty(path)
@@ -697,6 +698,8 @@ s3_delete_tags(a...; b...) = s3_delete_tags(global_aws_config(), a...; b...)
 Deletes an empty bucket. All objects in the bucket must be deleted before a bucket can be
 deleted.
 
+See also [`AWSS3.s3_nuke_bucket`](@ref).
+
 # API Calls
 
 - [`DeleteBucket`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
@@ -704,8 +707,6 @@ deleted.
 # Permissions
 
 - [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteBucket)
-
-See also [`AWSS3.s3_nuke_bucket`](@ref).
 """
 function s3_delete_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     return parse(S3.delete_bucket(bucket; aws_config=aws, kwargs...))
