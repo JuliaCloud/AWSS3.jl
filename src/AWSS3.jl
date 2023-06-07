@@ -1051,25 +1051,9 @@ function s3_sign_url(
     signature_version="v4",
 )
     if signature_version == "v2"
-        _s3_sign_url_v2(
-            aws,
-            bucket,
-            path,
-            seconds;
-            verb=verb,
-            content_type=content_type,
-            protocol=protocol,
-        )
+        _s3_sign_url_v2(aws, bucket, path, seconds; verb, content_type, protocol)
     elseif signature_version == "v4"
-        _s3_sign_url_v4(
-            aws,
-            bucket,
-            path,
-            seconds;
-            verb=verb,
-            content_type=content_type,
-            protocol=protocol,
-        )
+        _s3_sign_url_v4(aws, bucket, path, seconds; verb, content_type, protocol)
     else
         throw(ArgumentError("Unknown signature version $signature_version"))
     end

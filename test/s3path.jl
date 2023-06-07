@@ -411,9 +411,9 @@ function s3path_tests(config)
         end
 
         @testset "readdir" begin
-            path = S3Path("s3://$(bucket_name)/A/A/B.txt"; config=config)
+            path = S3Path("s3://$(bucket_name)/A/A/B.txt"; config)
             write(path, "test!")
-            results = readdir(S3Path("s3://$(bucket_name)/A/"; config=config))
+            results = readdir(S3Path("s3://$(bucket_name)/A/"; config))
 
             @test results == ["A/"]
         end
@@ -426,7 +426,7 @@ function s3path_tests(config)
             )
         end
 
-        s3_path = S3Path("s3://$(bucket_name)"; config=config)
+        s3_path = S3Path("s3://$(bucket_name)"; config)
 
         @testset "top level bucket" begin
             @testset "success" begin
@@ -458,7 +458,7 @@ function s3path_tests(config)
     end
 
     @testset "JSON roundtripping" begin
-        json_path = S3Path("s3://$(bucket_name)/test_json"; config=config)
+        json_path = S3Path("s3://$(bucket_name)/test_json"; config)
         my_dict = Dict("key" => "value", "key2" => 5.0)
         # here we use the "application/json" MIME type to trigger the heuristic parsing into a `LittleDict`
         # that will hit a `MethodError` at the `Vector{UInt8}` constructor of `read(::S3Path)` if `raw=true`
@@ -479,8 +479,8 @@ function s3path_tests(config)
         ]
         tbl = Arrow.Table(Arrow.tobuffer((; paths=paths)))
         @test all(isequal.(tbl.paths, paths))
-        push!(paths, S3Path("s3://$(bucket_name)/c"; config=config))
-        @test_throws ArgumentError Arrow.tobuffer((; paths=paths))
+        push!(paths, S3Path("s3://$(bucket_name)/c"; config))
+        @test_throws ArgumentError Arrow.tobuffer((; paths))
     end
 
     @testset "tryparse" begin
@@ -548,24 +548,22 @@ function s3path_tests(config)
             versions = [d["VersionId"] for d in reverse!(listed_versions)]
 
             v1, v2 = first(versions), last(versions)
-            @test read(S3Path(bucket_name, key; config=config, version=v1), String) ==
-                "data.v1"
-            @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
-                "data.v2"
-            @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
-                read(S3Path(bucket_name, key; config=config), String)
-            @test read(S3Path(bucket_name, key; config=config, version=v2), String) ==
-                read(S3Path(bucket_name, key; config=config, version=nothing), String)
+            @test read(S3Path(bucket_name, key; config, version=v1), String) == "data.v1"
+            @test read(S3Path(bucket_name, key; config, version=v2), String) == "data.v2"
+            @test read(S3Path(bucket_name, key; config, version=v2), String) ==
+                read(S3Path(bucket_name, key; config), String)
+            @test read(S3Path(bucket_name, key; config, version=v2), String) ==
+                read(S3Path(bucket_name, key; config, version=nothing), String)
 
-            unversioned_path = S3Path(bucket_name, key; config=config)
-            versioned_path = S3Path(bucket_name, key; config=config, version=v2)
+            unversioned_path = S3Path(bucket_name, key; config)
+            versioned_path = S3Path(bucket_name, key; config, version=v2)
             @test versioned_path.version == v2
             @test unversioned_path.version === nothing
             @test exists(versioned_path)
             @test exists(unversioned_path)
 
             dne = "feVMBvDgNiKSpMS17fKNJK3GV05bl8ir"
-            dne_versioned_path = S3Path(bucket_name, key; config=config, version=dne)
+            dne_versioned_path = S3Path(bucket_name, key; config, version=dne)
             @test !exists(dne_versioned_path)
 
             versioned_path_v1 = S3Path("s3://$bucket_name/$key"; version=v1)
@@ -583,7 +581,7 @@ function s3path_tests(config)
             end
 
             str_v1 = string(versioned_path_v1)
-            roundtripped_v1 = S3Path(str_v1; config=config)
+            roundtripped_v1 = S3Path(str_v1; config)
             @test isequal(versioned_path_v1, roundtripped_v1)
             @test str_v1 == "s3://" * bucket_name * "/" * key * "?versionId=" * v1
 
@@ -621,7 +619,7 @@ function s3path_tests(config)
                 versions = list_version_ids(config, b, k)
                 @test length(versions) == 1
                 @test versions[1] == "null"
-                @test read(S3Path(b, k; config=config, version=versions[1])) == b"original"
+                @test read(S3Path(b, k; config, version=versions[1])) == b"original"
 
                 s3_enable_versioning(config, b)
                 @test versioning_enabled(config, b)
@@ -633,8 +631,8 @@ function s3path_tests(config)
                 @test length(versions) == 2
                 @test versions[1] == "null"
                 @test versions[2] != "null"
-                @test read(S3Path(b, k; config=config, version=versions[1])) == b"original"
-                @test read(S3Path(b, k; config=config, version=versions[2])) ==
+                @test read(S3Path(b, k; config, version=versions[1])) == b"original"
+                @test read(S3Path(b, k; config, version=versions[2])) ==
                     b"new and improved!"
             finally
                 AWSS3.s3_nuke_bucket(config, b)
