@@ -4,8 +4,9 @@ using AWSS3
 using Arrow
 using Dates
 using FilePathsBase
-using FilePathsBase.TestPaths
 using FilePathsBase: /, join
+using FilePathsBase.TestPaths
+using FilePathsBase.TestPaths: test
 using JSON3
 using Minio
 using Mocking
@@ -17,8 +18,7 @@ Mocking.activate()
 
 @service S3 use_response_type = true
 
-is_aws(config) = config isa AWSConfig
-AWS.aws_account_number(::Minio.MinioConfig) = "123"
+include("utils.jl")
 
 # Load the test functions
 include("s3path.jl") # creates `awss3_tests(config)`
@@ -50,9 +50,8 @@ include("awss3.jl") # creates `s3path_tests(config)`
     end
 
     @testset "S3" begin
-        # Set `AWSConfig` as the default for the following tests
-        aws = global_aws_config(AWSConfig())
-        awss3_tests(aws)
-        s3path_tests(aws)
+        config = AWSConfig()
+        awss3_tests(config)
+        s3path_tests(config)
     end
 end

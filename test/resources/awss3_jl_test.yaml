@@ -17,6 +17,11 @@ Parameters:
     AllowedPattern: ^[\w.-]+$
     Default: AWSS3.jl
 
+  BucketPrefix:
+    Type: String
+    AllowedPattern: ^[a-z0-9.-]+$
+    Default: awss3.jl.test.
+
 Resources:
   PublicCIRole:
     Type: AWS::IAM::Role
@@ -40,64 +45,509 @@ Resources:
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/trying
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/staging
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: sts:AssumeRole
 
-  S3TestPolicy:
+  PublicCIAssumePolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: !Sub ${GitHubRepo}-S3TestPolicy
+      PolicyName: PublicCIAssumeRoles
       Roles:
         - !Ref PublicCIRole
       PolicyDocument:
         Version: 2012-10-17
-
-        # It isn't necessary to update the names of the tests which requires these permissions.
-        # However, when verifying the minimal set of permissions needed this work was done so it
-        # was also documented.
         Statement:
-          # - Effect: Allow
-          #   Action:
-          #     # For "Create Bucket" tests
-          #     - s3:ListAllMyBuckets
-          #   Resource: "*"
           - Effect: Allow
             Action:
-          #     # For "Create Bucket" tests
-          #     - s3:CreateBucket
-          #     - s3:PutBucketVersioning
-          #     - s3:ListBucketVersions
+              - sts:AssumeRole
+            Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/*
 
-          #     # For "Bucket Tagging" tests
-          #     # - s3:PutBucketTagging
-          #     # - s3:GetBucketTagging
+  # Using separate roles/policies to ensure that each testset only uses the permissions that it
+  # requires. For testset with specific permission requirements we create `*TestsetRole`s where
+  # as testsets with generic permission requirements can reuse roles without the "Testset" suffix.
 
-                # For "Create Objects" tests
-                - s3:ListBucket
-          #     # - s3:GetBucketPolicyStatus
-          #     # - s3:ListBucketByTags
-          #     # - s3:ListBucket
-          #     # - s3:GetBucketVersioning
+  ###
+  ### Testset specific roles/policies
+  ###
 
-          #     # For "Empty and Delete Bucket" and "Delete Non-Existent Bucket" tests
-          #     - s3:DeleteBucket
-              
-            Resource: arn:aws:s3:::awss3.jl.test.*
+  CreateBucketTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-CreateBucketTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  CreateBucketTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-CreateBucketTestset
+      Roles:
+        - !Ref CreateBucketTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
           - Effect: Allow
             Action:
-              # # For "Empty and Delete Bucket"
-              # - s3:DeleteObject
+              - s3:ListAllMyBuckets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:PutBucketVersioning
+              - s3:ListBucketVersions
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
 
-              # For "Create Objects" tests
+  BucketTaggingTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-BucketTaggingTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  BucketTaggingTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-BucketTaggingTestset
+      Roles:
+        - !Ref BucketTaggingTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:PutBucketTagging
+              - s3:GetBucketTagging
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+
+  CreateObjectsTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-CreateObjectsTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  CreateObjectsTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-CreateObjectsTestset
+      Roles:
+        - !Ref CreateObjectsTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
               - s3:PutObject
               - s3:GetObject
               - s3:PutObjectTagging
               - s3:GetObjectTagging
               - s3:DeleteObjectTagging
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
 
-              # - s3:PutObject
-              # - s3:GetObject
-              # - s3:DeleteObjectVersion
-              # - s3:GetObjectVersionTagging
-              # - s3:PutObjectVersionTagging
-              # - s3:DeleteObjectVersionTagging
-              # - s3:GetObjectVersion
-            Resource: arn:aws:s3:::awss3.jl.test.*/*
+  MultipartUploadTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-MultipartUploadTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  MultipartUploadTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-MultipartUploadTestset
+      Roles:
+        - !Ref MultipartUploadTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          # https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuAndPermissions
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListMultipartUploadParts
+              - s3:AbortMultipartUpload
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  PurgeVersionsTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-PurgeVersionsTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  PurgeVersionsTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-PurgeVersionsTestset
+      Roles:
+        - !Ref PurgeVersionsTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucketVersions
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:DeleteObjectVersion
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  SignUrlTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-SignUrlTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  SignUrlTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-SignUrlTestset
+      Roles:
+        - !Ref SignUrlTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  EmptyAndDeleteBucketTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-EmptyAndDeleteBucketTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  EmptyAndDeleteBucketTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-EmptyAndDeleteBucketTestset
+      Roles:
+        - !Ref EmptyAndDeleteBucketTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:ListBucketVersions
+              - s3:DeleteBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:DeleteObjectVersion
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  DeleteNonExistentBucketTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-DeleteNonExistentBucketTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  DeleteNonExistentBucketTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-DeleteNonExistentBucketTestset
+      Roles:
+        - !Ref DeleteNonExistentBucketTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:DeleteBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+
+  S3PathVersioningTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-S3PathVersioningTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  S3PathVersioningTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-S3PathVersioningTestset
+      Roles:
+        - !Ref S3PathVersioningTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutBucketVersioning
+              - s3:ListBucket
+              - s3:ListBucketVersions
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:DeleteObjectVersion
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  S3PathNullVersionTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-S3PathNullVersionTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  S3PathNullVersionTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-S3PathNullVersionTestset
+      Roles:
+        - !Ref S3PathNullVersionTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:PutBucketVersioning
+              - s3:GetBucketVersioning
+              - s3:ListBucketVersions
+              - s3:PutObject
+              - s3:GetObjectVersion
+              - s3:DeleteBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:DeleteObjectVersion
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  ###
+  ### Generic roles/policies
+  ###
+
+  CreateBucketRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-CreateBucket
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  CreateBucketPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-CreateBucket
+      Roles:
+        - !Ref CreateBucketRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:CreateBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+
+  NukeBucketRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-NukeBucket
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  # TODO: May want separate roles/policies for versioned/unversioned buckets
+  NukeBucketPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-NukeBucket
+      Roles:
+        - !Ref NukeBucketRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:ListBucketVersions
+              - s3:DeleteBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:DeleteObjectVersion
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  ReadObjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-ReadObject
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  # Try to keep separate policies for versioned/unversioned permissions
+  ReadObjectPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-ReadObject
+      Roles:
+        - !Ref ReadObjectRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  ReadObjectVersionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-ReadObjectVersion
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  ReadObjectVersionPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-ReadObjectVersion
+      Roles:
+        - !Ref ReadObjectVersionRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucketVersions
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:GetObjectVersion
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
+  ReadWriteObjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-ReadWriteObject
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  ReadWriteObjectPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-ReadWriteObject
+      Roles:
+        - !Ref ReadWriteObjectRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
