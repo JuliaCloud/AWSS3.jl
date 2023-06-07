@@ -114,7 +114,7 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
-    result = tryparse(S3Path, str; config=config)
+    result = tryparse(S3Path, str; config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     ver = if version !== nothing
         if result.version !== nothing && result.version != version
@@ -236,7 +236,7 @@ it will be fetched with `AWS.global_aws_config()`.
 get_config(fp::S3Path) = @something(fp.config, global_aws_config())
 
 function FilePathsBase.exists(fp::S3Path)
-    return s3_exists(get_config(fp), fp.bucket, fp.key; version=fp.version)
+    return s3_exists(get_config(fp), fp.bucket, fp.key; fp.version)
 end
 
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
@@ -434,8 +434,7 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
         if hasparent(fp) && !exists(parent(fp))
             if recursive
                 # don't try to create buckets this way, minio at least really doesn't like it
-                isempty(parent(fp).segments) ||
-                    mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
+                isempty(parent(fp).segments) || mkdir(parent(fp); recursive, exist_ok)
             else
                 error(
                     "The parent of $fp does not exist. " *
@@ -456,7 +455,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
 
         if recursive
             for f in files
-                rm(f; recursive=recursive, kwargs...)
+                rm(f; recursive, kwargs...)
             end
         elseif length(files) > 0
             error("S3 path $fp is not empty. Use `recursive=true` to delete.")
@@ -464,7 +463,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
     end
 
     @debug "delete: $fp"
-    return s3_delete(get_config(fp), fp.bucket, fp.key; version=fp.version)
+    return s3_delete(get_config(fp), fp.bucket, fp.key; fp.version)
 end
 
 # We need to special case sync with S3Paths because of how directories
