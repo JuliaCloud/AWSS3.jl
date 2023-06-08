@@ -746,9 +746,7 @@ function s3_list_objects(
         token = ""
 
         while more
-            q = Dict{String,String}(
-                "prefix" => path_prefix
-            )
+            q = Dict{String,String}("prefix" => path_prefix)
 
             for (name, v) in [
                 ("delimiter", delimiter),

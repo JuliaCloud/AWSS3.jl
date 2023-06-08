@@ -490,7 +490,12 @@ function s3path_tests(base_config)
         # fail with "AccessDenied".
         is_aws(base_config) && @testset "Restricted Prefix" begin
             setup_config = assume_testset_role("ReadWriteObject"; base_config)
-            s3_put(setup_config, bucket_name, "prefix/denied/secrets/top-secret", "for british eyes only")
+            s3_put(
+                setup_config,
+                bucket_name,
+                "prefix/denied/secrets/top-secret",
+                "for british eyes only",
+            )
             s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
 
             config = assume_testset_role("RestrictedPrefixTestset"; base_config)

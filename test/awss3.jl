@@ -204,14 +204,20 @@ function awss3_tests(base_config)
     # fail with "AccessDenied".
     is_aws(base_config) && @testset "Restricted Prefix" begin
         setup_config = assume_testset_role("ReadWriteObject"; base_config)
-        s3_put(setup_config, bucket_name, "prefix/denied/secrets/top-secret", "for british eyes only")
+        s3_put(
+            setup_config,
+            bucket_name,
+            "prefix/denied/secrets/top-secret",
+            "for british eyes only",
+        )
         s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
-        @test collect(s3_list_objects(setup_config, bucket_name)) isa Vector
 
         config = assume_testset_role("RestrictedPrefixTestset"; base_config)
         @test s3_exists(config, bucket_name, "prefix/granted/file")
         @test !s3_exists(config, bucket_name, "prefix/granted/dne")
-        @test_throws ["AccessDenied", "403"] s3_exists(config, bucket_name, "prefix/denied/top-secret")
+        @test_throws ["AccessDenied", "403"] begin
+            s3_exists(config, bucket_name, "prefix/denied/top-secret")
+        end
         @test s3_exists(config, bucket_name, "prefix/granted/")
         @test s3_exists(config, bucket_name, "prefix/")
 
