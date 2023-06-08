@@ -274,7 +274,7 @@ An internal function used by [`s3_exists`](@ref).
 Checks if the given directory exists within the `bucket`. Since S3 uses a flat structure, as
 opposed to being hierarchical like a file system, directories are actually just a collection
 of object keys which share a common prefix. S3 implements empty directories as
-[0-byte objects](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html#create-folder)
+[0-byte objects](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html)
 with keys ending with the delimiter.
 
 It is possible to create non 0-byte objects with a key ending in the delimiter

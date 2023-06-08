@@ -422,7 +422,7 @@ this will create any previously non-existent directories which would contain `fp
 will be thrown if an object exists at `fp` unless `exist_ok`.
 
 !!! note
-    Creating a directory in [S3 creates a 0-byte object](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html#create-folder)
+    Creating a directory in [S3 creates a 0-byte object](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html)
     with a key set to the provided directory name.
 """
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
