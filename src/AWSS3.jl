@@ -288,7 +288,7 @@ the directory name.
 """
 function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
     a = chop(string(path)) * "."
-    q = Dict("delimiter" => "", "max-keys" => 1, "start-after" => a, "prefix" => path)
+    q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1, "start-after" => a)
     l = parse(S3.list_objects_v2(bucket, q; aws_config=aws))
     c = get(l, "Contents", nothing)
     c === nothing && return false
@@ -753,15 +753,18 @@ function s3_list_objects(
         token = ""
 
         while more
-            q = Dict{String,String}()
+            q = Dict{String,String}(
+                "prefix" => path_prefix
+            )
+
             for (name, v) in [
-                ("prefix", path_prefix),
                 ("delimiter", delimiter),
                 ("start-after", start_after),
                 ("continuation-token", token),
             ]
                 isempty(v) || (q[name] = v)
             end
+
             if max_items !== nothing
                 # Note: AWS seems to only return up to 1000 items
                 q["max-keys"] = string(max_items - num_objects)
