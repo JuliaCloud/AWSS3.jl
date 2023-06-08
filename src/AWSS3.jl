@@ -269,22 +269,21 @@ end
 """
     _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
 
-Internal, called by [`s3_exists`](@ref).
+Internal function used by [`s3_exists`](@ref).
 
-Checks whether the given directory exists.  This is a bit subtle because of how the
-AWS API handles empty directories.  Empty directories are really just 0-byte nodes
+Checks whether the given directory exists.  This is a bit subtle because of how the AWS API
+handles empty directories.  Empty directories are [really just 0-byte objects](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html#create-folder)
 which are named like directories, i.e. their name has a trailing `"/"`.
 
-What this function does is, given a directory name `dir/`, check for all keys which
-are lexographically greater than `dir.`.  The reason for this is that, if `dir/`
-is a 0-byte node, checking for it directly will not reveal its existence due to
-some rather peculiar design choices on the part of the S3 developers.
+What this function does, given a directory name `dir/`, is check for all keys which are
+lexographically greater than `dir.`.  The reason for this is that, if `dir/` is a 0-byte
+object, checking for it directly will not reveal its existence due to some rather peculiar
+design choices on the part of the S3 developers.
 
-In all such cases, if the directory exists it will be seen in the *first* item
-returned from `S3.list_objects_v2`: for empty directories this is because using
-`start-after` explicitly excludes `dir.` itself and `dir/` is next; for directories
-with actual keys, it is guaranteed that the first contained key will start with
-the directory name.
+In all such cases, if the directory exists it will be seen in the *first* item returned from
+`S3.list_objects_v2`: for empty directories this is because using `start-after` explicitly
+excludes `dir.` itself and `dir/` is next; for directories with actual keys, it is
+guaranteed that the first contained key will start with the directory name.
 """
 function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
     a = chop(string(path)) * "."

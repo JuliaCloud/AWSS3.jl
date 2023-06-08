@@ -418,12 +418,13 @@ Base.ismount(fp::S3Path) = false
 """
     mkdir(fp::S3Path; recursive=false, exist_ok=false)
 
-Create an empty directory at the S3 path `fp`.  If `recursive`, this will create any previously non-existent
-directories which would contain `fp`.  An error will be thrown if an object exists at `fp` unless `exist_ok`.
+Create an empty directory within an existing bucket for the S3 path `fp`. If `recursive`,
+this will create any previously non-existent directories which would contain `fp`. An error
+will be thrown if an object exists at `fp` unless `exist_ok`.
 
-Note that empty directories in S3 are actually 0-byte objects with the naming convention of a directory.
-
-This will *not* create a bucket.
+!!! note
+    Creating a directory in [S3 creates a 0-byte object](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html#create-folder)
+    with a key set to the provided directory name.
 """
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
     fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
