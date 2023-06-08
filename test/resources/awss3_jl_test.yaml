@@ -234,6 +234,45 @@ Resources:
               - s3:DeleteObjectVersion
             Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
 
+  RestrictedPrefixTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-RestrictedPrefixTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  RestrictedPrefixTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-RestrictedPrefixTestset
+      Roles:
+        - !Ref RestrictedPrefixTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowListingOfRootAndPrefix
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+            Condition:
+              StringEquals:
+                s3:prefix: ["", "prefix/"]
+                s3:delimiter: ["/"]
+          - Sid: AllowListingOfPrefixGranted
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+            Condition:
+              StringLike:
+                s3:prefix: ["prefix/granted/*"]
+
   SignUrlTestsetRole:
     Type: AWS::IAM::Role
     Properties:

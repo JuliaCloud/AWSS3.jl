@@ -198,6 +198,30 @@ function awss3_tests(base_config)
         @test !s3_exists(config, bucket_name, "testdir")
     end
 
+    # Based upon this example: https://repost.aws/knowledge-center/iam-s3-user-specific-folder
+    # Unable to run on MinIO currently as this requires prefix restrictions to be set for
+    # the role used.
+    is_aws(base_config) && @testset "Restricted Prefix" begin
+        setup_config = assume_testset_role("ReadWriteObject"; base_config)
+        s3_put(setup_config, bucket_name, "prefix/denied/top-secret", "british eyes only")
+        s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
+        @test collect(s3_list_objects(setup_config, bucket_name)) isa Vector
+
+        config = assume_testset_role("RestrictedPrefixTestset"; base_config)
+        @test s3_exists(config, bucket_name, "prefix/granted/file")
+        @test !s3_exists(config, bucket_name, "prefix/granted/dne")
+        @test_throws ["AccessDenied", "403"] s3_exists(config, bucket_name, "prefix/denied/top-secret")
+        @test s3_exists(config, bucket_name, "prefix/granted/")
+        @test s3_exists(config, bucket_name, "prefix/")
+
+        # Ensure that `s3_list_objects` works with restricted prefixes
+        @test length(collect(s3_list_objects(config, bucket_name, "prefix/granted/"))) == 1
+        @test length(collect(s3_list_objects(config, bucket_name, "prefix/"))) == 0
+        # Validate that we have permissions to list the root without encountering an access error.
+        # Ideally we just want `@test_no_throws s3_list_objects(config, bucket_name)`.
+        @test length(collect(s3_list_objects(config, bucket_name))) >= 0
+    end
+
     @testset "Version is empty" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
 
