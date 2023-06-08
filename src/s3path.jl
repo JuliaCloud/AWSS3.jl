@@ -244,9 +244,8 @@ function Base.isdir(fp::S3Path)
     fp.isdirectory || return false
     if isempty(fp.segments)  # special handling of buckets themselves
         try
-            @mock S3.list_objects_v2(
-                fp.bucket, Dict("max-keys" => "0"); aws_config=get_config(fp)
-            )
+            params = Dict("prefix" => "", "delimiter" => "/", "max-keys" => "0")
+            @mock S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp))
             return true
         catch e
             if ecode(e) == "NoSuchBucket"

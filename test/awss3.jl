@@ -199,20 +199,19 @@ function awss3_tests(base_config)
     end
 
     # Based upon this example: https://repost.aws/knowledge-center/iam-s3-user-specific-folder
-    @testset "Restricted Prefix" begin
+    #
+    # MinIO isn't currently setup with the restrictive prefix required to make the tests
+    # fail with "AccessDenied".
+    is_aws(base_config) && @testset "Restricted Prefix" begin
         setup_config = assume_testset_role("ReadWriteObject"; base_config)
-        s3_put(setup_config, bucket_name, "prefix/denied/top-secret", "british eyes only")
+        s3_put(setup_config, bucket_name, "prefix/denied/secrets/top-secret", "for british eyes only")
         s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
         @test collect(s3_list_objects(setup_config, bucket_name)) isa Vector
 
         config = assume_testset_role("RestrictedPrefixTestset"; base_config)
         @test s3_exists(config, bucket_name, "prefix/granted/file")
         @test !s3_exists(config, bucket_name, "prefix/granted/dne")
-
-        # MinIO isn't currently setup with the restrictive prefix required to make this fail
-        if is_aws(base_config)
-            @test_throws ["AccessDenied", "403"] s3_exists(config, bucket_name, "prefix/denied/top-secret")
-        end
+        @test_throws ["AccessDenied", "403"] s3_exists(config, bucket_name, "prefix/denied/top-secret")
         @test s3_exists(config, bucket_name, "prefix/granted/")
         @test s3_exists(config, bucket_name, "prefix/")
 

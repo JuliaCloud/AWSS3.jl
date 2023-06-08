@@ -453,11 +453,10 @@ function s3path_tests(base_config)
             )
         end
 
-        s3_path = S3Path("s3://$(bucket_name)"; config)
-
         @testset "top level bucket" begin
             @testset "success" begin
-                @test isdir(s3_path) == true
+                @test isdir(S3Path("s3://$(bucket_name)"; config))
+                @test isdir(S3Path("s3://$(bucket_name)/"; config))
             end
 
             @testset "NoSuchBucket" begin
@@ -467,7 +466,8 @@ function s3path_tests(base_config)
                 end
 
                 apply(patch) do
-                    @test isdir(s3_path) == false
+                    @test !isdir(S3Path("s3://$(bucket_name)"; config))
+                    @test !isdir(S3Path("s3://$(bucket_name)/"; config))
                 end
             end
 
@@ -478,8 +478,44 @@ function s3path_tests(base_config)
                 end
 
                 apply(patch) do
-                    @test_throws AWSException isdir(s3_path)
+                    @test_throws AWSException isdir(S3Path("s3://$(bucket_name)"; config))
+                    @test_throws AWSException isdir(S3Path("s3://$(bucket_name)/"; config))
                 end
+            end
+        end
+
+        # Based upon this example: https://repost.aws/knowledge-center/iam-s3-user-specific-folder
+        #
+        # MinIO isn't currently setup with the restrictive prefix required to make the tests
+        # fail with "AccessDenied".
+        is_aws(base_config) && @testset "Restricted Prefix" begin
+            setup_config = assume_testset_role("ReadWriteObject"; base_config)
+            s3_put(setup_config, bucket_name, "prefix/denied/secrets/top-secret", "for british eyes only")
+            s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
+
+            config = assume_testset_role("RestrictedPrefixTestset"; base_config)
+            @test isdir(S3Path("s3://$(bucket_name)/prefix/granted/"; config))
+            @test isdir(S3Path("s3://$(bucket_name)/prefix/"; config))
+            @test isdir(S3Path("s3://$(bucket_name)"; config))
+
+            @test_throws ["AccessDenied", "403"] begin
+                isdir(S3Path("s3://$(bucket_name)/prefix/denied/"; config))
+            end
+
+            # The above call fails as we use `"prefix" => "prefix/denied/"`. However,
+            # this restricted role can still determine that the "denied" directory
+            # exists with some carefully crafted queries.
+            params = Dict("prefix" => "prefix/", "delimiter" => "/")
+            r = S3.list_objects_v2(bucket_name, params; aws_config=config)
+            prefixes = [x["Prefix"] for x in parse(r)["CommonPrefixes"]]
+            @test "prefix/denied/" in prefixes
+
+            @test_throws ["AccessDenied", "403"] begin
+                !isdir(S3Path("s3://$(bucket_name)/prefix/dne/"; config))
+            end
+
+            @test_throws ["AccessDenied", "403"] begin
+                !isdir(S3Path("s3://$(bucket_name)/prefix/denied/secrets/"; config))
             end
         end
     end
