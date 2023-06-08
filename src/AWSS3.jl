@@ -128,7 +128,7 @@ s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first
 - [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
   (conditional): required when `version !== nothing`.
 - [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
-  (Optional): allows requests to non-existent objects to throw a exception with HTTP status
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
   code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_get(
@@ -241,7 +241,7 @@ Retrieves metadata from an object without returning the object itself.
 - [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
   (conditional): required when `version !== nothing`.
 - [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
-  (Optional): allows requests to non-existent objects to throw a exception with HTTP status
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
   code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_get_meta(
@@ -315,7 +315,7 @@ See [`s3_exists`](@ref) and [`s3_exists_unversioned`](@ref).
 
 - [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion)
 - [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
-  (Optional): allows requests to non-existent objects to throw a exception with HTTP status
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
   code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_exists_versioned(
