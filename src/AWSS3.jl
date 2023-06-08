@@ -259,7 +259,7 @@ end
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
 function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
-    q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
+    q = Dict("prefix" => path, "delimiter" => "/", "max-keys" => 1)
     l = parse(S3.list_objects_v2(bucket, q; aws_config=aws))
     c = get(l, "Contents", nothing)
     c === nothing && return false
@@ -269,29 +269,23 @@ end
 """
     _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
 
-Internal function used by [`s3_exists`](@ref).
+An internal function used by [`s3_exists`](@ref).
 
-Checks whether the given directory exists.  This is a bit subtle because of how the AWS API
-handles empty directories.  Empty directories are [really just 0-byte objects](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html#create-folder)
-which are named like directories, i.e. their name has a trailing `"/"`.
+Checks if the given directory exists within the `bucket`. Since S3 uses a flat structure, as
+opposed to being hierarchical like a file system, directories are actually just a collection
+of object keys which share a common prefix. S3 implements empty directories as
+[0-byte objects](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html#create-folder)
+with keys ending with the delimiter.
 
-What this function does, given a directory name `dir/`, is check for all keys which are
-lexographically greater than `dir.`.  The reason for this is that, if `dir/` is a 0-byte
-object, checking for it directly will not reveal its existence due to some rather peculiar
-design choices on the part of the S3 developers.
-
-In all such cases, if the directory exists it will be seen in the *first* item returned from
-`S3.list_objects_v2`: for empty directories this is because using `start-after` explicitly
-excludes `dir.` itself and `dir/` is next; for directories with actual keys, it is
-guaranteed that the first contained key will start with the directory name.
+It is possible to create non 0-byte objects with a key ending in the delimiter
+(e.g. `s3_put(bucket, "abomination/", "If I cannot inspire love, I will cause fear!")`)
+which the AWS console interprets as the directory "abmonination" containing the object "/".
 """
 function _s3_exists_dir(aws::AbstractAWSConfig, bucket, path)
-    a = chop(string(path)) * "."
-    q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1, "start-after" => a)
-    l = parse(S3.list_objects_v2(bucket, q; aws_config=aws))
-    c = get(l, "Contents", nothing)
-    c === nothing && return false
-    return startswith(get(c, "Key", ""), path)
+    endswith(path, '/') || throw(ArgumentError("S3 directories must end with '/': $path"))
+    q = Dict("prefix" => path, "delimiter" => "/", "max-keys" => 1)
+    r = parse(S3.list_objects_v2(bucket, q; aws_config=aws))
+    return get(r, "KeyCount", "0") != "0"
 end
 
 """
