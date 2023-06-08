@@ -572,10 +572,8 @@ option.
 
 # API Calls
 
-Bucket Tagging:
-- [`PutBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html)
-Object Tagging:
-- [`PutObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html)
+- [`PutBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html)(conditional): used when `path` is not specified (bucket tagging).
+- [`PutObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html) (conditional): used when `path` is specified (object tagging).
 
 # Permissions
 
@@ -619,10 +617,8 @@ See also [`s3_put_tags`](@ref) and [`s3_delete_tags`](@ref).
 
 # API Calls
 
-Bucket Tagging:
-- [`GetBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html)
-Object Tagging:
-- [`GetObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+- [`GetBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html)  (conditional): used when `path` is not specified (bucket tagging).
+- [`GetObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html) (conditional): used when `path` is specified (object tagging).
 
 # Permissions
 
@@ -669,10 +665,8 @@ See also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref).
 
 # API Calls
 
-Bucket Tagging:
-- [`DeleteBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html)
-Object Tagging:
-- [`DeleteObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html)
+- [`DeleteBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html) (conditional): used when `path` is not specified (bucket tagging).
+- [`DeleteObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html) (conditional): used when `path` is specified (object tagging).
 
 # Permissions
 
