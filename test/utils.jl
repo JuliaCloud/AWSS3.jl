@@ -25,9 +25,7 @@ function gen_bucket_name(prefix="awss3.jl.test.")
     return lowercase(prefix * Dates.format(now(Dates.UTC), BUCKET_DATE_FORMAT))
 end
 
-function assume_role(
-    aws_config::AbstractAWSConfig, role; duration=nothing, mfa_serial=nothing
-)
+function assume_role(aws_config::AbstractAWSConfig, role; duration=nothing)
     if startswith(role, "arn:aws:iam")
         role_arn = role
         role_name = basename(role)
@@ -50,12 +48,6 @@ function assume_role(
     params = Dict{String,Any}("RoleArn" => role_arn, "RoleSessionName" => role_session)
     if duration !== nothing
         params["DurationSeconds"] = duration
-    end
-    if mfa_serial !== nothing
-        params["SerialNumber"] = mfa_serial
-        token = Base.getpass("Enter MFA code for $mfa_serial")
-        params["TokenCode"] = read(token, String)
-        Base.shred!(token)
     end
 
     response = AWSServices.sts(
