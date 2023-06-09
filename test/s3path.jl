@@ -52,6 +52,16 @@ function test_s3_mkdir(p::PathSet)
     end
 end
 
+function test_s3_download(base_config::AbstractAWSConfig)
+    config = assume_testset_role("ReadWriteObject"; base_config)
+
+    # Requires that the global AWS configuration is set so that `S3Path`s created within
+    # the tests have the correct permissions (e.g. `download(::S3Path, "s3://...")`)
+    return p -> with_aws_config(config) do
+        test_download(p)
+    end
+end
+
 function test_s3_readpath(p::PathSet)
     @testset "readpath" begin
         @test readdir(p.root) == ["bar/", "foo/", "fred/"]
@@ -354,7 +364,7 @@ function s3path_tests(base_config)
             test_tmpdir,
             test_mktmp,
             test_mktmpdir,
-            # test_download, # requires `global_aws_config` to work with `download(::S3Path, "s3://...")`
+            test_s3_download(base_config),
             test_issocket,
             # These will also all work for our custom path type,
             # but many implementations won't support them.
@@ -378,7 +388,7 @@ function s3path_tests(base_config)
         # setup and how `test` passes in `ps` to each test it makes it hard to have each
         # testset specify their required permissions separately. Currently, we embed the
         # configuration in the paths themselves but it may make more sense to set the
-        # config globally or create something along the lines of `withenv`.
+        # config globally temporarily via `with_aws_config`.
         test(ps, testsets)
     end
 
