@@ -161,8 +161,8 @@ function test_s3_properties(base_config::AbstractAWSConfig)
     return ps -> @testset "s3_properties" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
 
-        fp1 = parse(S3Path, "s3://mybucket/path/to/some/object"; config)
-        fp2 = parse(S3Path, "s3://mybucket/path/to/some/prefix/"; config)
+        fp1 = S3Path("s3://mybucket/path/to/some/object"; config)
+        fp2 = S3Path("s3://mybucket/path/to/some/prefix/"; config)
         @test fp1.bucket == "mybucket"
         @test fp1.key == "path/to/some/object"
         @test fp2.bucket == "mybucket"
@@ -304,7 +304,7 @@ function s3path_tests(base_config)
 
     root = let
         config = assume_testset_role("ReadWriteObject"; base_config)
-        parse(S3Path, "s3://$bucket_name/pathset-root/"; config)
+        S3Path("s3://$bucket_name/pathset-root/"; config)
     end
 
     ps = PathSet(
