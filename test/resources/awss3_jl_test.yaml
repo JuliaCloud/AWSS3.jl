@@ -45,10 +45,10 @@ Resources:
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/trying
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/staging
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master
-          - Effect: Allow
-            Principal:
-              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
-            Action: sts:AssumeRole
+          # - Effect: Allow
+          #   Principal:
+          #     AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+          #   Action: sts:AssumeRole
 
   PublicCIAssumePolicy:
     Type: AWS::IAM::Policy
