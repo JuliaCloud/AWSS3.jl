@@ -97,18 +97,17 @@ s3_arn(bucket, path) = s3_arn("$bucket/$path")
 """
     s3_get([::AbstractAWSConfig], bucket, path; <keyword arguments>)
 
-[Get Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html)
-from `path` in `bucket`.
+Retrieves an object from the `bucket` for a given `path`.
 
 # Optional Arguments
-- `version=`: version of object to get.
-- `retry=true`: try again on "NoSuchBucket", "NoSuchKey"
-                (common if object was recently created).
+- `version=nothing`: version of object to get.
+- `retry=true`: try again on "NoSuchBucket", "NoSuchKey" (common if object was recently
+  created).
 - `raw=false`:  return response as `Vector{UInt8}`
 - `byte_range=nothing`:  given an iterator of `(start_byte, end_byte)` gets only
-    the range of bytes of the object from `start_byte` to `end_byte`.  For example,
-    `byte_range=1:4` gets bytes 1 to 4 inclusive.  Arguments should use the Julia convention
-    of 1-based indexing.
+  the range of bytes of the object from `start_byte` to `end_byte`.  For example,
+  `byte_range=1:4` gets bytes 1 to 4 inclusive.  Arguments should use the Julia convention
+  of 1-based indexing.
 - `header::Dict{String,String}`: pass in an HTTP header to the request.
 
 As an example of how to set custom HTTP headers, the below is equivalent to
@@ -117,6 +116,20 @@ As an example of how to set custom HTTP headers, the below is equivalent to
 ```julia
 s3_get(aws, bucket, path; headers=Dict{String,String}("Range" => "bytes=\$(first(range)-1)-\$(last(range)-1)"))
 ```
+
+# API Calls
+
+- [`GetObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+
+# Permissions
+
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject):
+  (conditional): required when `version === nothing`.
+- [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
+  (conditional): required when `version !== nothing`.
+- [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
+  code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_get(
     aws::AbstractAWSConfig,
@@ -213,11 +226,23 @@ function s3_get_file(
 end
 
 """
-   s3_get_meta([::AbstractAWSConfig], bucket, path; [version=], kwargs...)
-
-[HEAD Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectHEAD.html)
+   s3_get_meta([::AbstractAWSConfig], bucket, path; [version], kwargs...)
 
 Retrieves metadata from an object without returning the object itself.
+
+# API Calls
+
+- [`HeadObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)
+
+# Permissions
+
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
+  (conditional): required when `version === nothing`.
+- [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
+  (conditional): required when `version !== nothing`.
+- [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
+  code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_get_meta(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
@@ -274,10 +299,24 @@ end
 """
     s3_exists_versioned([::AbstractAWSConfig], bucket, path, version)
 
-Check if the version specified by `version` of the object in bucket `bucket` exists at `path`.
+Returns if an object `version` exists with the key `path` in the `bucket`.
 
-Note that this function relies on error catching and may be less performant than [`s3_exists_unversioned `](@ref)
-which is preferred.  The reason for this is that support for versioning in the AWS API is very limited.
+Note that the AWS API's support for object versioning is quite limited and this check will
+involve `try`/`catch` logic. Prefer using [`s3_exists_unversioned `](@ref) where possible
+for more performant checks.
+
+See [`s3_exists`](@ref) and [`s3_exists_unversioned`](@ref).
+
+# API Calls
+
+- [`ListObjectV2`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
+
+# Permissions
+
+- [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion)
+- [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
+  code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_exists_versioned(
     aws::AbstractAWSConfig, bucket, path, version::AbstractS3Version
@@ -301,7 +340,18 @@ end
 
 Returns a boolean whether an object exists at  `path` in `bucket`.
 
-See [`s3_exists_versioned`](@ref) to check for specific versions.
+See [`s3_exists`](@ref) and [`s3_exists_versioned`](@ref).
+
+# API Calls
+
+- [`ListObjectV2`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
+
+# Permissions
+
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion)
+- [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
+  code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_exists_unversioned(aws::AbstractAWSConfig, bucket, path)
     f = endswith(path, '/') ? _s3_exists_dir : _s3_exists_file
@@ -311,10 +361,25 @@ end
 """
     s3_exists([::AbstractAWSConfig], bucket, path; version=nothing)
 
-Returns a boolean whether an object exists at `path` in `bucket`.
+Returns if an object exists with the key `path` in the `bucket`. If a `version` is specified
+then an object must exist with the specified version identifier.
 
-Note that the AWS API's support for object versioning is quite limited and this
-check will involve `try` `catch` logic if `version` is not `nothing`.
+Note that the AWS API's support for object versioning is quite limited and this check will
+involve `try`/`catch` logic if a `version` is specified.
+
+# API Calls
+
+- [`ListObjectV2`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
+
+# Permissions
+
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
+  (conditional): required when `version === nothing`.
+- [`s3:GetObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectVersion):
+  (conditional): required when `version !== nothing`.
+- [`s3:ListBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucket)
+  (optional): allows requests to non-existent objects to throw a exception with HTTP status
+  code 404 (Not Found) instead of HTTP status code 403 (Access Denied).
 """
 function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing)
     if version !== nothing
@@ -326,9 +391,18 @@ end
 s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
 
 """
-    s3_delete([::AbstractAWSConfig], bucket, path; [version=], kwargs...)
+    s3_delete([::AbstractAWSConfig], bucket, path; [version], kwargs...)
 
-[DELETE Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
+Deletes an object from a bucket. The `version` argument can be used to delete a specific
+version.
+
+# API Calls
+
+- [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+
+# Permissions
+
+- [`s3:DeleteObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObject)
 """
 function s3_delete(
     aws::AbstractAWSConfig, bucket, path; version::AbstractS3Version=nothing, kwargs...
@@ -385,9 +459,18 @@ end
 s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
 
 """
-    s3_create_bucket([:AbstractAWSConfig], bucket; kwargs...)
+    s3_create_bucket([::AbstractAWSConfig], bucket; kwargs...)
 
-[PUT Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html)
+Creates a new S3 bucket with the globally unique `bucket` name. The bucket will be created
+AWS region associated with the `AbstractAWSConfig` (defaults to "us-east-1").
+
+# API Calls
+
+- [`CreateBucket`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+
+# Permissions
+
+- [`s3:CreateBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-CreateBucket)
 """
 function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     r = @protected try
@@ -445,9 +528,18 @@ end
 s3_put_cors(a...; b...) = s3_put_cors(AWS.global_aws_config(), a...; b...)
 
 """
-    s3_enable_versioning([::AbstractAWSConfig], bucket; kwargs...)
+    s3_enable_versioning([::AbstractAWSConfig], bucket, [status]; kwargs...)
 
-[Enable versioning for `bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html).
+Enables or disables versioning for all objects within the given `bucket`. Use `status` to
+either enable or disable versioning (respectively "Enabled" and "Suspended").
+
+# API Calls
+
+- [`PutBucketVersioning`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html)
+
+# Permissions
+
+- [`s3:PutBucketVersioning`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketVersioning)
 """
 function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; kwargs...)
     versioning_config = """
@@ -470,19 +562,26 @@ end
 s3_enable_versioning(a; b...) = s3_enable_versioning(global_aws_config(), a; b...)
 
 """
-    s3_put_tags([::AbstractAWSConfig], bucket, [path,] tags::Dict; kwargs...)
+    s3_put_tags([::AbstractAWSConfig], bucket, [path], tags::Dict; kwargs...)
 
-PUT `tags` on
-[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTtagging.html)
-or
-[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUTtagging.html).
+Sets the tags for a bucket or an existing object. When `path` is specified then tagging
+is performed on the object, otherwise it is performed on the `bucket`.
 
-See also `tags=` option on [`s3_put`](@ref).
+See also [`s3_put_tags`](@ref), [`s3_delete_tags`](@ref), and [`s3_put`'s](@ref) `tag`
+option.
+
+# API Calls
+
+- [`PutBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html)(conditional): used when `path` is not specified (bucket tagging).
+- [`PutObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html) (conditional): used when `path` is specified (object tagging).
+
+# Permissions
+
+- [`s3:PutBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketTagging)
+  (conditional): required for when `path` is not specified (bucket tagging).
+- [`s3:PutObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutObjectTagging)
+  (conditional): required when `path` is specified (object tagging).
 """
-function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
-    return s3_put_tags(aws, bucket, "", tags; kwargs...)
-end
-
 function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs...)
     tag_set = Dict("Tag" => [Dict("Key" => k, "Value" => v) for (k, v) in tags])
     tags = Dict("Tagging" => Dict("TagSet" => tag_set))
@@ -502,15 +601,31 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs.
     return parse(r)
 end
 
+function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
+    return s3_put_tags(aws, bucket, "", tags; kwargs...)
+end
+
 s3_put_tags(a...) = s3_put_tags(global_aws_config(), a...)
 
 """
     s3_get_tags([::AbstractAWSConfig], bucket, [path]; kwargs...)
 
-Get tags from
-[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETtagging.html)
-or
-[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html).
+Get the tags associated with a bucket or an existing object. When `path` is specified then
+tag retrieval is performed on the object, otherwise it is performed on the `bucket`.
+
+See also [`s3_put_tags`](@ref) and [`s3_delete_tags`](@ref).
+
+# API Calls
+
+- [`GetBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketTagging.html)  (conditional): used when `path` is not specified (bucket tagging).
+- [`GetObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html) (conditional): used when `path` is specified (object tagging).
+
+# Permissions
+
+- [`s3:GetBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetBucketTagging)
+  (conditional): required for when `path` is not specified (bucket tagging).
+- [`s3:GetObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObjectTagging)
+  (conditional): required when `path` is specified (object tagging).
 """
 function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     @protected try
@@ -543,10 +658,22 @@ s3_get_tags(a...; b...) = s3_get_tags(global_aws_config(), a...; b...)
 """
     s3_delete_tags([::AbstractAWSConfig], bucket, [path])
 
-Delete tags from
-[`bucket`](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETEtagging.html)
-or
-[object (`path`)](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETEtagging.html).
+Delete the tags associated with a bucket or an existing object. When `path` is specified then
+tag deletion is performed on the object, otherwise it is performed on the `bucket`.
+
+See also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref).
+
+# API Calls
+
+- [`DeleteBucketTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketTagging.html) (conditional): used when `path` is not specified (bucket tagging).
+- [`DeleteObjectTagging`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObjectTagging.html) (conditional): used when `path` is specified (object tagging).
+
+# Permissions
+
+- [`s3:PutBucketTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutBucketTagging)
+  (conditional): required for when `path` is not specified (bucket tagging).
+- [`s3:DeleteObjectTagging`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectTagging)
+  (conditional): required when `path` is specified (object tagging).
 """
 function s3_delete_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     r = if isempty(path)
@@ -562,7 +689,18 @@ s3_delete_tags(a...; b...) = s3_delete_tags(global_aws_config(), a...; b...)
 """
     s3_delete_bucket([::AbstractAWSConfig], "bucket"; kwargs...)
 
-[DELETE Bucket](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html).
+Deletes an empty bucket. All objects in the bucket must be deleted before a bucket can be
+deleted.
+
+See also [`AWSS3.s3_nuke_bucket`](@ref).
+
+# API Calls
+
+- [`DeleteBucket`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
+
+# Permissions
+
+- [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteBucket)
 """
 function s3_delete_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     return parse(S3.delete_bucket(bucket; aws_config=aws, kwargs...))
@@ -572,7 +710,15 @@ s3_delete_bucket(a; b...) = s3_delete_bucket(global_aws_config(), a; b...)
 """
     s3_list_buckets([::AbstractAWSConfig]; kwargs...)
 
-[List of all buckets owned by the sender of the request](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html).
+Return a list of all of the buckets owned by the authenticated sender of the request.
+
+# API Calls
+
+- [`ListBuckets`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
+
+# Permissions
+
+- [`s3:ListAllMyBuckets`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListAllMyBuckets)
 """
 function s3_list_buckets(aws::AbstractAWSConfig=global_aws_config(); kwargs...)
     r = S3.list_buckets(; aws_config=aws, kwargs...)
@@ -684,7 +830,16 @@ s3_list_keys(a...; b...) = s3_list_keys(global_aws_config(), a...; b...)
 """
     s3_list_versions([::AbstractAWSConfig], bucket, [path_prefix]; kwargs...)
 
-[List object versions](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETVersion.html) in `bucket` with optional `path_prefix`.
+List metadata about all versions of the objects in the `bucket` matching the
+optional `path_prefix`.
+
+# API Calls
+
+- [`ListObjectVersions`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html)
+
+# Permissions
+
+- [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
 """
 function s3_list_versions(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs...)
     more = true
@@ -719,13 +874,28 @@ end
 s3_list_versions(a...; b...) = s3_list_versions(global_aws_config(), a...; b...)
 
 """
-    s3_purge_versions([::AbstractAWSConfig], bucket, [path [, pattern]]; kwargs...)
+    s3_purge_versions([::AbstractAWSConfig], bucket, [path_prefix [, pattern]]; kwargs...)
 
-[DELETE](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html)
-all object versions except for the latest version.
+Removes all versions of an object except for the latest version. When `path_prefix` is
+provided then only objects whose key starts with `path_prefix` will be purged. Use of
+`pattern` further restricts which objects are purged by only purging object keys containing
+the `pattern` (i.e string literal or regex). When both `path_prefix` and `pattern` are not'
+specified then all objects in the bucket will be purged.
+
+# API Calls
+
+- [`ListObjectVersions`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html)
+- [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+
+# Permissions
+
+- [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
+- [`s3:DeleteObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectVersion)
 """
-function s3_purge_versions(aws::AbstractAWSConfig, bucket, path="", pattern=""; kwargs...)
-    for v in s3_list_versions(aws, bucket, path; kwargs...)
+function s3_purge_versions(
+    aws::AbstractAWSConfig, bucket, path_prefix="", pattern=""; kwargs...
+)
+    for v in s3_list_versions(aws, bucket, path_prefix; kwargs...)
         if pattern == "" || occursin(pattern, v["Key"])
             if v["IsLatest"] != "true"
                 S3.delete_object(
@@ -1019,8 +1189,7 @@ end
                 [verb="GET"], [content_type="application/octet-stream"],
                 [protocol="http"], [signature_version="v4"])
 
-Create a
-[pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
+Create a [pre-signed url](http://docs.aws.amazon.com/AmazonS3/latest/dev/ShareObjectPreSignedURL.html) for `bucket` and `path` (expires after for `seconds`).
 
 To create an upload URL use `verb="PUT"` and set `content_type` to match
 the type used in the `Content-Type` header of the PUT request.
@@ -1039,6 +1208,13 @@ url = s3_sign_url("my_bucket", "my_file.txt";
 Requests.put(URI(url), "Hello!";
              headers=Dict("Content-Type" => "text/plain"))
 ```
+
+# Permissions
+
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
+  (conditional): required permission when `verb="GET"`.
+- [`s3:PutObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutObject)
+  (conditional): required permission when `verb="PUT"`.
 """
 function s3_sign_url(
     aws::AbstractAWSConfig,
@@ -1062,15 +1238,33 @@ end
 s3_sign_url(a...; b...) = s3_sign_url(global_aws_config(), a...; b...)
 
 """
-    s3_nuke_bucket(bucket_name)
+    s3_nuke_bucket([::AbstractAWSConfig], bucket_name)
 
-This function is NOT exported on purpose. AWS does not officially support this type of action,
-although it is a very nice utility one this is not exported just as a safe measure against
-accidentally blowing up your bucket.
+Deletes a bucket including all of the object versions in that bucket. Users should not call
+this function unless they are certain they want to permanently delete all of the data that
+resides within this bucket.
+
+The `s3_nuke_bucket` is purposefully *not* exported as a safe guard against accidental
+usage.
 
 !!! warning
 
-    It will delete all versions of objects in the given bucket and then the bucket itself.
+    Permanent data loss will occur when using this function. Do not use this function unless
+    you understand the risks. By using this function you accept all responsibility around
+    any repercussions with the loss of this data.
+
+# API Calls
+
+- [`ListObjectVersions`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html)
+- [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+- [`DeleteBucket`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
+
+# Permissions
+
+- [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
+- [`s3:DeleteObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectVersion):
+  required even on buckets that do not have versioning enabled.
+- [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteBucket)
 """
 function s3_nuke_bucket(aws::AbstractAWSConfig, bucket_name)
     for v in s3_list_versions(aws, bucket_name)
