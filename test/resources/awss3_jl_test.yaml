@@ -434,7 +434,6 @@ Resources:
               AWS: !GetAtt PublicCIRole.Arn
             Action: sts:AssumeRole
 
-  # TODO: May want separate roles/policies for versioned/unversioned buckets
   NukeBucketPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -446,11 +445,6 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-              - s3:ListAllMyBuckets
-            Resource: "*"
-          - Effect: Allow
-            Action:
-              - s3:ListBucket
               - s3:ListBucketVersions
               - s3:DeleteBucket
             Resource: !Sub arn:aws:s3:::${BucketPrefix}*

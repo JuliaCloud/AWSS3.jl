@@ -1262,7 +1262,8 @@ usage.
 # Permissions
 
 - [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
-- [`s3:DeleteObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectVersion)
+- [`s3:DeleteObjectVersion`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObjectVersion):
+  required even on buckets that do not have versioning enabled.
 - [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteBucket)
 """
 function s3_nuke_bucket(aws::AbstractAWSConfig, bucket_name)
