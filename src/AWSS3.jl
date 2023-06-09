@@ -470,7 +470,7 @@ AWS region associated with the `AbstractAWSConfig` (defaults to "us-east-1").
 
 # Permissions
 
-- [`s3:DeleteBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-CreateBucket)
+- [`s3:CreateBucket`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-CreateBucket)
 """
 function s3_create_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     r = @protected try
