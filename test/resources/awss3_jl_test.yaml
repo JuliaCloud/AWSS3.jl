@@ -272,6 +272,7 @@ Resources:
             Condition:
               StringLike:
                 s3:prefix: ["prefix/granted/*"]
+                s3:delimiter: ["/"]
 
   SignUrlTestsetRole:
     Type: AWS::IAM::Role

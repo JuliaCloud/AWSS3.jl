@@ -259,7 +259,7 @@ end
 s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
 
 function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
-    q = Dict("prefix" => path, "delimiter" => "", "max-keys" => 1)
+    q = Dict("prefix" => path, "delimiter" => "/", "max-keys" => 1)
     l = parse(S3.list_objects_v2(bucket, q; aws_config=aws))
     c = get(l, "Contents", nothing)
     c === nothing && return false
