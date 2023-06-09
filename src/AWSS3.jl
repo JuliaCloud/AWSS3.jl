@@ -830,7 +830,7 @@ s3_list_keys(a...; b...) = s3_list_keys(global_aws_config(), a...; b...)
 """
     s3_list_versions([::AbstractAWSConfig], bucket, [path_prefix]; kwargs...)
 
-List metadata about all versions of the objects in the `bucket` matching the matching the
+List metadata about all versions of the objects in the `bucket` matching the
 optional `path_prefix`.
 
 # API Calls
