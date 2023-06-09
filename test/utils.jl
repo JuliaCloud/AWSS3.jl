@@ -1,3 +1,5 @@
+using Test: @test, @test_throws, contains_warn
+
 const BUCKET_DATE_FORMAT = dateformat"yyyymmdd\THHMMSS\Z"
 
 is_aws(config) = config isa AWSConfig
@@ -91,4 +93,23 @@ function with_aws_config(f, config::AbstractAWSConfig)
         global_aws_config(old_config)
     end
     return result
+end
+
+# Rudementary support for `@test_throws ["Try", "Complex"] sqrt(-1)` for Julia 1.6
+macro test_throws_msg(extype, ex)
+    # https://github.com/JuliaLang/julia/pull/41888
+    expr = if VERSION >= v"1.8.0-DEV.363"
+        :(@test_throws $extype $ex)
+    else
+        quote
+            @test try
+                $ex
+                false
+            catch e
+                exc = sprint(showerror, e)
+                contains_warn(exc, $extype)
+            end
+        end
+    end
+    return esc(expr)
 end

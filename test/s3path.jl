@@ -503,7 +503,7 @@ function s3path_tests(base_config)
             @test isdir(S3Path("s3://$(bucket_name)/prefix/"; config))
             @test isdir(S3Path("s3://$(bucket_name)"; config))
 
-            @test_throws ["AccessDenied", "403"] begin
+            @test_throws_msg ["AccessDenied", "403"] begin
                 isdir(S3Path("s3://$(bucket_name)/prefix/denied/"; config))
             end
 
@@ -515,11 +515,11 @@ function s3path_tests(base_config)
             prefixes = [x["Prefix"] for x in parse(r)["CommonPrefixes"]]
             @test "prefix/denied/" in prefixes
 
-            @test_throws ["AccessDenied", "403"] begin
+            @test_throws_msg ["AccessDenied", "403"] begin
                 !isdir(S3Path("s3://$(bucket_name)/prefix/dne/"; config))
             end
 
-            @test_throws ["AccessDenied", "403"] begin
+            @test_throws_msg ["AccessDenied", "403"] begin
                 !isdir(S3Path("s3://$(bucket_name)/prefix/denied/secrets/"; config))
             end
         end

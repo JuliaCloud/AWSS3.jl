@@ -215,7 +215,7 @@ function awss3_tests(base_config)
         config = assume_testset_role("RestrictedPrefixTestset"; base_config)
         @test s3_exists(config, bucket_name, "prefix/granted/file")
         @test !s3_exists(config, bucket_name, "prefix/granted/dne")
-        @test_throws ["AccessDenied", "403"] begin
+        @test_throws_msg ["AccessDenied", "403"] begin
             s3_exists(config, bucket_name, "prefix/denied/top-secret")
         end
         @test s3_exists(config, bucket_name, "prefix/granted/")
