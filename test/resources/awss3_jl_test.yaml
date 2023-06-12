@@ -41,10 +41,12 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
                 token.actions.githubusercontent.com:sub:
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/trying
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/staging
                     - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master
+                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/tags/*
           # - Effect: Allow
           #   Principal:
           #     AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
