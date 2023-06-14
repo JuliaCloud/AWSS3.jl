@@ -631,7 +631,7 @@ function s3path_tests(base_config)
             config = assume_testset_role("S3PathVersioningTestset"; base_config)
 
             s3_enable_versioning(config, bucket_name)
-            key = "test_versions"
+            key = "test_versions_$(return_raw)"
             r1 = s3_put(config, bucket_name, key, "data.v1"; return_raw)
             r2 = s3_put(config, bucket_name, key, "data.v2"; return_raw)
 
@@ -715,7 +715,7 @@ function s3path_tests(base_config)
                 r1 = s3_put(config, b, k, "original"; return_raw)
                 if return_raw
                     @test isa(r1, AWS.Response)
-                    @test isnothing(Dict(r1.headers)["x-amz-version-id"])
+                    @test isnothing(get(Dict(result.headers), "x-amz-version-id", nothing))
                 else
                     @test r1 == UInt8[]
                 end

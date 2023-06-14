@@ -688,7 +688,7 @@ function Base.write(
         return S3Path(
             fp.bucket,
             fp.key;
-            isdirectory=fp.is_dir,
+            isdirectory=fp.isdirectory,
             version=get(Dict(response.headers), "x-amz-version-id", nothing),
             config=fp.config,
         )
