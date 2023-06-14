@@ -7,6 +7,7 @@ using FilePathsBase
 using FilePathsBase: /, join
 using FilePathsBase.TestPaths
 using FilePathsBase.TestPaths: test
+using HTTP
 using JSON3
 using Minio
 using Mocking

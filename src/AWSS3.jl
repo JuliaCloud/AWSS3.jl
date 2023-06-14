@@ -45,6 +45,7 @@ using Dates
 using EzXML
 using FilePathsBase
 using FilePathsBase: /, join
+using HTTP
 using Mocking
 using OrderedCollections: OrderedDict, LittleDict
 using Retry
