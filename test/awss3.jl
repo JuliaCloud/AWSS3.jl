@@ -27,16 +27,21 @@ function awss3_tests(base_config)
         @test isempty(s3_get_tags(config, bucket_name))
     end
 
-    @testset "Create Objects" begin
+    @testset "Create Objects" for return_raw in [true, false]
         config = assume_testset_role("CreateObjectsTestset"; base_config)
         global_aws_config(config)
 
-        s3_put(config, bucket_name, "key1", "data1.v1")
-        s3_put(bucket_name, "key2", "data2.v1"; tags=Dict("Key" => "Value"))
-        s3_put(config, bucket_name, "key3", "data3.v1")
-        s3_put(config, bucket_name, "key3", "data3.v2")
-        s3_put(config, bucket_name, "key3", "data3.v3"; metadata=Dict("foo" => "bar"))
-        s3_put(config, bucket_name, "key4", "data3.v4"; acl="bucket-owner-full-control")
+        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        @test isa(s3_put(config, bucket_name, "key1", "data1.v1"; return_raw),
+                  expected_put_result_type)
+        @test isa(s3_put(bucket_name, "key2", "data2.v1"; tags=Dict("Key" => "Value"),
+                         return_raw), expected_put_result_type)
+        @test isa(s3_put(config, bucket_name, "key3", "data3.v1"; return_raw), expected_put_result_type)
+        @test isa(s3_put(config, bucket_name, "key3", "data3.v2"; return_raw), expected_put_result_type)
+        @test isa(s3_put(config, bucket_name, "key3", "data3.v3"; metadata=Dict("foo" => "bar"),
+                         return_raw), expected_put_result_type)
+        @test isa(s3_put(config, bucket_name, "key4", "data3.v4"; acl="bucket-owner-full-control",
+                         return_raw), expected_put_result_type)
         s3_put_tags(config, bucket_name, "key3", Dict("Left" => "Right"))
 
         @test isempty(s3_get_tags(config, bucket_name, "key1"))
@@ -77,9 +82,13 @@ function awss3_tests(base_config)
     @testset "Raw Return - XML" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
         xml = "<?xml version='1.0'?><Doc><Text>Hello</Text></Doc>"
-        s3_put(config, bucket_name, "file.xml", xml, "text/xml")
+        result = s3_put(config, bucket_name, "file.xml", xml, "text/xml")
+        @test result == UInt8[]
         @test String(s3_get(config, bucket_name, "file.xml"; raw=true)) == xml
         @test s3_get(config, bucket_name, "file.xml")["Text"] == "Hello"
+
+        result = s3_put(config, bucket_name, "file.xml", xml, "text/xml"; return_raw=true)
+        @test isa(result, AWS.Response)
     end
 
     @testset "Get byte range" begin
@@ -124,13 +133,15 @@ function awss3_tests(base_config)
     end
 
     # https://github.com/samoconnor/AWSS3.jl/issues/24
-    @testset "default Content-Type" begin
+    @testset "default Content-Type" for return_raw in [true, false]
         config = assume_testset_role("ReadWriteObject"; base_config)
         ctype(key) = s3_get_meta(config, bucket_name, key)["Content-Type"]
+        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
 
         for k in ["file.foo", "file", "file_html", "file.d/html", "foobar.html/file.htm"]
             is_aws(config) && k == "file" && continue
-            s3_put(config, bucket_name, k, "x")
+            result = s3_put(config, bucket_name, k, "x"; return_raw)
+            @test isa(result, expected_put_result_type)
             @test ctype(k) == "application/octet-stream"
         end
 
@@ -145,8 +156,9 @@ function awss3_tests(base_config)
             ("some.tar.gz", "application/octet-stream"),
             ("data.bz2", "application/octet-stream"),
         ]
-            s3_put(config, bucket_name, k, "x")
+            result = s3_put(config, bucket_name, k, "x"; return_raw)
             @test ctype(k) == t
+            @test isa(result, expected_put_result_type)
         end
     end
 
@@ -193,13 +205,16 @@ function awss3_tests(base_config)
     # these tests are needed because lack of functionality of the underlying AWS API makes certain
     # seemingly inane tasks incredibly tricky: for example checking if an "object" (file or
     # directory) exists is very subtle
-    @testset "path naming edge cases" begin
+    @testset "path naming edge cases" for return_raw in [true, false]
         config = assume_testset_role("ReadWriteObject"; base_config)
+        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
 
         # this seemingly arbitrary operation is needed because of the insanely tricky way we
         # need to check for directories
-        s3_put(config, bucket_name, "testdir.", "") # create an empty file called `testdir.`
-        s3_put(config, bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
+        r = s3_put(config, bucket_name, "testdir.", "") # create an empty file called `testdir.`
+        @test isa(r, expected_put_result_type)
+        r = s3_put(config, bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
+        @test isa(r, expected_put_result_type)
         @test s3_exists(config, bucket_name, "testdir/")
         @test isdir(S3Path(bucket_name, "testdir/"; config))
         @test !isfile(S3Path(bucket_name, "testdir/"; config))
@@ -208,7 +223,8 @@ function awss3_tests(base_config)
         @test !isdir(S3Path(bucket_name, "testdir."; config))
         @test !s3_exists(config, bucket_name, "testdir")
 
-        s3_put(config, bucket_name, "testdir/testfile.txt", "what up")
+        r = s3_put(config, bucket_name, "testdir/testfile.txt", "what up")
+        @test isa(r, expected_put_result_type)
         @test s3_exists(config, bucket_name, "testdir/testfile.txt")
         @test isfile(S3Path(bucket_name, "testdir/testfile.txt"; config))
         # make sure the directory still "exists" even though there's a key in there now
@@ -224,15 +240,18 @@ function awss3_tests(base_config)
     #
     # MinIO isn't currently setup with the restrictive prefix required to make the tests
     # fail with "AccessDenied".
-    is_aws(base_config) && @testset "Restricted Prefix" begin
+    is_aws(base_config) && @testset "Restricted Prefix" for return_raw in [true, false]
         setup_config = assume_testset_role("ReadWriteObject"; base_config)
-        s3_put(
+        r1 = s3_put(
             setup_config,
             bucket_name,
             "prefix/denied/secrets/top-secret",
-            "for british eyes only",
+            "for british eyes only"; return_raw
         )
-        s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
+        r2 = s3_put(setup_config, bucket_name, "prefix/granted/file", "hello"; return_raw)
+        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        @test isa(r1, expected_put_result_type)
+        @test isa(r2, expected_put_result_type)
 
         config = assume_testset_role("RestrictedPrefixTestset"; base_config)
         @test s3_exists(config, bucket_name, "prefix/granted/file")
@@ -252,13 +271,16 @@ function awss3_tests(base_config)
         @test length(collect(s3_list_objects(config, bucket_name))) >= 0
     end
 
-    @testset "Version is empty" begin
+    @testset "Version is empty" for return_raw in [true, false]
         config = assume_testset_role("ReadWriteObject"; base_config)
 
         # Create the file to ensure we're only testing `version`
         k = "version_empty.txt"
-        s3_put(config, bucket_name, k, "v1")
-        s3_put(config, bucket_name, k, "v2")
+        r1 = s3_put(config, bucket_name, k, "v1"; return_raw)
+        r2 = s3_put(config, bucket_name, k, "v2"; return_raw)
+        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        @test isa(r1, expected_put_result_type)
+        @test isa(r2, expected_put_result_type)
 
         if is_aws(config)
             @test_throws AWSException s3_get(config, bucket_name, k; version="")
