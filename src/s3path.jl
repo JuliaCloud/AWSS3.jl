@@ -643,6 +643,7 @@ function Base.write(
     content::Vector{UInt8};
     part_size_mb=50,
     multipart::Bool=true,
+    return_path::Bool=false,
     other_kwargs...,
 )
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
@@ -651,14 +652,22 @@ function Base.write(
         throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     end
 
-    if !multipart || length(content) < MAX_HTTP_BYTES
-        return s3_put(get_config(fp), fp.bucket, fp.key, content)
+    return_raw = return_path
+    config = get_config(fp)
+    response = if !multipart || length(content) < MAX_HTTP_BYTES
+        s3_put(config, fp.bucket, fp.key, content; return_raw)
     else
         io = IOBuffer(content)
-        return s3_multipart_upload(
-            get_config(fp), fp.bucket, fp.key, io, part_size_mb; other_kwargs...
+        s3_multipart_upload(
+            config, fp.bucket, fp.key, io, part_size_mb; return_raw, other_kwargs...
         )
     end
+
+    if return_path
+        version = get(Dict(response.headers), "x-amz-version-id", nothing)
+        return S3Path(config, fp.bucket, fp.key; version)
+    end
+    return response
 end
 
 function FilePathsBase.mktmpdir(parent::S3Path)

@@ -930,6 +930,7 @@ function s3_put(
     acl::AbstractString="",
     metadata::SSDict=SSDict(),
     tags::AbstractDict=SSDict(),
+    return_raw::Bool=false,
     kwargs...,
 )
     headers = Dict{String,Any}(["x-amz-meta-$k" => v for (k, v) in metadata])
@@ -971,7 +972,8 @@ function s3_put(
 
     args = Dict("body" => data, "headers" => headers)
 
-    return parse(S3.put_object(bucket, path, args; aws_config=aws, kwargs...))
+    response = S3.put_object(bucket, path, args; aws_config=aws, kwargs...)
+    return return_raw ? response : parse(response)
 end
 
 s3_put(a...; b...) = s3_put(global_aws_config(), a...; b...)
@@ -1016,6 +1018,7 @@ function s3_complete_multipart_upload(
     upload,
     parts::Vector{String},
     args=Dict{String,Any}();
+    return_raw::Bool=false,
     kwargs...,
 )
     doc = XMLDocument()
@@ -1033,12 +1036,11 @@ function s3_complete_multipart_upload(
         upload["Bucket"], upload["Key"], upload["UploadId"], args; aws_config=aws, kwargs...
     )
 
-    return parse(response)
+    return return_raw ? response : parse(response)
 end
 
-function s3_multipart_upload(
-    aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50; kwargs...
-)
+function s3_multipart_upload(aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50;
+                             return_raw::Bool=false, kwargs...)
     part_size = part_size_mb * 1024 * 1024
 
     upload = s3_begin_multipart_upload(aws, bucket, path)
@@ -1054,7 +1056,7 @@ function s3_multipart_upload(
         push!(tags, s3_upload_part(aws, upload, (i += 1), buf; kwargs...))
     end
 
-    return s3_complete_multipart_upload(aws, upload, tags; kwargs...)
+    return s3_complete_multipart_upload(aws, upload, tags; return_raw, kwargs...)
 end
 
 using MbedTLS
