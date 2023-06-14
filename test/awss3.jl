@@ -80,7 +80,7 @@ function awss3_tests(base_config)
         )
         s3_put_tags(config, bucket_name, key_prefix * "key3", Dict("Left" => "Right"))
 
-        @test isempty(s3_get_tags(config, bucket_name, "key1"))
+        @test isempty(s3_get_tags(config, bucket_name, key_prefix * "key1"))
         @test s3_get_tags(config, bucket_name, key_prefix * "key2")["Key"] == "Value"
         @test s3_get_tags(config, bucket_name, key_prefix * "key3")["Left"] == "Right"
         s3_delete_tags(config, bucket_name, key_prefix * "key2")
