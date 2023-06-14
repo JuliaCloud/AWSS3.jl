@@ -1049,16 +1049,16 @@ end
 
 Upload `data` at `path` in `bucket` using a [multipart upload](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)
 
+# Optional Arguments
+- `part_size_mb`: maximum size per uploaded part, in bytes.
+- `return_raw`: when `true`, return un-parsed (raw) `S3.put_object` response
+- `kwargs`: additional kwargs passed through into `s3_upload_part` and `s3_complete_multipart_upload`
+
 # API Calls
 
 - [`CreateMultipartUpload`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
 - [`UploadPart`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
 - [`CompleteMultipartUpload`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
-
-# Optional Arguments
-- `part_size_mb`: maximum size per uploaded part, in bytes.
-- `return_raw`: when `true`, return un-parsed (raw) `S3.put_object` response
-- `kwargs`: additional kwargs passed through into `s3_upload_part` and `s3_complete_multipart_upload`
 """
 function s3_multipart_upload(
     aws::AbstractAWSConfig,

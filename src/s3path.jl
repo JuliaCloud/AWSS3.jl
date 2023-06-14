@@ -668,22 +668,22 @@ function Base.write(
         throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     end
 
-    return_raw = return_path
     config = get_config(fp)
     response = if !multipart || length(content) < MAX_HTTP_BYTES
-        s3_put(config, fp.bucket, fp.key, content; return_raw)
+        s3_put(config, fp.bucket, fp.key, content; return_raw=true)
     else
         io = IOBuffer(content)
         s3_multipart_upload(
-            config, fp.bucket, fp.key, io, part_size_mb; return_raw, other_kwargs...
+            config, fp.bucket, fp.key, io, part_size_mb; return_raw=true, other_kwargs...
         )
     end
 
     if return_path
         version = get(Dict(response.headers), "x-amz-version-id", nothing)
         return S3Path(config, fp.bucket, fp.key; version)
+    else
+        return parse(response)
     end
-    return response
 end
 
 function FilePathsBase.mktmpdir(parent::S3Path)

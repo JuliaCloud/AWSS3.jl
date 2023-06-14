@@ -33,6 +33,6 @@ write(p, "some data")
 
 read(p, byte_range=1:4)  # returns b"some"
 
-p_versioned = write(p, "other data"; return_path=true) # returns path identical to p but with addition of `version`
+p_versioned = write(p, "other data"; return_path=true) # returns the `S3Path` written to S3 including the new version ID 
 ```
 
