@@ -225,8 +225,16 @@ end
 function test_large_write(ps::PathSet)
     teststr = repeat("This is a test string!", round(Int, 2e5))
     @testset "large write/read" begin
-        write(ps.quux, teststr; part_size_mb=1, multipart=true)
+        result = write(ps.quux, teststr; part_size_mb=1, multipart=true)
         @test read(ps.quux, String) == teststr
+        @test result == UInt8[]
+    end
+
+    @testset "large write/read, return versioned path" begin
+        result = write(ps.quux, teststr; part_size_mb=1, multipart=true, return_path=true)
+        @test read(ps.quux, String) == teststr
+        @test isa(result, S3Path)
+        @test !isnothing(result.version)
     end
 end
 

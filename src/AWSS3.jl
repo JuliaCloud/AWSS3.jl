@@ -906,7 +906,9 @@ end
 s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b...)
 
 """
-    s3_put([::AbstractAWSConfig], bucket, path, data, data_type="", encoding=""; <keyword arguments>)
+    s3_put([::AbstractAWSConfig], bucket, path, data, data_type="", encoding="";
+           acl::AbstractString="", metadata::SSDict=SSDict(), tags::AbstractDict=SSDict(),
+           return_raw::Bool=false, kwargs...)
 
 [PUT Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html)
 `data` at `path` in `bucket`.
@@ -919,6 +921,8 @@ s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b..
 - `metadata::Dict=`; `x-amz-meta-` headers.
 - `tags::Dict=`; `x-amz-tagging-` headers
                  (see also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref)).
+- `return_raw::Bool=`; when `true`, return un-parsed (raw) `S3.put_object` response
+- `kwargs`; additional kwargs passed through into `S3.put_object`
 """
 function s3_put(
     aws::AbstractAWSConfig,
@@ -1039,6 +1043,22 @@ function s3_complete_multipart_upload(
     return return_raw ? response : parse(response)
 end
 
+"""
+    s3_multipart_upload(aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50;
+                        return_raw::Bool=false, kwargs...)
+
+Upload `data` at `path` in `bucket` using a [multipart upload](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)
+
+# API Calls
+
+- [`CreateMultipartUpload`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
+- [`UploadPart`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
+- [`CompleteMultipartUpload`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
+
+# Optional Arguments
+- `return_raw::Bool=`; when `true`, return un-parsed (raw) `S3.put_object` response
+- `kwargs`; additional kwargs passed through into `s3_upload_part` and `s3_complete_multipart_upload`
+"""
 function s3_multipart_upload(aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50;
                              return_raw::Bool=false, kwargs...)
     part_size = part_size_mb * 1024 * 1024
