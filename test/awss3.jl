@@ -31,7 +31,7 @@ function awss3_tests(base_config)
         config = assume_testset_role("CreateObjectsTestset"; base_config)
         global_aws_config(config)
 
-        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
         @test isa(
             s3_put(config, bucket_name, "key1", "data1.v1"; return_raw),
             expected_put_result_type,
@@ -166,7 +166,7 @@ function awss3_tests(base_config)
     @testset "default Content-Type" for return_raw in [true, false]
         config = assume_testset_role("ReadWriteObject"; base_config)
         ctype(key) = s3_get_meta(config, bucket_name, key)["Content-Type"]
-        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
 
         for k in ["file.foo", "file", "file_html", "file.d/html", "foobar.html/file.htm"]
             is_aws(config) && k == "file" && continue
@@ -237,7 +237,7 @@ function awss3_tests(base_config)
     # directory) exists is very subtle
     @testset "path naming edge cases" for return_raw in [true, false]
         config = assume_testset_role("ReadWriteObject"; base_config)
-        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
 
         # this seemingly arbitrary operation is needed because of the insanely tricky way we
         # need to check for directories
@@ -280,7 +280,7 @@ function awss3_tests(base_config)
             return_raw,
         )
         r2 = s3_put(setup_config, bucket_name, "prefix/granted/file", "hello"; return_raw)
-        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
         @test isa(r1, expected_put_result_type)
         @test isa(r2, expected_put_result_type)
 
@@ -309,7 +309,7 @@ function awss3_tests(base_config)
         k = "version_empty.txt"
         r1 = s3_put(config, bucket_name, k, "v1"; return_raw)
         r2 = s3_put(config, bucket_name, k, "v2"; return_raw)
-        expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
+        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
         @test isa(r1, expected_put_result_type)
         @test isa(r2, expected_put_result_type)
 

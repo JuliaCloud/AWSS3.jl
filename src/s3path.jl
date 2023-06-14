@@ -674,7 +674,13 @@ function Base.write(
     else
         io = IOBuffer(content)
         s3_multipart_upload(
-            config, fp.bucket, fp.key, io, part_size_mb; return_raw=true, other_kwargs...
+            config,
+            fp.bucket,
+            fp.key,
+            io,
+            part_size_mb;
+            return_raw=true,
+            other_kwargs...,
         )
     end
 
