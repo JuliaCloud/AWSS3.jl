@@ -32,5 +32,7 @@ p = S3Path("s3://my.bucket/test1.txt")  # provides an filesystem-like interface
 write(p, "some data")
 
 read(p, byte_range=1:4)  # returns b"some"
+
+p_versioned = write(p, "other data"; return_path=true) # returns path identical to p but with addition of `version`
 ```
 

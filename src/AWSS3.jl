@@ -1056,8 +1056,9 @@ Upload `data` at `path` in `bucket` using a [multipart upload](https://docs.aws.
 - [`CompleteMultipartUpload`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
 
 # Optional Arguments
-- `return_raw::Bool=`; when `true`, return un-parsed (raw) `S3.put_object` response
-- `kwargs`; additional kwargs passed through into `s3_upload_part` and `s3_complete_multipart_upload`
+- `part_size_mb`: maximum size per uploaded part, in bytes.
+- `return_raw`: when `true`, return un-parsed (raw) `S3.put_object` response
+- `kwargs`: additional kwargs passed through into `s3_upload_part` and `s3_complete_multipart_upload`
 """
 function s3_multipart_upload(aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50;
                              return_raw::Bool=false, kwargs...)

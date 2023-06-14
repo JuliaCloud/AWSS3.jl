@@ -634,6 +634,22 @@ function Base.read(fp::S3Path; byte_range=nothing)
     )
 end
 
+"""
+    Base.write(fp::S3Path, content::String; kwargs...)
+    Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=true,
+               return_path::Bool=false, other_kwargs...,)
+
+Write `content` to S3Path `fp`.
+
+# Optional Arguments
+- `multipart`: when `true`, uploads data via [`s3_multipart_upload`](@ref) for `content`
+    greater than `part_size_mb` bytes; when false, or when `content` is shorter
+    than `part_size_mb`, uploads data via [`s3_put`](@ref).
+- `part_size_mb`: when `multipart=true`, sets maximum length of partitioned data (in bytes).
+- `return_path`: when `true`, return the [`S3Path`](@ref) written to, which will
+    include a `version` if versioning is enabled for `fp.bucket`.
+- `other_kwargs`: additional kwargs passed through into [`s3_multipart_upload`](@ref).
+"""
 function Base.write(fp::S3Path, content::String; kwargs...)
     return Base.write(fp, Vector{UInt8}(content); kwargs...)
 end

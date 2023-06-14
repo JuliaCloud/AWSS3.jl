@@ -72,7 +72,7 @@ function test_s3_readpath(p::PathSet)
 end
 
 function test_s3_walkpath(p::PathSet)
-    @testset "walkpath - S3" begin
+    @testset "walkpath - S3" for return_path in [true, false]
         # Test that we still return parent prefixes even when no "directory" objects
         # have been created by a `mkdir`, retaining consistency with `readdir`.
         _root = p.root / "s3_walkpath/"
@@ -84,8 +84,14 @@ function test_s3_walkpath(p::PathSet)
         _quux = _qux / "quux.tar.gz"
 
         # Only write the leaf files
-        write(_baz, read(p.baz))
-        write(_quux, read(p.quux))
+        result_baz = write(_baz, read(p.baz); return_path)
+        result_quux = write(_quux, read(p.quux); return_path)
+        if return_path
+            @test isa(result_baz, S3Path)
+            @test isa(result_quux, S3Path)
+        else
+            @test result_baz == result_quux == UInt8[]
+        end
 
         topdown = [_bar, _qux, _quux, _foo, _baz]
         bottomup = [_quux, _qux, _bar, _baz, _foo]
@@ -137,7 +143,8 @@ function test_s3_sync(ps::PathSet)
         # NOTE: sleep before we make a new file, so it's clear tha the
         # modified time has changed.
         sleep(1)
-        write(p.foo / "test.txt", "New File")
+        result = write(p.foo / "test.txt", "New File")
+        @test result == UInt8[]
         sync(p.foo, ps.qux / "foo/")
         @test exists(p.qux / "foo" / "test.txt")
         @test read(p.qux / "foo" / "test.txt") == b"New File"
@@ -230,11 +237,10 @@ function test_large_write(ps::PathSet)
         @test result == UInt8[]
     end
 
-    @testset "large write/read, return versioned path" begin
+    @testset "large write/read, return path" begin
         result = write(ps.quux, teststr; part_size_mb=1, multipart=true, return_path=true)
         @test read(ps.quux, String) == teststr
         @test isa(result, S3Path)
-        @test !isnothing(result.version)
     end
 end
 
@@ -541,7 +547,8 @@ function s3path_tests(base_config)
         # here we use the "application/json" MIME type to trigger the heuristic parsing into a `LittleDict`
         # that will hit a `MethodError` at the `Vector{UInt8}` constructor of `read(::S3Path)` if `raw=true`
         # was not passed to `s3_get` in that method.
-        s3_put(config, bucket_name, "test_json", JSON3.write(my_dict), "application/json")
+        result = s3_put(config, bucket_name, "test_json", JSON3.write(my_dict), "application/json")
+        @test result == UInt8[]
         json_bytes = read(json_path)
         @test JSON3.read(json_bytes, Dict) == my_dict
         rm(json_path)
@@ -744,8 +751,9 @@ function s3path_tests(base_config)
             with_aws_config(config) do
                 # Setup: create a file holding a string `abc`
                 path = S3Path("s3://$(bucket_name)/test_str.txt")
-                write(path, "abc")
+                result = write(path, "abc")
                 @test read(path, String) == "abc"  # Have access to read file
+                @test result == UInt8[]
 
                 alt_region = config.region == "us-east-2" ? "us-east-1" : "us-east-2"
                 alt_config = AWSConfig(; region=alt_region) # this is the wrong region!

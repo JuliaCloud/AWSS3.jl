@@ -169,7 +169,7 @@ function awss3_tests(base_config)
         @test result == UInt8[]
     end
 
-    @testset "Multi-Part Upload, return versioned path" begin
+    @testset "Multi-Part Upload, return path" begin
         config = assume_testset_role("MultipartUploadTestset"; base_config)
         MIN_S3_CHUNK_SIZE = 5 * 1024 * 1024 # 5 MB
         key_name = "multi-part-key"
@@ -186,7 +186,6 @@ function awss3_tests(base_config)
         result = s3_complete_multipart_upload(config, upload, tags; return_raw=true)
         @test s3_exists(config, bucket_name, key_name; result.version)
         @test isa(result, S3Path)
-        @test !isnothing(result.version)
         @test result.key == key_name
         @test result.bucket == bucket_name
     end
