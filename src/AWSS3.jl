@@ -1060,8 +1060,15 @@ Upload `data` at `path` in `bucket` using a [multipart upload](https://docs.aws.
 - `return_raw`: when `true`, return un-parsed (raw) `S3.put_object` response
 - `kwargs`: additional kwargs passed through into `s3_upload_part` and `s3_complete_multipart_upload`
 """
-function s3_multipart_upload(aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50;
-                             return_raw::Bool=false, kwargs...)
+function s3_multipart_upload(
+    aws::AbstractAWSConfig,
+    bucket,
+    path,
+    io::IO,
+    part_size_mb=50;
+    return_raw::Bool=false,
+    kwargs...,
+)
     part_size = part_size_mb * 1024 * 1024
 
     upload = s3_begin_multipart_upload(aws, bucket, path)

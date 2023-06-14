@@ -32,16 +32,46 @@ function awss3_tests(base_config)
         global_aws_config(config)
 
         expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response
-        @test isa(s3_put(config, bucket_name, "key1", "data1.v1"; return_raw),
-                  expected_put_result_type)
-        @test isa(s3_put(bucket_name, "key2", "data2.v1"; tags=Dict("Key" => "Value"),
-                         return_raw), expected_put_result_type)
-        @test isa(s3_put(config, bucket_name, "key3", "data3.v1"; return_raw), expected_put_result_type)
-        @test isa(s3_put(config, bucket_name, "key3", "data3.v2"; return_raw), expected_put_result_type)
-        @test isa(s3_put(config, bucket_name, "key3", "data3.v3"; metadata=Dict("foo" => "bar"),
-                         return_raw), expected_put_result_type)
-        @test isa(s3_put(config, bucket_name, "key4", "data3.v4"; acl="bucket-owner-full-control",
-                         return_raw), expected_put_result_type)
+        @test isa(
+            s3_put(config, bucket_name, "key1", "data1.v1"; return_raw),
+            expected_put_result_type,
+        )
+        @test isa(
+            s3_put(
+                bucket_name, "key2", "data2.v1"; tags=Dict("Key" => "Value"), return_raw
+            ),
+            expected_put_result_type,
+        )
+        @test isa(
+            s3_put(config, bucket_name, "key3", "data3.v1"; return_raw),
+            expected_put_result_type,
+        )
+        @test isa(
+            s3_put(config, bucket_name, "key3", "data3.v2"; return_raw),
+            expected_put_result_type,
+        )
+        @test isa(
+            s3_put(
+                config,
+                bucket_name,
+                "key3",
+                "data3.v3";
+                metadata=Dict("foo" => "bar"),
+                return_raw,
+            ),
+            expected_put_result_type,
+        )
+        @test isa(
+            s3_put(
+                config,
+                bucket_name,
+                "key4",
+                "data3.v4";
+                acl="bucket-owner-full-control",
+                return_raw,
+            ),
+            expected_put_result_type,
+        )
         s3_put_tags(config, bucket_name, "key3", Dict("Left" => "Right"))
 
         @test isempty(s3_get_tags(config, bucket_name, "key1"))
@@ -246,7 +276,8 @@ function awss3_tests(base_config)
             setup_config,
             bucket_name,
             "prefix/denied/secrets/top-secret",
-            "for british eyes only"; return_raw
+            "for british eyes only";
+            return_raw,
         )
         r2 = s3_put(setup_config, bucket_name, "prefix/granted/file", "hello"; return_raw)
         expected_put_result_type = return_raw ? Vector{UInt8} : AWS.Response

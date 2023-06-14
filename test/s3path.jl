@@ -547,7 +547,9 @@ function s3path_tests(base_config)
         # here we use the "application/json" MIME type to trigger the heuristic parsing into a `LittleDict`
         # that will hit a `MethodError` at the `Vector{UInt8}` constructor of `read(::S3Path)` if `raw=true`
         # was not passed to `s3_get` in that method.
-        result = s3_put(config, bucket_name, "test_json", JSON3.write(my_dict), "application/json")
+        result = s3_put(
+            config, bucket_name, "test_json", JSON3.write(my_dict), "application/json"
+        )
         @test result == UInt8[]
         json_bytes = read(json_path)
         @test JSON3.read(json_bytes, Dict) == my_dict
