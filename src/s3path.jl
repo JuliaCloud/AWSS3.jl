@@ -689,7 +689,7 @@ function Base.write(
             fp.bucket,
             fp.key;
             isdirectory=fp.isdirectory,
-            version=get(Dict(response.headers), "x-amz-version-id", nothing),
+            version=HTTP.header(response.headers, "x-amz-version-id", nothing),
             config=fp.config,
         )
     else
