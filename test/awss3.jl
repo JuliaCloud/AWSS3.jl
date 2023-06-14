@@ -208,10 +208,10 @@ function awss3_tests(base_config)
 
         result = s3_complete_multipart_upload(config, upload, tags)
         @test s3_exists(config, bucket_name, key_name)
-        @test result == UInt8[]
+        @test isa(result, OrderedCollections.LittleDict)
     end
 
-    @testset "Multi-Part Upload, return path" begin
+    @testset "Multi-Part Upload, return unparsed path" begin
         config = assume_testset_role("MultipartUploadTestset"; base_config)
         MIN_S3_CHUNK_SIZE = 5 * 1024 * 1024 # 5 MB
         key_name = "multi-part-key"
@@ -226,10 +226,9 @@ function awss3_tests(base_config)
         end
 
         result = s3_complete_multipart_upload(config, upload, tags; return_raw=true)
-        @test s3_exists(config, bucket_name, key_name; result.version)
-        @test isa(result, S3Path)
-        @test result.key == key_name
-        @test result.bucket == bucket_name
+        version = get(Dict(result.headers), "x-amz-version-id", nothing)
+        @test s3_exists(config, bucket_name, key_name; version)
+        @test isa(result, AWS.Response)
     end
 
     # these tests are needed because lack of functionality of the underlying AWS API makes certain
@@ -241,9 +240,9 @@ function awss3_tests(base_config)
 
         # this seemingly arbitrary operation is needed because of the insanely tricky way we
         # need to check for directories
-        r = s3_put(config, bucket_name, "testdir.", "") # create an empty file called `testdir.`
+        r = s3_put(config, bucket_name, "testdir.", ""; return_raw) # create an empty file called `testdir.`
         @test isa(r, expected_put_result_type)
-        r = s3_put(config, bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
+        r = s3_put(config, bucket_name, "testdir/", ""; return_raw) # create an empty file called `testdir/` which AWS will treat as an "empty directory"
         @test isa(r, expected_put_result_type)
         @test s3_exists(config, bucket_name, "testdir/")
         @test isdir(S3Path(bucket_name, "testdir/"; config))
@@ -253,7 +252,7 @@ function awss3_tests(base_config)
         @test !isdir(S3Path(bucket_name, "testdir."; config))
         @test !s3_exists(config, bucket_name, "testdir")
 
-        r = s3_put(config, bucket_name, "testdir/testfile.txt", "what up")
+        r = s3_put(config, bucket_name, "testdir/testfile.txt", "what up"; return_raw)
         @test isa(r, expected_put_result_type)
         @test s3_exists(config, bucket_name, "testdir/testfile.txt")
         @test isfile(S3Path(bucket_name, "testdir/testfile.txt"; config))

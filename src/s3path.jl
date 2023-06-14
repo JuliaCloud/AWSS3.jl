@@ -685,8 +685,13 @@ function Base.write(
     end
 
     if return_path
-        version = get(Dict(response.headers), "x-amz-version-id", nothing)
-        return S3Path(config, fp.bucket, fp.key; version)
+        return S3Path(
+            fp.bucket,
+            fp.key;
+            isdirectory=fp.is_dir,
+            version=get(Dict(response.headers), "x-amz-version-id", nothing),
+            config=fp.config,
+        )
     else
         return parse(response)
     end

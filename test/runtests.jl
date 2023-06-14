@@ -10,6 +10,7 @@ using FilePathsBase.TestPaths: test
 using JSON3
 using Minio
 using Mocking
+using OrderedCollections: LittleDict
 using Retry
 using Test
 using UUIDs: uuid4
