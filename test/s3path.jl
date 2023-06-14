@@ -641,8 +641,8 @@ function s3path_tests(base_config)
 
             v1, v2 = first(versions), last(versions)
             if return_raw
-                @test v1 == get(Dict(r1.headers), "x-amz-version-id", nothing)
-                @test v2 == get(Dict(r2.headers), "x-amz-version-id", nothing)
+                @test v1 == HTTP.header(r1.headers, "x-amz-version-id", nothing)
+                @test v2 == HTTP.header(r2.headers, "x-amz-version-id", nothing)
             else
                 @test r1 == r2 == UInt8[]
             end
@@ -715,7 +715,7 @@ function s3path_tests(base_config)
                 r1 = s3_put(config, b, k, "original"; return_raw)
                 if return_raw
                     @test isa(r1, AWS.Response)
-                    @test isnothing(get(Dict(result.headers), "x-amz-version-id", nothing))
+                    @test isnothing(HTTP.header(r1.headers, "x-amz-version-id", nothing))
                 else
                     @test r1 == UInt8[]
                 end
@@ -737,7 +737,8 @@ function s3path_tests(base_config)
                 @test versions[2] != "null"
                 if return_raw
                     @test isa(r2, AWS.Response)
-                    @test versions[2] == get(Dict(r2.headers), "x-amz-version-id", nothing)
+                    @test versions[2] ==
+                        HTTP.header(r2.headers, "x-amz-version-id", nothing)
                 else
                     @test r2 == UInt8[]
                 end
