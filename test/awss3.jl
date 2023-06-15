@@ -61,6 +61,10 @@ function awss3_tests(base_config)
         end
 
         @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
+
+        @test isa(
+            s3_put(config, bucket_name, "key6", "data"; return_response=true), AWS.Response
+        )
     end
 
     @testset "ASync Get" begin
