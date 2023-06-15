@@ -204,8 +204,8 @@ function awss3_tests(base_config)
 
         # this seemingly arbitrary operation is needed because of the insanely tricky way we
         # need to check for directories
-        r = s3_put(config, bucket_name, "testdir.", "") # create an empty file called `testdir.`
-        r = s3_put(config, bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
+        s3_put(config, bucket_name, "testdir.", "") # create an empty file called `testdir.`
+        s3_put(config, bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
         @test s3_exists(config, bucket_name, "testdir/")
         @test isdir(S3Path(bucket_name, "testdir/"; config))
         @test !isfile(S3Path(bucket_name, "testdir/"; config))
@@ -214,7 +214,7 @@ function awss3_tests(base_config)
         @test !isdir(S3Path(bucket_name, "testdir."; config))
         @test !s3_exists(config, bucket_name, "testdir")
 
-        r = s3_put(config, bucket_name, "testdir/testfile.txt", "what up")
+        s3_put(config, bucket_name, "testdir/testfile.txt", "what up")
         @test s3_exists(config, bucket_name, "testdir/testfile.txt")
         @test isfile(S3Path(bucket_name, "testdir/testfile.txt"; config))
         # make sure the directory still "exists" even though there's a key in there now
