@@ -62,11 +62,19 @@ function awss3_tests(base_config)
 
         @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
+        # Unparsed responses
         @test isa(
             s3_put(config, bucket_name, "key6", "data"; parse_response=false), AWS.Response
         )
         @test isa(
-            s3_put(config, bucket_name, "file.xml", xml, "text/xml"; parse_response=false),
+            s3_put(
+                config,
+                bucket_name,
+                "file.xml";
+                xml="<?xml version='1.0'?><Doc><Text>Hello</Text></Doc>",
+                "text/xml",
+                parse_response=false,
+            ),
             AWS.Response,
         )
     end
