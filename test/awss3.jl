@@ -63,7 +63,11 @@ function awss3_tests(base_config)
         @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
         @test isa(
-            s3_put(config, bucket_name, "key6", "data"; return_response=true), AWS.Response
+            s3_put(config, bucket_name, "key6", "data"; return_raw=true), AWS.Response
+        )
+        @test isa(
+            s3_put(config, bucket_name, "file.xml", xml, "text/xml"; return_raw=true),
+            AWS.Response,
         )
     end
 
@@ -84,9 +88,6 @@ function awss3_tests(base_config)
         @test s3_put(config, bucket_name, "file.xml", xml, "text/xml") == UInt8[]
         @test String(s3_get(config, bucket_name, "file.xml"; raw=true)) == xml
         @test s3_get(config, bucket_name, "file.xml")["Text"] == "Hello"
-
-        result = s3_put(config, bucket_name, "file.xml", xml, "text/xml"; return_raw=true)
-        @test isa(result, AWS.Response)
     end
 
     @testset "Get byte range" begin
