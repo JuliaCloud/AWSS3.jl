@@ -725,19 +725,15 @@ function s3path_tests(base_config)
                 @test versioning_enabled(config, b)
 
                 # Overwrite the original object with a new version
-                r2 = s3_put(config, b, k, "new and improved!"; return_raw)
+                r2 = s3_put(config, b, k, "new and improved!"; return_raw=true)
+                returned_version = HTTP.header(r2.headers, "x-amz-version-id", nothing)
+                @test !isnothing(returned_version)
 
                 versions = list_version_ids(config, b, k)
                 @test length(versions) == 2
                 @test versions[1] == "null"
                 @test versions[2] != "null"
-                if return_raw
-                    @test isa(r2, AWS.Response)
-                    @test versions[2] ==
-                        HTTP.header(r2.headers, "x-amz-version-id", nothing)
-                else
-                    @test r2 == UInt8[]
-                end
+                @test versions[2] == returned_version
                 @test read(S3Path(b, k; config, version=versions[1])) == b"original"
                 @test read(S3Path(b, k; config, version=versions[2])) ==
                     b"new and improved!"
