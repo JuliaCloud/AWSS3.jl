@@ -670,7 +670,7 @@ function Base.write(
 
     config = get_config(fp)
     response = if !multipart || length(content) < MAX_HTTP_BYTES
-        s3_put(config, fp.bucket, fp.key, content; return_raw=true)
+        s3_put(config, fp.bucket, fp.key, content; parse_response=false)
     else
         io = IOBuffer(content)
         s3_multipart_upload(
@@ -679,7 +679,7 @@ function Base.write(
             fp.key,
             io,
             part_size_mb;
-            return_raw=true,
+            parse_response=false,
             other_kwargs...,
         )
     end

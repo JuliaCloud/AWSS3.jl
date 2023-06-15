@@ -63,10 +63,10 @@ function awss3_tests(base_config)
         @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
 
         @test isa(
-            s3_put(config, bucket_name, "key6", "data"; return_raw=true), AWS.Response
+            s3_put(config, bucket_name, "key6", "data"; parse_response=false), AWS.Response
         )
         @test isa(
-            s3_put(config, bucket_name, "file.xml", xml, "text/xml"; return_raw=true),
+            s3_put(config, bucket_name, "file.xml", xml, "text/xml"; parse_response=false),
             AWS.Response,
         )
     end
@@ -191,7 +191,7 @@ function awss3_tests(base_config)
             )
         end
 
-        result = s3_complete_multipart_upload(config, upload, tags; return_raw=true)
+        result = s3_complete_multipart_upload(config, upload, tags; parse_response=false)
         @test s3_exists(config, bucket_name, key_name)
         @test isa(result, AWS.Response)
     end

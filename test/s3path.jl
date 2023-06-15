@@ -627,24 +627,24 @@ function s3path_tests(base_config)
 
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
     if is_aws(base_config)
-        @testset "S3Path versioning" for return_raw in [true, false]
+        @testset "S3Path versioning" for parse_response in [true, false]
             config = assume_testset_role("S3PathVersioningTestset"; base_config)
 
             s3_enable_versioning(config, bucket_name)
-            key = "test_versions_$(return_raw)"
-            r1 = s3_put(config, bucket_name, key, "data.v1"; return_raw)
-            r2 = s3_put(config, bucket_name, key, "data.v2"; return_raw)
+            key = "test_versions_$(parse_response)"
+            r1 = s3_put(config, bucket_name, key, "data.v1"; parse_response)
+            r2 = s3_put(config, bucket_name, key, "data.v2"; parse_response)
 
             # `s3_list_versions` returns versions in the order newest to oldest
             listed_versions = s3_list_versions(config, bucket_name, key)
             versions = [d["VersionId"] for d in reverse!(listed_versions)]
 
             v1, v2 = first(versions), last(versions)
-            if return_raw
+            if parse_response
+                @test r1 == r2 == UInt8[]
+            else
                 @test v1 == HTTP.header(r1.headers, "x-amz-version-id", nothing)
                 @test v2 == HTTP.header(r2.headers, "x-amz-version-id", nothing)
-            else
-                @test r1 == r2 == UInt8[]
             end
             @test read(S3Path(bucket_name, key; config, version=v1), String) == "data.v1"
             @test read(S3Path(bucket_name, key; config, version=v2), String) == "data.v2"
@@ -691,7 +691,7 @@ function s3path_tests(base_config)
             @test length(s3_list_versions(config, bucket_name, key)) == 1
         end
 
-        @testset "S3Path null version" for return_raw in [true, false]
+        @testset "S3Path null version" begin
             config = assume_testset_role("S3PathNullVersionTestset"; base_config)
 
             b = gen_bucket_name("awss3.jl.test.null.")
@@ -712,7 +712,7 @@ function s3path_tests(base_config)
                 @test !versioning_enabled(config, b)
 
                 # Create an object which will have versionId set to "null"
-                r1 = s3_put(config, b, k, "original"; return_raw=true)
+                r1 = s3_put(config, b, k, "original"; parse_response=false)
                 returned_version = HTTP.header(r1.headers, "x-amz-version-id", nothing)
                 @test isnothing(returned_version)
 
@@ -725,7 +725,7 @@ function s3path_tests(base_config)
                 @test versioning_enabled(config, b)
 
                 # Overwrite the original object with a new version
-                r2 = s3_put(config, b, k, "new and improved!"; return_raw=true)
+                r2 = s3_put(config, b, k, "new and improved!"; parse_response=false)
                 returned_version = HTTP.header(r2.headers, "x-amz-version-id", nothing)
                 @test !isnothing(returned_version)
 

@@ -909,7 +909,7 @@ s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b..
 """
     s3_put([::AbstractAWSConfig], bucket, path, data, data_type="", encoding="";
            acl::AbstractString="", metadata::SSDict=SSDict(), tags::AbstractDict=SSDict(),
-           return_raw::Bool=false, kwargs...)
+           parse_response::Bool=true, kwargs...)
 
 [PUT Object](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html)
 `data` at `path` in `bucket`.
@@ -922,7 +922,7 @@ s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b..
 - `metadata::Dict=`; `x-amz-meta-` headers.
 - `tags::Dict=`; `x-amz-tagging-` headers
                  (see also [`s3_put_tags`](@ref) and [`s3_get_tags`](@ref)).
-- `return_raw::Bool=`; when `true`, return un-parsed (raw) `S3.put_object` response
+- `parse_response::Bool=`; when `false`, return raw `AWS.Response`
 - `kwargs`; additional kwargs passed through into `S3.put_object`
 """
 function s3_put(
@@ -935,7 +935,7 @@ function s3_put(
     acl::AbstractString="",
     metadata::SSDict=SSDict(),
     tags::AbstractDict=SSDict(),
-    return_raw::Bool=false,
+    parse_response::Bool=true,
     kwargs...,
 )
     headers = Dict{String,Any}(["x-amz-meta-$k" => v for (k, v) in metadata])
@@ -978,7 +978,7 @@ function s3_put(
     args = Dict("body" => data, "headers" => headers)
 
     response = S3.put_object(bucket, path, args; aws_config=aws, kwargs...)
-    return return_raw ? response : parse(response)
+    return parse_response ?  parse(response) : response
 end
 
 s3_put(a...; b...) = s3_put(global_aws_config(), a...; b...)
@@ -1023,7 +1023,7 @@ function s3_complete_multipart_upload(
     upload,
     parts::Vector{String},
     args=Dict{String,Any}();
-    return_raw::Bool=false,
+    parse_response::Bool=true,
     kwargs...,
 )
     doc = XMLDocument()
@@ -1041,18 +1041,18 @@ function s3_complete_multipart_upload(
         upload["Bucket"], upload["Key"], upload["UploadId"], args; aws_config=aws, kwargs...
     )
 
-    return return_raw ? response : parse(response)
+    return parse_response ? parse(response) : response
 end
 
 """
     s3_multipart_upload(aws::AbstractAWSConfig, bucket, path, io::IO, part_size_mb=50;
-                        return_raw::Bool=false, kwargs...)
+                        parse_response::Bool=true, kwargs...)
 
 Upload `data` at `path` in `bucket` using a [multipart upload](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)
 
 # Optional Arguments
 - `part_size_mb`: maximum size per uploaded part, in bytes.
-- `return_raw`: when `true`, return un-parsed (raw) `S3.put_object` response
+- `parse_response`: when `false`, return raw `AWS.Response`
 - `kwargs`: additional kwargs passed through into `s3_upload_part` and `s3_complete_multipart_upload`
 
 # API Calls
@@ -1067,7 +1067,7 @@ function s3_multipart_upload(
     path,
     io::IO,
     part_size_mb=50;
-    return_raw::Bool=false,
+    parse_response::Bool=true,
     kwargs...,
 )
     part_size = part_size_mb * 1024 * 1024
@@ -1085,7 +1085,7 @@ function s3_multipart_upload(
         push!(tags, s3_upload_part(aws, upload, (i += 1), buf; kwargs...))
     end
 
-    return s3_complete_multipart_upload(aws, upload, tags; return_raw, kwargs...)
+    return s3_complete_multipart_upload(aws, upload, tags; parse_response, kwargs...)
 end
 
 using MbedTLS
