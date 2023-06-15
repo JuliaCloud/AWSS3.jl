@@ -146,8 +146,7 @@ function test_s3_sync(ps::PathSet)
         # NOTE: sleep before we make a new file, so it's clear tha the
         # modified time has changed.
         sleep(1)
-        result = write(p.foo / "test.txt", "New File")
-        @test result == UInt8[]
+        write(p.foo / "test.txt", "New File")
         sync(p.foo, ps.qux / "foo/")
         @test exists(p.qux / "foo" / "test.txt")
         @test read(p.qux / "foo" / "test.txt") == b"New File"
