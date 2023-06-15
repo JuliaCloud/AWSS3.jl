@@ -27,72 +27,31 @@ function awss3_tests(base_config)
         @test isempty(s3_get_tags(config, bucket_name))
     end
 
-    @testset "Create Objects" for return_raw in [true, false]
+    @testset "Create Objects" begin
         config = assume_testset_role("CreateObjectsTestset"; base_config)
         global_aws_config(config)
 
-        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
-        key_prefix = return_raw ? "p" : ""
+        s3_put(config, bucket_name, "key1", "data1.v1")
+        s3_put(bucket_name, "key2", "data2.v1"; tags=Dict("Key" => "Value"))
+        s3_put(config, bucket_name, "key3", "data3.v1")
+        s3_put(config, bucket_name, "key3", "data3.v2")
+        s3_put(config, bucket_name, "key3", "data3.v3"; metadata=Dict("foo" => "bar"))
+        s3_put(config, bucket_name, "key4", "data3.v4"; acl="bucket-owner-full-control")
+        s3_put_tags(config, bucket_name, "key3", Dict("Left" => "Right"))
 
-        @test isa(
-            s3_put(config, bucket_name, key_prefix * "key1", "data1.v1"; return_raw),
-            expected_put_result_type,
-        )
-        @test isa(
-            s3_put(
-                bucket_name,
-                key_prefix * "key2",
-                "data2.v1";
-                tags=Dict("Key" => "Value"),
-                return_raw,
-            ),
-            expected_put_result_type,
-        )
-        @test isa(
-            s3_put(config, bucket_name, key_prefix * "key3", "data3.v1"; return_raw),
-            expected_put_result_type,
-        )
-        @test isa(
-            s3_put(config, bucket_name, key_prefix * "key3", "data3.v2"; return_raw),
-            expected_put_result_type,
-        )
-        @test isa(
-            s3_put(
-                config,
-                bucket_name,
-                key_prefix * "key3",
-                "data3.v3";
-                metadata=Dict("foo" => "bar"),
-                return_raw,
-            ),
-            expected_put_result_type,
-        )
-        @test isa(
-            s3_put(
-                config,
-                bucket_name,
-                key_prefix * "key4",
-                "data3.v4";
-                acl="bucket-owner-full-control",
-                return_raw,
-            ),
-            expected_put_result_type,
-        )
-        s3_put_tags(config, bucket_name, key_prefix * "key3", Dict("Left" => "Right"))
+        @test isempty(s3_get_tags(config, bucket_name, "key1"))
+        @test s3_get_tags(config, bucket_name, "key2")["Key"] == "Value"
+        @test s3_get_tags(config, bucket_name, "key3")["Left"] == "Right"
+        s3_delete_tags(config, bucket_name, "key2")
+        @test isempty(s3_get_tags(config, bucket_name, "key2"))
 
-        @test isempty(s3_get_tags(config, bucket_name, key_prefix * "key1"))
-        @test s3_get_tags(config, bucket_name, key_prefix * "key2")["Key"] == "Value"
-        @test s3_get_tags(config, bucket_name, key_prefix * "key3")["Left"] == "Right"
-        s3_delete_tags(config, bucket_name, key_prefix * "key2")
-        @test isempty(s3_get_tags(config, bucket_name, key_prefix * "key2"))
-
-        @test s3_get(config, bucket_name, key_prefix * "key1") == b"data1.v1"
-        @test s3_get(config, bucket_name, key_prefix * "key2") == b"data2.v1"
-        @test s3_get(bucket_name, key_prefix * "key3") == b"data3.v3"
-        @test s3_get(bucket_name, key_prefix * "key4") == b"data3.v4"
+        @test s3_get(config, bucket_name, "key1") == b"data1.v1"
+        @test s3_get(config, bucket_name, "key2") == b"data2.v1"
+        @test s3_get(bucket_name, "key3") == b"data3.v3"
+        @test s3_get(bucket_name, "key4") == b"data3.v4"
 
         try
-            s3_get(config, bucket_name, key_prefix * "key5")
+            s3_get(config, bucket_name, "key5")
             @test false
         catch e
             e isa AWSException || rethrow()
@@ -101,7 +60,7 @@ function awss3_tests(base_config)
             @test e.cause.status == 404
         end
 
-        @test s3_get_meta(bucket_name, key_prefix * "key3")["x-amz-meta-foo"] == "bar"
+        @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
     end
 
     @testset "ASync Get" begin
