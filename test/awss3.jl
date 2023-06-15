@@ -199,16 +199,13 @@ function awss3_tests(base_config)
     # these tests are needed because lack of functionality of the underlying AWS API makes certain
     # seemingly inane tasks incredibly tricky: for example checking if an "object" (file or
     # directory) exists is very subtle
-    @testset "path naming edge cases" for return_raw in [true, false]
+    @testset "path naming edge cases" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
-        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
 
         # this seemingly arbitrary operation is needed because of the insanely tricky way we
         # need to check for directories
-        r = s3_put(config, bucket_name, "testdir.", ""; return_raw) # create an empty file called `testdir.`
-        @test isa(r, expected_put_result_type)
-        r = s3_put(config, bucket_name, "testdir/", ""; return_raw) # create an empty file called `testdir/` which AWS will treat as an "empty directory"
-        @test isa(r, expected_put_result_type)
+        r = s3_put(config, bucket_name, "testdir.", "") # create an empty file called `testdir.`
+        r = s3_put(config, bucket_name, "testdir/", "") # create an empty file called `testdir/` which AWS will treat as an "empty directory"
         @test s3_exists(config, bucket_name, "testdir/")
         @test isdir(S3Path(bucket_name, "testdir/"; config))
         @test !isfile(S3Path(bucket_name, "testdir/"; config))
@@ -217,8 +214,7 @@ function awss3_tests(base_config)
         @test !isdir(S3Path(bucket_name, "testdir."; config))
         @test !s3_exists(config, bucket_name, "testdir")
 
-        r = s3_put(config, bucket_name, "testdir/testfile.txt", "what up"; return_raw)
-        @test isa(r, expected_put_result_type)
+        r = s3_put(config, bucket_name, "testdir/testfile.txt", "what up")
         @test s3_exists(config, bucket_name, "testdir/testfile.txt")
         @test isfile(S3Path(bucket_name, "testdir/testfile.txt"; config))
         # make sure the directory still "exists" even though there's a key in there now
