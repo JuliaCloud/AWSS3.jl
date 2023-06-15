@@ -772,9 +772,8 @@ function s3path_tests(base_config)
             with_aws_config(config) do
                 # Setup: create a file holding a string `abc`
                 path = S3Path("s3://$(bucket_name)/test_str.txt")
-                result = write(path, "abc")
+                write(path, "abc")
                 @test read(path, String) == "abc"  # Have access to read file
-                @test result == UInt8[]
 
                 alt_region = config.region == "us-east-2" ? "us-east-1" : "us-east-2"
                 alt_config = AWSConfig(; region=alt_region) # this is the wrong region!

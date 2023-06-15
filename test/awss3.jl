@@ -118,8 +118,7 @@ function awss3_tests(base_config)
     @testset "Raw Return - XML" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
         xml = "<?xml version='1.0'?><Doc><Text>Hello</Text></Doc>"
-        result = s3_put(config, bucket_name, "file.xml", xml, "text/xml")
-        @test result == UInt8[]
+        @test s3_put(config, bucket_name, "file.xml", xml, "text/xml") == UInt8[]
         @test String(s3_get(config, bucket_name, "file.xml"; raw=true)) == xml
         @test s3_get(config, bucket_name, "file.xml")["Text"] == "Hello"
 
