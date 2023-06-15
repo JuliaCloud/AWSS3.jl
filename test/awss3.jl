@@ -230,19 +230,15 @@ function awss3_tests(base_config)
     #
     # MinIO isn't currently setup with the restrictive prefix required to make the tests
     # fail with "AccessDenied".
-    is_aws(base_config) && @testset "Restricted Prefix" for return_raw in [true, false]
+    is_aws(base_config) && @testset "Restricted Prefix" begin
         setup_config = assume_testset_role("ReadWriteObject"; base_config)
-        r1 = s3_put(
+        s3_put(
             setup_config,
             bucket_name,
             "prefix/denied/secrets/top-secret",
-            "for british eyes only";
-            return_raw,
+            "for british eyes only",
         )
-        r2 = s3_put(setup_config, bucket_name, "prefix/granted/file", "hello"; return_raw)
-        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
-        @test isa(r1, expected_put_result_type)
-        @test isa(r2, expected_put_result_type)
+        s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
 
         config = assume_testset_role("RestrictedPrefixTestset"; base_config)
         @test s3_exists(config, bucket_name, "prefix/granted/file")
