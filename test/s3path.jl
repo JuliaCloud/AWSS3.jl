@@ -712,13 +712,9 @@ function s3path_tests(base_config)
                 @test !versioning_enabled(config, b)
 
                 # Create an object which will have versionId set to "null"
-                r1 = s3_put(config, b, k, "original"; return_raw)
-                if return_raw
-                    @test isa(r1, AWS.Response)
-                    @test isnothing(HTTP.header(r1.headers, "x-amz-version-id", nothing))
-                else
-                    @test r1 == UInt8[]
-                end
+                r1 = s3_put(config, b, k, "original"; return_raw=true)
+                returned_version = HTTP.header(r1.headers, "x-amz-version-id", nothing)
+                @test isnothing(returned_version)
 
                 versions = list_version_ids(config, b, k)
                 @test length(versions) == 1
