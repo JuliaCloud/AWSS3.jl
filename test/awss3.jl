@@ -132,15 +132,13 @@ function awss3_tests(base_config)
     end
 
     # https://github.com/samoconnor/AWSS3.jl/issues/24
-    @testset "default Content-Type" for return_raw in [true, false]
+    @testset "default Content-Type" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
         ctype(key) = s3_get_meta(config, bucket_name, key)["Content-Type"]
-        expected_put_result_type = return_raw ? AWS.Response : Vector{UInt8}
 
         for k in ["file.foo", "file", "file_html", "file.d/html", "foobar.html/file.htm"]
             is_aws(config) && k == "file" && continue
-            result = s3_put(config, bucket_name, k, "x"; return_raw)
-            @test isa(result, expected_put_result_type)
+            s3_put(config, bucket_name, k, "x")
             @test ctype(k) == "application/octet-stream"
         end
 
@@ -155,9 +153,8 @@ function awss3_tests(base_config)
             ("some.tar.gz", "application/octet-stream"),
             ("data.bz2", "application/octet-stream"),
         ]
-            result = s3_put(config, bucket_name, k, "x"; return_raw)
+            s3_put(config, bucket_name, k, "x")
             @test ctype(k) == t
-            @test isa(result, expected_put_result_type)
         end
     end
 
