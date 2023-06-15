@@ -33,6 +33,8 @@ write(p, "some data")
 
 read(p, byte_range=1:4)  # returns b"some"
 
-p_versioned = write(p, "other data"; return_path=true) # returns the `S3Path` written to S3 including the new version ID 
+response = write(p, "other data"; returns=:response) # returns the raw `AWS.Response` on writing to S3
+parsed_response = write(p, "other data"; returns=:parsed) # returns the parsed `AWS.Response` (default)
+versioned_path = write(p, "other data"; returns=:path) # returns the `S3Path` written to S3, including the version ID
 ```
 

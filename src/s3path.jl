@@ -637,7 +637,7 @@ end
 """
     Base.write(fp::S3Path, content::String; kwargs...)
     Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=true,
-               return_path::Bool=false, other_kwargs...,)
+               returns::Symbol=:parsed, other_kwargs...,)
 
 Write `content` to S3Path `fp`.
 
@@ -646,8 +646,10 @@ Write `content` to S3Path `fp`.
   greater than `part_size_mb` bytes; when false, or when `content` is shorter
   than `part_size_mb`, uploads data via [`s3_put`](@ref).
 - `part_size_mb`: when `multipart=true`, sets maximum length of partitioned data (in bytes).
-- `return_path`: when `true`, return the [`S3Path`](@ref) written to, which will
-  include a `version` if versioning is enabled for `fp.bucket`.
+- `returns`: type of returned object, one of `:response` (the `AWS.Response`
+  of the internal [`s3_put`](@ref)); `:parsed` (default; the parsed `AWS.Response`); or
+  `path` (the [`S3Path`](@ref) written to, including a `version` if versioning is
+  enabled for `fp.bucket`).
 - `other_kwargs`: additional kwargs passed through into [`s3_multipart_upload`](@ref).
 """
 function Base.write(fp::S3Path, content::String; kwargs...)
@@ -659,13 +661,19 @@ function Base.write(
     content::Vector{UInt8};
     part_size_mb=50,
     multipart::Bool=true,
-    return_path::Bool=false,
+    returns::Symbol=:parsed,
     other_kwargs...,
 )
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
     MAX_HTTP_BYTES = 2147483647
     if fp.version !== nothing
         throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
+    end
+
+    supported_return_values = [:parsed, :response, :path]
+    if !(returns in supported_return_values)
+        err = "Unsupported `returns` value `$returns`; supported options are `$(supported_return_values)`"
+        throw(ArgumentError(err))
     end
 
     config = get_config(fp)
@@ -684,7 +692,7 @@ function Base.write(
         )
     end
 
-    if return_path
+    if returns == :path
         return S3Path(
             fp.bucket,
             fp.key;
@@ -692,8 +700,10 @@ function Base.write(
             version=HTTP.header(response.headers, "x-amz-version-id", nothing),
             config=fp.config,
         )
-    else
+    elseif returns == :parsed
         return parse(response)
+    else
+        return response
     end
 end
 

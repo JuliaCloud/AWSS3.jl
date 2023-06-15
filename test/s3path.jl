@@ -72,7 +72,7 @@ function test_s3_readpath(p::PathSet)
 end
 
 function test_s3_walkpath(p::PathSet)
-    @testset "walkpath - S3" for return_path in [true, false]
+    @testset "walkpath - S3" for returns in [:response, :parsed, :path]
         # Test that we still return parent prefixes even when no "directory" objects
         # have been created by a `mkdir`, retaining consistency with `readdir`.
         _root = p.root / "s3_walkpath/"
@@ -84,13 +84,16 @@ function test_s3_walkpath(p::PathSet)
         _quux = _qux / "quux.tar.gz"
 
         # Only write the leaf files
-        result_baz = write(_baz, read(p.baz); return_path)
-        result_quux = write(_quux, read(p.quux); return_path)
-        if return_path
+        result_baz = write(_baz, read(p.baz); returns)
+        result_quux = write(_quux, read(p.quux); returns)
+        if returns == :s3path
             @test isa(result_baz, S3Path)
             @test isa(result_quux, S3Path)
-        else
+        elseif returns == :parsed
             @test result_baz == result_quux == UInt8[]
+        elseif returns == :response
+            @test isa(result_baz, AWS.Response)
+            @test isa(result_quux, AWS.Response)
         end
 
         topdown = [_bar, _qux, _quux, _foo, _baz]
@@ -238,10 +241,25 @@ function test_large_write(ps::PathSet)
     end
 
     @testset "large write/read, return path" begin
-        result = write(ps.quux, teststr; part_size_mb=1, multipart=true, return_path=true)
+        result = write(ps.quux, teststr; part_size_mb=1, multipart=true, returns=:path)
         @test read(ps.quux, String) == teststr
         @test isa(result, S3Path)
     end
+
+    @testset "large write/read, return response" begin
+        result = write(ps.quux, teststr; part_size_mb=1, multipart=true, returns=:response)
+        @test read(ps.quux, String) == teststr
+        @test isa(result, AWS.Response)
+    end
+end
+
+function test_write_returns(ps::PathSet)
+    teststr = "Test string"
+    @test write(ps.quux, teststr) == UInt8[]
+    @test write(ps.quux, teststr; returns=:parsed) == UInt8[]
+    @test isa(write(ps.quux, teststr; returns=:response), AWS.Response)
+    @test isa(write(ps.quux, teststr; returns=:path), S3Path)
+    @test_throws ArgumentError write(ps.quux, teststr; returns=:unsupported_return_type)
 end
 
 function initialize(config, bucket_name)
@@ -367,6 +385,7 @@ function s3path_tests(base_config)
             test_read,
             test_large_write,
             test_write,
+            test_write_returns,
             test_s3_mkdir,
             # These tests seem to fail due to an eventual consistency issue?
             test_s3_cp,

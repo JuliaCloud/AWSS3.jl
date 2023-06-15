@@ -978,7 +978,7 @@ function s3_put(
     args = Dict("body" => data, "headers" => headers)
 
     response = S3.put_object(bucket, path, args; aws_config=aws, kwargs...)
-    return parse_response ?  parse(response) : response
+    return parse_response ? parse(response) : response
 end
 
 s3_put(a...; b...) = s3_put(global_aws_config(), a...; b...)
