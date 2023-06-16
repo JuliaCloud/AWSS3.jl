@@ -642,21 +642,19 @@ function s3path_tests(base_config)
             config = assume_testset_role("S3PathVersioningTestset"; base_config)
 
             s3_enable_versioning(config, bucket_name)
-            key = "test_versions_$(parse_response)"
-            r1 = s3_put(config, bucket_name, key, "data.v1"; parse_response)
-            r2 = s3_put(config, bucket_name, key, "data.v2"; parse_response)
+            key = "test_versions"
+            r1 = s3_put(config, bucket_name, key, "data.v1"; parse_response=false)
+            r2 = s3_put(config, bucket_name, key, "data.v2"; parse_response=false)
+            rv1 = HTTP.header(r1.headers, "x-amz-version-id", nothing)
+            rv2 = HTTP.header(r2.headers, "x-amz-version-id", nothing)
 
             # `s3_list_versions` returns versions in the order newest to oldest
             listed_versions = s3_list_versions(config, bucket_name, key)
             versions = [d["VersionId"] for d in reverse!(listed_versions)]
 
             v1, v2 = first(versions), last(versions)
-            if parse_response
-                @test r1 == r2 == UInt8[]
-            else
-                @test v1 == HTTP.header(r1.headers, "x-amz-version-id", nothing)
-                @test v2 == HTTP.header(r2.headers, "x-amz-version-id", nothing)
-            end
+            @test v1 == rv1
+            @test v2 == rv2
             @test read(S3Path(bucket_name, key; config, version=v1), String) == "data.v1"
             @test read(S3Path(bucket_name, key; config, version=v2), String) == "data.v2"
             @test read(S3Path(bucket_name, key; config, version=v2), String) ==
@@ -724,8 +722,8 @@ function s3path_tests(base_config)
 
                 # Create an object which will have versionId set to "null"
                 r1 = s3_put(config, b, k, "original"; parse_response=false)
-                returned_version = HTTP.header(r1.headers, "x-amz-version-id", nothing)
-                @test isnothing(returned_version)
+                rv1 = HTTP.header(r1.headers, "x-amz-version-id", nothing)
+                @test isnothing(rv1)
 
                 versions = list_version_ids(config, b, k)
                 @test length(versions) == 1
@@ -737,14 +735,14 @@ function s3path_tests(base_config)
 
                 # Overwrite the original object with a new version
                 r2 = s3_put(config, b, k, "new and improved!"; parse_response=false)
-                returned_version = HTTP.header(r2.headers, "x-amz-version-id", nothing)
-                @test !isnothing(returned_version)
+                rv2 = HTTP.header(r2.headers, "x-amz-version-id", nothing)
+                @test !isnothing(rv2)
 
                 versions = list_version_ids(config, b, k)
                 @test length(versions) == 2
                 @test versions[1] == "null"
                 @test versions[2] != "null"
-                @test versions[2] == returned_version
+                @test versions[2] == rv2
                 @test read(S3Path(b, k; config, version=versions[1])) == b"original"
                 @test read(S3Path(b, k; config, version=versions[2])) ==
                     b"new and improved!"
