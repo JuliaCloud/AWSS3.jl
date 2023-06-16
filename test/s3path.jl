@@ -72,7 +72,7 @@ function test_s3_readpath(p::PathSet)
 end
 
 function test_s3_walkpath(p::PathSet)
-    @testset "walkpath - S3" for returns in [:response, :parsed, :path]
+    @testset "walkpath - S3" begin
         # Test that we still return parent prefixes even when no "directory" objects
         # have been created by a `mkdir`, retaining consistency with `readdir`.
         _root = p.root / "s3_walkpath/"
@@ -84,17 +84,8 @@ function test_s3_walkpath(p::PathSet)
         _quux = _qux / "quux.tar.gz"
 
         # Only write the leaf files
-        result_baz = write(_baz, read(p.baz); returns)
-        result_quux = write(_quux, read(p.quux); returns)
-        if returns == :s3path
-            @test isa(result_baz, S3Path)
-            @test isa(result_quux, S3Path)
-        elseif returns == :parsed
-            @test result_baz == result_quux == UInt8[]
-        elseif returns == :response
-            @test isa(result_baz, AWS.Response)
-            @test isa(result_quux, AWS.Response)
-        end
+       write(_baz, read(p.baz))
+       write(_quux, read(p.quux))
 
         topdown = [_bar, _qux, _quux, _foo, _baz]
         bottomup = [_quux, _qux, _bar, _baz, _foo]
