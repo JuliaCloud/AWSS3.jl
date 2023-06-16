@@ -61,6 +61,10 @@ function awss3_tests(base_config)
         end
 
         @test s3_get_meta(bucket_name, "key3")["x-amz-meta-foo"] == "bar"
+
+        @test isa(
+            s3_put(config, bucket_name, "key6", "data"; parse_response=false), AWS.Response
+        )
     end
 
     @testset "ASync Get" begin
@@ -77,7 +81,7 @@ function awss3_tests(base_config)
     @testset "Raw Return - XML" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
         xml = "<?xml version='1.0'?><Doc><Text>Hello</Text></Doc>"
-        s3_put(config, bucket_name, "file.xml", xml, "text/xml")
+        @test s3_put(config, bucket_name, "file.xml", xml, "text/xml") == UInt8[]
         @test String(s3_get(config, bucket_name, "file.xml"; raw=true)) == xml
         @test s3_get(config, bucket_name, "file.xml")["Text"] == "Hello"
     end
@@ -164,8 +168,28 @@ function awss3_tests(base_config)
             )
         end
 
-        s3_complete_multipart_upload(config, upload, tags)
+        result = s3_complete_multipart_upload(config, upload, tags)
         @test s3_exists(config, bucket_name, key_name)
+        @test isa(result, LittleDict)
+    end
+
+    @testset "Multi-Part Upload, return unparsed path" begin
+        config = assume_testset_role("MultipartUploadTestset"; base_config)
+        MIN_S3_CHUNK_SIZE = 5 * 1024 * 1024 # 5 MB
+        key_name = "multi-part-key"
+        upload = s3_begin_multipart_upload(config, bucket_name, key_name)
+        tags = Vector{String}()
+
+        for part_number in 1:5
+            push!(
+                tags,
+                s3_upload_part(config, upload, part_number, rand(UInt8, MIN_S3_CHUNK_SIZE)),
+            )
+        end
+
+        result = s3_complete_multipart_upload(config, upload, tags; parse_response=false)
+        @test s3_exists(config, bucket_name, key_name)
+        @test isa(result, AWS.Response)
     end
 
     # these tests are needed because lack of functionality of the underlying AWS API makes certain

@@ -634,6 +634,23 @@ function Base.read(fp::S3Path; byte_range=nothing)
     )
 end
 
+"""
+    Base.write(fp::S3Path, content::String; kwargs...)
+    Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=true,
+               returns::Symbol=:parsed, other_kwargs...,)
+
+Write `content` to S3Path `fp`.
+
+# Optional Arguments
+- `multipart`: when `true`, uploads data via [`s3_multipart_upload`](@ref) for `content`
+  greater than `part_size_mb` bytes; when false, or when `content` is shorter
+  than `part_size_mb`, uploads data via [`s3_put`](@ref).
+- `part_size_mb`: when `multipart=true`, sets maximum length of partitioned data (in bytes).
+- `returns`: determines the result returned by the function: `:response` (the AWS API
+  response), :parsed` (default; the parsed AWS API response), or `:path` (the newly created
+  [`S3Path`](@ref), including its `version` when versioning is enabled for the bucket).
+- `other_kwargs`: additional kwargs passed through into [`s3_multipart_upload`](@ref).
+"""
 function Base.write(fp::S3Path, content::String; kwargs...)
     return Base.write(fp, Vector{UInt8}(content); kwargs...)
 end
@@ -643,6 +660,7 @@ function Base.write(
     content::Vector{UInt8};
     part_size_mb=50,
     multipart::Bool=true,
+    returns::Symbol=:parsed,
     other_kwargs...,
 )
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
@@ -651,13 +669,40 @@ function Base.write(
         throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     end
 
-    if !multipart || length(content) < MAX_HTTP_BYTES
-        return s3_put(get_config(fp), fp.bucket, fp.key, content)
+    supported_return_values = (:parsed, :response, :path)
+    if !(returns in supported_return_values)
+        err = "Unsupported `returns` value `$returns`; supported options are `$(supported_return_values)`"
+        throw(ArgumentError(err))
+    end
+
+    config = get_config(fp)
+    response = if !multipart || length(content) < MAX_HTTP_BYTES
+        s3_put(config, fp.bucket, fp.key, content; parse_response=false)
     else
         io = IOBuffer(content)
-        return s3_multipart_upload(
-            get_config(fp), fp.bucket, fp.key, io, part_size_mb; other_kwargs...
+        s3_multipart_upload(
+            config,
+            fp.bucket,
+            fp.key,
+            io,
+            part_size_mb;
+            parse_response=false,
+            other_kwargs...,
         )
+    end
+
+    if returns == :path
+        return S3Path(
+            fp.bucket,
+            fp.key;
+            isdirectory=fp.isdirectory,
+            version=HTTP.header(response.headers, "x-amz-version-id", nothing),
+            config=fp.config,
+        )
+    elseif returns == :parsed
+        return parse(response)
+    else
+        return response
     end
 end
 

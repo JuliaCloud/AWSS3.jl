@@ -222,11 +222,35 @@ function test_s3_folders_and_files(ps::PathSet)
     end
 end
 
-function test_large_write(ps::PathSet)
+function test_multipart_write(ps::PathSet)
     teststr = repeat("This is a test string!", round(Int, 2e5))
-    @testset "large write/read" begin
-        write(ps.quux, teststr; part_size_mb=1, multipart=true)
+    @testset "multipart write/read" begin
+        result = write(ps.quux, teststr; part_size_mb=1, multipart=true)
         @test read(ps.quux, String) == teststr
+        @test result == UInt8[]
+    end
+
+    @testset "multipart write/read, return path" begin
+        result = write(ps.quux, teststr; part_size_mb=1, multipart=true, returns=:path)
+        @test read(ps.quux, String) == teststr
+        @test isa(result, S3Path)
+    end
+
+    @testset "multipart write/read, return response" begin
+        result = write(ps.quux, teststr; part_size_mb=1, multipart=true, returns=:response)
+        @test read(ps.quux, String) == teststr
+        @test isa(result, AWS.Response)
+    end
+end
+
+function test_write_returns(ps::PathSet)
+    @testset "write returns" begin
+        teststr = "Test string"
+        @test write(ps.quux, teststr) == UInt8[]
+        @test write(ps.quux, teststr; returns=:parsed) == UInt8[]
+        @test write(ps.quux, teststr; returns=:response) isa AWS.Response
+        @test write(ps.quux, teststr; returns=:path) isa S3Path
+        @test_throws ArgumentError write(ps.quux, teststr; returns=:unsupported_return_type)
     end
 end
 
@@ -351,8 +375,9 @@ function s3path_tests(base_config)
             test_s3_readpath,
             test_walkpath,
             test_read,
-            test_large_write,
+            test_multipart_write,
             test_write,
+            test_write_returns,
             test_s3_mkdir,
             # These tests seem to fail due to an eventual consistency issue?
             test_s3_cp,
@@ -533,7 +558,10 @@ function s3path_tests(base_config)
         # here we use the "application/json" MIME type to trigger the heuristic parsing into a `LittleDict`
         # that will hit a `MethodError` at the `Vector{UInt8}` constructor of `read(::S3Path)` if `raw=true`
         # was not passed to `s3_get` in that method.
-        s3_put(config, bucket_name, "test_json", JSON3.write(my_dict), "application/json")
+        result = s3_put(
+            config, bucket_name, "test_json", JSON3.write(my_dict), "application/json"
+        )
+        @test result == UInt8[]
         json_bytes = read(json_path)
         @test JSON3.read(json_bytes, Dict) == my_dict
         rm(json_path)
@@ -615,14 +643,18 @@ function s3path_tests(base_config)
 
             s3_enable_versioning(config, bucket_name)
             key = "test_versions"
-            s3_put(config, bucket_name, key, "data.v1")
-            s3_put(config, bucket_name, key, "data.v2")
+            r1 = s3_put(config, bucket_name, key, "data.v1"; parse_response=false)
+            r2 = s3_put(config, bucket_name, key, "data.v2"; parse_response=false)
+            rv1 = HTTP.header(r1.headers, "x-amz-version-id", nothing)
+            rv2 = HTTP.header(r2.headers, "x-amz-version-id", nothing)
 
             # `s3_list_versions` returns versions in the order newest to oldest
             listed_versions = s3_list_versions(config, bucket_name, key)
             versions = [d["VersionId"] for d in reverse!(listed_versions)]
 
             v1, v2 = first(versions), last(versions)
+            @test v1 == rv1
+            @test v2 == rv2
             @test read(S3Path(bucket_name, key; config, version=v1), String) == "data.v1"
             @test read(S3Path(bucket_name, key; config, version=v2), String) == "data.v2"
             @test read(S3Path(bucket_name, key; config, version=v2), String) ==
@@ -689,7 +721,9 @@ function s3path_tests(base_config)
                 @test !versioning_enabled(config, b)
 
                 # Create an object which will have versionId set to "null"
-                s3_put(config, b, k, "original")
+                r1 = s3_put(config, b, k, "original"; parse_response=false)
+                rv1 = HTTP.header(r1.headers, "x-amz-version-id", nothing)
+                @test isnothing(rv1)
 
                 versions = list_version_ids(config, b, k)
                 @test length(versions) == 1
@@ -700,12 +734,15 @@ function s3path_tests(base_config)
                 @test versioning_enabled(config, b)
 
                 # Overwrite the original object with a new version
-                s3_put(config, b, k, "new and improved!")
+                r2 = s3_put(config, b, k, "new and improved!"; parse_response=false)
+                rv2 = HTTP.header(r2.headers, "x-amz-version-id", nothing)
+                @test !isnothing(rv2)
 
                 versions = list_version_ids(config, b, k)
                 @test length(versions) == 2
                 @test versions[1] == "null"
                 @test versions[2] != "null"
+                @test versions[2] == rv2
                 @test read(S3Path(b, k; config, version=versions[1])) == b"original"
                 @test read(S3Path(b, k; config, version=versions[2])) ==
                     b"new and improved!"

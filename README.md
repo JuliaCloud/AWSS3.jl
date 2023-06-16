@@ -32,5 +32,9 @@ p = S3Path("s3://my.bucket/test1.txt")  # provides an filesystem-like interface
 write(p, "some data")
 
 read(p, byte_range=1:4)  # returns b"some"
+
+response = write(p, "other data"; returns=:response) # returns the raw `AWS.Response` on writing to S3
+parsed_response = write(p, "other data"; returns=:parsed) # returns the parsed `AWS.Response` (default)
+versioned_path = write(p, "other data"; returns=:path) # returns the `S3Path` written to S3, including the version ID
 ```
 
