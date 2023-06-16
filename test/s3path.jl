@@ -224,19 +224,19 @@ end
 
 function test_multipart_write(ps::PathSet)
     teststr = repeat("This is a test string!", round(Int, 2e5))
-    @testset "large write/read" begin
+    @testset "multipart write/read" begin
         result = write(ps.quux, teststr; part_size_mb=1, multipart=true)
         @test read(ps.quux, String) == teststr
         @test result == UInt8[]
     end
 
-    @testset "large write/read, return path" begin
+    @testset "multipart write/read, return path" begin
         result = write(ps.quux, teststr; part_size_mb=1, multipart=true, returns=:path)
         @test read(ps.quux, String) == teststr
         @test isa(result, S3Path)
     end
 
-    @testset "large write/read, return response" begin
+    @testset "multipart write/read, return response" begin
         result = write(ps.quux, teststr; part_size_mb=1, multipart=true, returns=:response)
         @test read(ps.quux, String) == teststr
         @test isa(result, AWS.Response)
@@ -244,12 +244,14 @@ function test_multipart_write(ps::PathSet)
 end
 
 function test_write_returns(ps::PathSet)
-    teststr = "Test string"
-    @test write(ps.quux, teststr) == UInt8[]
-    @test write(ps.quux, teststr; returns=:parsed) == UInt8[]
-    @test isa(write(ps.quux, teststr; returns=:response), AWS.Response)
-    @test isa(write(ps.quux, teststr; returns=:path), S3Path)
-    @test_throws ArgumentError write(ps.quux, teststr; returns=:unsupported_return_type)
+    @testset "write returns" begin
+        teststr = "Test string"
+        @test write(ps.quux, teststr) == UInt8[]
+        @test write(ps.quux, teststr; returns=:parsed) == UInt8[]
+        @test write(ps.quux, teststr; returns=:response) isa AWS.Response
+        @test write(ps.quux, teststr; returns=:path) isa S3Path
+        @test_throws ArgumentError write(ps.quux, teststr; returns=:unsupported_return_type)
+    end
 end
 
 function initialize(config, bucket_name)
