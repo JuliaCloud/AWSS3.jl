@@ -638,7 +638,7 @@ function s3path_tests(base_config)
 
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
     if is_aws(base_config)
-        @testset "S3Path versioning" for parse_response in [true, false]
+        @testset "S3Path versioning" begin
             config = assume_testset_role("S3PathVersioningTestset"; base_config)
 
             s3_enable_versioning(config, bucket_name)
