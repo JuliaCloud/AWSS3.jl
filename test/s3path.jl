@@ -84,8 +84,8 @@ function test_s3_walkpath(p::PathSet)
         _quux = _qux / "quux.tar.gz"
 
         # Only write the leaf files
-       write(_baz, read(p.baz))
-       write(_quux, read(p.quux))
+        write(_baz, read(p.baz))
+        write(_quux, read(p.quux))
 
         topdown = [_bar, _qux, _quux, _foo, _baz]
         bottomup = [_quux, _qux, _bar, _baz, _foo]
@@ -222,7 +222,7 @@ function test_s3_folders_and_files(ps::PathSet)
     end
 end
 
-function test_large_write(ps::PathSet)
+function test_multipart_write(ps::PathSet)
     teststr = repeat("This is a test string!", round(Int, 2e5))
     @testset "large write/read" begin
         result = write(ps.quux, teststr; part_size_mb=1, multipart=true)
@@ -373,7 +373,7 @@ function s3path_tests(base_config)
             test_s3_readpath,
             test_walkpath,
             test_read,
-            test_large_write,
+            test_multipart_write,
             test_write,
             test_write_returns,
             test_s3_mkdir,
