@@ -646,10 +646,9 @@ Write `content` to S3Path `fp`.
   greater than `part_size_mb` bytes; when false, or when `content` is shorter
   than `part_size_mb`, uploads data via [`s3_put`](@ref).
 - `part_size_mb`: when `multipart=true`, sets maximum length of partitioned data (in bytes).
-- `returns`: type of returned object, one of `:response` (the `AWS.Response`
-  of the internal [`s3_put`](@ref)); `:parsed` (default; the parsed `AWS.Response`); or
-  `path` (the [`S3Path`](@ref) written to, including a `version` if versioning is
-  enabled for `fp.bucket`).
+- `returns`: determines the result returned by the function: `:response` (the AWS API
+  response), :parsed` (default; the parsed AWS API response), or `:path` (the newly created
+  [`S3Path`](@ref), including its `version` when versioning is enabled for the bucket).
 - `other_kwargs`: additional kwargs passed through into [`s3_multipart_upload`](@ref).
 """
 function Base.write(fp::S3Path, content::String; kwargs...)
@@ -670,7 +669,7 @@ function Base.write(
         throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     end
 
-    supported_return_values = [:parsed, :response, :path]
+    supported_return_values = (:parsed, :response, :path)
     if !(returns in supported_return_values)
         err = "Unsupported `returns` value `$returns`; supported options are `$(supported_return_values)`"
         throw(ArgumentError(err))
