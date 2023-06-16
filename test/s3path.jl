@@ -52,6 +52,16 @@ function test_s3_mkdir(p::PathSet)
     end
 end
 
+function test_s3_download(base_config::AbstractAWSConfig)
+    config = assume_testset_role("ReadWriteObject"; base_config)
+
+    # Requires that the global AWS configuration is set so that `S3Path`s created within
+    # the tests have the correct permissions (e.g. `download(::S3Path, "s3://...")`)
+    return p -> with_aws_config(config) do
+        test_download(p)
+    end
+end
+
 function test_s3_readpath(p::PathSet)
     @testset "readpath" begin
         @test readdir(p.root) == ["bar/", "foo/", "fred/"]
@@ -147,10 +157,12 @@ function test_s3_sync(ps::PathSet)
     end
 end
 
-function test_s3_properties(ps::PathSet)
-    @testset "s3_properties" begin
-        fp1 = p"s3://mybucket/path/to/some/object"
-        fp2 = p"s3://mybucket/path/to/some/prefix/"
+function test_s3_properties(base_config::AbstractAWSConfig)
+    return ps -> @testset "s3_properties" begin
+        config = assume_testset_role("ReadWriteObject"; base_config)
+
+        fp1 = S3Path("s3://mybucket/path/to/some/object"; config)
+        fp2 = S3Path("s3://mybucket/path/to/some/prefix/"; config)
         @test fp1.bucket == "mybucket"
         @test fp1.key == "path/to/some/object"
         @test fp2.bucket == "mybucket"
@@ -158,7 +170,7 @@ function test_s3_properties(ps::PathSet)
         @test fp2.version === nothing
 
         try
-            fp3 = S3Path(ps.root.bucket, "/another/testdir/")
+            fp3 = S3Path(ps.root.bucket, "/another/testdir/"; config)
             strs = ["what up", "what else up", "what up again"]
             write(fp3 / "testfile1.txt", strs[1])
             write(fp3 / "testfile2.txt", strs[2])
@@ -169,7 +181,7 @@ function test_s3_properties(ps::PathSet)
             # can be confident timestamps are different
             @test AWSS3.lastmodified(fp3) > AWSS3.lastmodified(ps.foo)
         finally
-            rm(S3Path(ps.root.bucket, "/another/"); recursive=true)  # otherwise subsequent tests may fail
+            rm(S3Path(ps.root.bucket, "/another/"; config); recursive=true)  # otherwise subsequent tests may fail
         end
     end
 end
@@ -218,7 +230,7 @@ function test_large_write(ps::PathSet)
     end
 end
 
-function initialize(bucket_name)
+function initialize(config, bucket_name)
     """
     Hierarchy:
 
@@ -232,14 +244,14 @@ function initialize(bucket_name)
     |       |-- test_04.txt
     |       |-- subdir3/
     """
-    s3_put(bucket_name, "test_01.txt", "test01")
-    s3_put(bucket_name, "emptydir/", "")
-    s3_put(bucket_name, "subdir1/", "")
-    s3_put(bucket_name, "subdir1/test_02.txt", "test02")
-    s3_put(bucket_name, "subdir1/test_03.txt", "test03")
-    s3_put(bucket_name, "subdir1/subdir2/", "")
-    s3_put(bucket_name, "subdir1/subdir2/test_04.txt", "test04")
-    return s3_put(bucket_name, "subdir1/subdir2/subdir3/", "")
+    s3_put(config, bucket_name, "test_01.txt", "test01")
+    s3_put(config, bucket_name, "emptydir/", "")
+    s3_put(config, bucket_name, "subdir1/", "")
+    s3_put(config, bucket_name, "subdir1/test_02.txt", "test02")
+    s3_put(config, bucket_name, "subdir1/test_03.txt", "test03")
+    s3_put(config, bucket_name, "subdir1/subdir2/", "")
+    s3_put(config, bucket_name, "subdir1/subdir2/test_04.txt", "test04")
+    return s3_put(config, bucket_name, "subdir1/subdir2/subdir3/", "")
 end
 
 function verify_files(path::S3Path)
@@ -282,13 +294,18 @@ function verify_files(path::AbstractPath)
 end
 
 # This is the main entrypoint for the S3Path tests
-function s3path_tests(config)
-    bucket_name = let df = dateformat"yyyymmdd\THHMMSS\Z"
-        "ocaws.jl.test." * lowercase(Dates.format(now(Dates.UTC), df))
+function s3path_tests(base_config)
+    bucket_name = gen_bucket_name()
+
+    let
+        config = assume_testset_role("CreateBucket"; base_config)
+        s3_create_bucket(config, bucket_name)
     end
 
-    s3_create_bucket(config, bucket_name)
-    root = Path("s3://$bucket_name/pathset-root/")
+    root = let
+        config = assume_testset_role("ReadWriteObject"; base_config)
+        S3Path("s3://$bucket_name/pathset-root/"; config)
+    end
 
     ps = PathSet(
         root,
@@ -347,7 +364,7 @@ function s3path_tests(config)
             test_tmpdir,
             test_mktmp,
             test_mktmpdir,
-            test_download,
+            test_s3_download(base_config),
             test_issocket,
             # These will also all work for our custom path type,
             # but many implementations won't support them.
@@ -360,19 +377,27 @@ function s3path_tests(config)
             test_iswritable,
             # test_chown,   # chmod & chown don't make sense for S3Paths
             # test_chmod,
-            test_s3_properties,
+            test_s3_properties(base_config),
             test_s3_folders_and_files,
         ]
 
         # Run all of the automated tests
+        #
+        # Note: `FilePathsBase.TestPaths.test` internally calls an `initialize` function
+        # which requires AWS permissions in order to write some files to S3. Due to this
+        # setup and how `test` passes in `ps` to each test it makes it hard to have each
+        # testset specify their required permissions separately. Currently, we embed the
+        # configuration in the paths themselves but it may make more sense to set the
+        # config globally temporarily via `with_aws_config`.
         test(ps, testsets)
     end
 
     @testset "readdir" begin
-        initialize(bucket_name)
+        config = assume_testset_role("ReadWriteObject"; base_config)
+        initialize(config, bucket_name)
 
         @testset "S3" begin
-            verify_files(S3Path("s3://$bucket_name/"))
+            verify_files(S3Path("s3://$bucket_name/"; config))
             @test_throws ArgumentError("Invalid s3 path string: $bucket_name") S3Path(
                 bucket_name
             )
@@ -382,7 +407,7 @@ function s3path_tests(config)
             temp_path = Path(tempdir() * string(uuid4()))
             mkdir(temp_path)
 
-            sync(S3Path("s3://$bucket_name/"), temp_path)
+            sync(S3Path("s3://$bucket_name/"; config), temp_path)
             verify_files(temp_path)
 
             rm(temp_path; force=true, recursive=true)
@@ -420,17 +445,18 @@ function s3path_tests(config)
     end
 
     @testset "isdir" begin
+        config = assume_testset_role("ReadObject"; base_config)
+
         function _generate_exception(code)
             return AWSException(
                 code, "", nothing, AWS.HTTP.Exceptions.StatusError(404, "", "", ""), nothing
             )
         end
 
-        s3_path = S3Path("s3://$(bucket_name)"; config)
-
         @testset "top level bucket" begin
             @testset "success" begin
-                @test isdir(s3_path) == true
+                @test isdir(S3Path("s3://$(bucket_name)"; config))
+                @test isdir(S3Path("s3://$(bucket_name)/"; config))
             end
 
             @testset "NoSuchBucket" begin
@@ -440,7 +466,8 @@ function s3path_tests(config)
                 end
 
                 apply(patch) do
-                    @test isdir(s3_path) == false
+                    @test !isdir(S3Path("s3://$(bucket_name)"; config))
+                    @test !isdir(S3Path("s3://$(bucket_name)/"; config))
                 end
             end
 
@@ -451,13 +478,56 @@ function s3path_tests(config)
                 end
 
                 apply(patch) do
-                    @test_throws AWSException isdir(s3_path)
+                    @test_throws AWSException isdir(S3Path("s3://$(bucket_name)"; config))
+                    @test_throws AWSException isdir(S3Path("s3://$(bucket_name)/"; config))
                 end
+            end
+        end
+
+        # Based upon this example: https://repost.aws/knowledge-center/iam-s3-user-specific-folder
+        #
+        # MinIO isn't currently setup with the restrictive prefix required to make the tests
+        # fail with "AccessDenied".
+        is_aws(base_config) && @testset "Restricted Prefix" begin
+            setup_config = assume_testset_role("ReadWriteObject"; base_config)
+            s3_put(
+                setup_config,
+                bucket_name,
+                "prefix/denied/secrets/top-secret",
+                "for british eyes only",
+            )
+            s3_put(setup_config, bucket_name, "prefix/granted/file", "hello")
+
+            config = assume_testset_role("RestrictedPrefixTestset"; base_config)
+            @test isdir(S3Path("s3://$(bucket_name)/prefix/granted/"; config))
+            @test isdir(S3Path("s3://$(bucket_name)/prefix/"; config))
+            @test isdir(S3Path("s3://$(bucket_name)"; config))
+
+            @test_throws_msg ["AccessDenied", "403"] begin
+                isdir(S3Path("s3://$(bucket_name)/prefix/denied/"; config))
+            end
+
+            # The above call fails as we use `"prefix" => "prefix/denied/"`. However,
+            # this restricted role can still determine that the "denied" directory
+            # exists with some carefully crafted queries.
+            params = Dict("prefix" => "prefix/", "delimiter" => "/")
+            r = S3.list_objects_v2(bucket_name, params; aws_config=config)
+            prefixes = [x["Prefix"] for x in parse(r)["CommonPrefixes"]]
+            @test "prefix/denied/" in prefixes
+
+            @test_throws_msg ["AccessDenied", "403"] begin
+                !isdir(S3Path("s3://$(bucket_name)/prefix/dne/"; config))
+            end
+
+            @test_throws_msg ["AccessDenied", "403"] begin
+                !isdir(S3Path("s3://$(bucket_name)/prefix/denied/secrets/"; config))
             end
         end
     end
 
     @testset "JSON roundtripping" begin
+        config = assume_testset_role("ReadWriteObject"; base_config)
+
         json_path = S3Path("s3://$(bucket_name)/test_json"; config)
         my_dict = Dict("key" => "value", "key2" => 5.0)
         # here we use the "application/json" MIME type to trigger the heuristic parsing into a `LittleDict`
@@ -479,11 +549,14 @@ function s3path_tests(config)
         ]
         tbl = Arrow.Table(Arrow.tobuffer((; paths=paths)))
         @test all(isequal.(tbl.paths, paths))
-        push!(paths, S3Path("s3://$(bucket_name)/c"; config))
+
+        # Cannot serialize `S3Path`s with embedded `AWSConfig`s.
+        push!(paths, S3Path("s3://$(bucket_name)/c"; config=base_config))
         @test_throws ArgumentError Arrow.tobuffer((; paths))
     end
 
     @testset "tryparse" begin
+        # The global `AWSConfig` is just used for comparison and isn't used for access
         cfg = global_aws_config()
         ver = String('A':'Z') * String('0':'5')
 
@@ -536,8 +609,10 @@ function s3path_tests(config)
     end
 
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
-    if is_aws(config)
+    if is_aws(base_config)
         @testset "S3Path versioning" begin
+            config = assume_testset_role("S3PathVersioningTestset"; base_config)
+
             s3_enable_versioning(config, bucket_name)
             key = "test_versions"
             s3_put(config, bucket_name, key, "data.v1")
@@ -594,9 +669,9 @@ function s3path_tests(config)
         end
 
         @testset "S3Path null version" begin
-            b = let df = dateformat"yyyymmdd\THHMMSS\Z"
-                "ocaws.jl.test.null." * lowercase(Dates.format(now(Dates.UTC), df))
-            end
+            config = assume_testset_role("S3PathNullVersionTestset"; base_config)
+
+            b = gen_bucket_name("awss3.jl.test.null.")
             k = "object"
 
             function versioning_enabled(config, bucket)
@@ -653,35 +728,34 @@ function s3path_tests(config)
         @test path == path2
     end
 
-    # Minio does not care about regions, so this test doesn't work there
-    if is_aws(config)
+    # MinIO does not care about regions, so this test doesn't work there
+    if is_aws(base_config)
         @testset "Global config is not frozen at construction time" begin
-            prev_config = global_aws_config()
+            config = assume_testset_role("ReadWriteObject"; base_config)
 
-            # Setup: create a file holding a string `abc`
-            path = S3Path("s3://$(bucket_name)/test_str.txt")
-            write(path, "abc")
-            @test read(path, String) == "abc"  # Have access to read file
+            with_aws_config(config) do
+                # Setup: create a file holding a string `abc`
+                path = S3Path("s3://$(bucket_name)/test_str.txt")
+                write(path, "abc")
+                @test read(path, String) == "abc"  # Have access to read file
 
-            alt_region = prev_config.region == "us-east-2" ? "us-east-1" : "us-east-2"
-            try
-                global_aws_config(; region=alt_region) # this is the wrong region!
-                @test_throws AWS.AWSException read(path, String)
+                alt_region = config.region == "us-east-2" ? "us-east-1" : "us-east-2"
+                alt_config = AWSConfig(; region=alt_region) # this is the wrong region!
 
-                # restore the right region
-                global_aws_config(prev_config)
+                with_aws_config(alt_config) do
+                    @test_throws AWS.AWSException read(path, String)
+                end
+
                 # Now it works, without recreating `path`
                 @test read(path, String) == "abc"
                 rm(path)
-            finally
-                # In case a test threw, make sure we really do restore the right global config
-                global_aws_config(prev_config)
             end
         end
     end
 
-    # Broken on minio
-    if is_aws(config)
+    # Broken on MinIO
+    if is_aws(base_config)
+        config = assume_testset_role("NukeBucket"; base_config)
         AWSS3.s3_nuke_bucket(config, bucket_name)
     end
 end
