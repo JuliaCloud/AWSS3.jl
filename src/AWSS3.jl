@@ -411,12 +411,14 @@ end
 s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
 
 """
-    s3_copy([::AbstractAWSConfig], bucket, path; to_bucket=bucket, to_path=path, kwargs...)
+    s3_copy([::AbstractAWSConfig], bucket, path; to_bucket=bucket, to_path=path,
+            parse_response::Bool=true, kwargs...)
 
 [PUT Object - Copy](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html)
 
 # Optional Arguments
 - `metadata::Dict=`; optional `x-amz-meta-` headers.
+- `parse_response::Bool=`; when `false`, return raw `AWS.Response`
 """
 function s3_copy(
     aws::AbstractAWSConfig,
@@ -426,6 +428,7 @@ function s3_copy(
     to_bucket=bucket,
     to_path=path,
     metadata::AbstractDict=SSDict(),
+    parse_response::Bool=true,
     kwargs...,
 )
     headers = SSDict(
@@ -437,19 +440,46 @@ function s3_copy(
         headers["x-amz-acl"] = acl
     end
 
-    return parse(
-        S3.copy_object(
-            to_bucket,
-            to_path,
-            "$bucket/$path",
-            Dict("headers" => headers);
-            aws_config=aws,
-            kwargs...,
-        ),
+    response = S3.copy_object(
+        to_bucket,
+        to_path,
+        "$bucket/$path",
+        Dict("headers" => headers);
+        aws_config=aws,
+        kwargs...,
     )
+    return parse_response ? parse(response) : response
 end
 
 s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
+
+"""
+    versioned_s3_copy([::AbstractAWSConfig], bucket, path; to_bucket=bucket,
+                      to_path=path, kwargs...)
+
+Return destination `S3Path` from calling [`s3_copy`](@ref), with same input args
+and kwargs. When `to_bucket` has versioning enabled, output includes version of
+destination object.
+"""
+function versioned_s3_copy(
+    aws::AbstractAWSConfig,
+    bucket,
+    path;
+    to_bucket=bucket,
+    to_path=path,
+    metadata::AbstractDict=SSDict(),
+    kwargs...,
+)
+    response = s3_copy(
+        aws, bucket, path;parse_response=false, to_bucket, to_path, metadata,  kwargs...
+    )
+    return S3Path(
+        to_bucket,
+        to_path;
+        version=HTTP.header(response.headers, "x-amz-version-id", nothing),
+        config=aws,
+    )
+end
 
 """
     s3_create_bucket([::AbstractAWSConfig], bucket; kwargs...)
