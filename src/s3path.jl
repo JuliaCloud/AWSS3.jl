@@ -46,6 +46,7 @@ end
 
 """
     S3Path()
+    S3Path(path::S3Path; version::$(AbstractS3Version))
     S3Path(str; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
 
 Construct a new AWS S3 path type which should be of the form
@@ -105,6 +106,13 @@ function S3Path(
     return S3Path(
         key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config
     )
+end
+
+function S3Path(path::S3Path; version::AbstractS3Version)
+    if !isnothing(path.version)
+        throw(ArgumentError("Can't construct versioned path, input already specifies version: $path"))
+    end
+    return S3Path(path.bucket, path.key; path.isdirectory, path.config, version)
 end
 
 # To avoid a breaking change.
