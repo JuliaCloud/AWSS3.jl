@@ -417,8 +417,11 @@ s3_delete(bucket, path; kwargs...) = s3_delete(global_aws_config(), bucket, path
 """
     s3_delete_all_versions([::AbstractAWSConfig], bucket, path; kwargs...)
 
-Deletes all versions of an object from a bucket; forwards all `kwargs` to internal
-[`s3_delete`](@ref) call.
+Deletes all versions of object `path` from `bucket`, forwarding all `kwargs` to the
+internal per-version [`s3_delete`](@ref) call.
+
+To only delete one specific version, see [`s3_delete`](@ref); to delete all versions
+EXCEPT the latest version, see [`s3_purge_versions`](@ref).
 
 # API Calls
 
