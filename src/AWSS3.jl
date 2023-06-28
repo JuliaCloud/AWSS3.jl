@@ -411,6 +411,37 @@ end
 s3_delete(bucket, path; kwargs...) = s3_delete(global_aws_config(), bucket, path; kwargs...)
 
 """
+    s3_delete_all_versions([::AbstractAWSConfig], bucket, path; kwargs...)
+
+Deletes all versions of an object from a bucket; forwards all `kwargs` to internal
+[`s3_delete`](@ref) call.
+
+# API Calls
+
+- [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+- [`ListObjectVersions`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html)
+
+# Permissions
+
+- [`s3:DeleteObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObject)
+- [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
+"""
+function s3_delete_all_versions(aws::AbstractAWSConfig, bucket, path; kwargs...)
+    versions = [x["VersionId"] for x in s3_list_versions(bucket, path)]
+    for version in versions
+        try
+            s3_delete(path.bucket, path.key; version, kwargs...)
+        catch e
+            @error "Error deleting version $(version) of $(path)\n\n$(e)"
+        end
+    end
+    return nothing
+end
+
+s3_delete_all_versions(bucket, path; kwargs...) = s3_delete_all_versions(global_aws_config(), bucket, path; kwargs...)
+
+
+"""
     s3_copy([::AbstractAWSConfig], bucket, path; to_bucket=bucket, to_path=path, kwargs...)
 
 [PUT Object - Copy](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html)

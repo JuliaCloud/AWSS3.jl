@@ -463,8 +463,18 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
     end
 
     @debug "delete: $fp"
-    return s3_delete(get_config(fp), fp.bucket, fp.key; fp.version)
+    return s3_delete(fp)
 end
+
+s3_delete(fp::S3Path) = s3_delete(get_config(fp), fp.bucket, fp.key; fp.version)
+
+"""
+    s3_delete_all_versions(fp::S3Path)
+
+Delete all versions of an object `fp`.
+"""
+s3_delete_all_versions(fp::S3Path) = s3_delete_all_versions(get_config(fp), fp.bucket, fp.key)
+
 
 # We need to special case sync with S3Paths because of how directories
 # are handled again.
