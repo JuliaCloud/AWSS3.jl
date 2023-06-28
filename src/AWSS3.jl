@@ -432,12 +432,13 @@ EXCEPT the latest version, see [`s3_purge_versions`](@ref).
 function s3_delete_all_versions(aws::AbstractAWSConfig, bucket, path; kwargs...)
     # Because list_versions returns ALL keys with the given _prefix_, we need to
     # restrict the results to ones with the _exact same_ key.
-    versions = [x["VersionId"] for x in s3_list_versions(bucket, path) if x["Key"] == path]
-    for version in versions
+    for object in s3_list_versions(aws, bucket, path)
+        object["Key"] == path || continue
+        version = object["VersionId"]
         try
-            s3_delete(bucket, path; version, kwargs...)
+            s3_delete(aws, bucket, path; version, kwargs...)
         catch e
-            @error "Error deleting version $(version) of $(path)\n\n$(e)"
+            @error "Error deleting version $(version) of $(path)" exception=(e, catch_backtrace())
         end
     end
     return nothing
