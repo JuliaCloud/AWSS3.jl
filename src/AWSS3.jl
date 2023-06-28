@@ -15,6 +15,7 @@ export S3Path,
     s3_get_file,
     s3_exists,
     s3_delete,
+    s3_delete_all_versions,
     s3_copy,
     s3_create_bucket,
     s3_put_cors,
@@ -434,10 +435,14 @@ EXCEPT the latest version, see [`s3_purge_versions`](@ref).
 - [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
 """
 function s3_delete_all_versions(aws::AbstractAWSConfig, bucket, path; kwargs...)
-    versions = [x["VersionId"] for x in s3_list_versions(bucket, path)]
+    # Because list_versions returns ALL keys with the given _prefix_, we need to
+    # restrict the results to ones with the _exact same_ key.
+    versions = [
+        x["VersionId"] for x in s3_list_versions(bucket, path) if x["Key"] == path
+    ]
     for version in versions
         try
-            s3_delete(path.bucket, path.key; version, kwargs...)
+            s3_delete(bucket, path; version, kwargs...)
         catch e
             @error "Error deleting version $(version) of $(path)\n\n$(e)"
         end

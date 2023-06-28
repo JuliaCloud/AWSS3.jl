@@ -356,26 +356,31 @@ function awss3_tests(base_config)
 
     is_aws(base_config) && @testset "Delete All Versions" begin
         config = assume_testset_role("DeleteAllVersionsTestset"; base_config)
+        key_to_delete = "DeleteAllVersionsTestset_key"
+        key_not_to_delete = "DeleteAllVersionsTestset_key/rad"
 
-        s3_put(config, bucket_name, "DeleteAllVersionsTestset_key", "foo.v1")
-        s3_put(config, bucket_name, "DeleteAllVersionsTestset_key", "foo.v2")
-        s3_put(config, bucket_name, "DeleteAllVersionsTestset_key", "foo.v3")
-        s3_put(config, bucket_name, "DeleteAllVersionsTestset_key/rad", "rad.v1")
-        s3_put(config, bucket_name, "DeleteAllVersionsTestset_key/rad", "rad.v2")
+        s3_put(config, bucket_name, key_to_delete, "foo.v1")
+        s3_put(config, bucket_name, key_to_delete, "foo.v2")
+        s3_put(config, bucket_name, key_to_delete, "foo.v3")
+        s3_put(config, bucket_name, key_not_to_delete, "rad.v1")
+        s3_put(config, bucket_name, key_not_to_delete, "rad.v2")
 
-        @test length(
-            s3_list_versions(config, bucket_name, "DeleteAllVersionsTestset_key")
-        ) == 3
-        @test length(s3_list_keys(config, bucket_name, "DeleteAllVersionsTestset_key")) == 2
+        @test length(s3_list_versions(config, bucket_name, key_not_to_delete)) == 5
+        @test length([
+            x for x in s3_list_versions(config, bucket_name, key_to_delete) if
+            x["Key"] == key_to_delete
+        ]) == 3
 
-        s3_delete_all_versions(config, bucket_name, "DeleteAllVersionsTestset_key")
-        @test !s3_exists(config, bucket_name, "DeleteAllVersionsTestset_key")
+        s3_delete_all_versions(config, bucket_name, key_to_delete)
+        @test length([
+            x for x in s3_list_versions(config, bucket_name, key_to_delete) if
+            x["Key"] == key_to_delete
+        ]) == 0
+        @test !s3_exists(config, bucket_name, key_to_delete)
 
         # Test that _only_ specific path was deleted---not paths at the same prefix
-        @test !s3_exists(config, bucket_name, "DeleteAllVersionsTestset_key/rad")
-        @test length(
-            s3_list_versions(config, bucket_name, "DeleteAllVersionsTestset_key/rad")
-        ) == 2
+        @test s3_exists(config, bucket_name, key_not_to_delete)
+        @test length(s3_list_versions(config, bucket_name, key_not_to_delete)) == 2
     end
 
     if is_aws(base_config)
