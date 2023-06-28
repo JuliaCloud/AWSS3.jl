@@ -473,8 +473,9 @@ s3_delete(fp::S3Path) = s3_delete(get_config(fp), fp.bucket, fp.key; fp.version)
 
 Delete all versions of an object `fp`.
 """
-s3_delete_all_versions(fp::S3Path) = s3_delete_all_versions(get_config(fp), fp.bucket, fp.key)
-
+function s3_delete_all_versions(fp::S3Path)
+    return s3_delete_all_versions(get_config(fp), fp.bucket, fp.key)
+end
 
 # We need to special case sync with S3Paths because of how directories
 # are handled again.
