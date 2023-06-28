@@ -204,7 +204,9 @@ function s3_get_file(
     end
 end
 
-s3_get_file(bucket, path, filename; kwargs...) = s3_get_file(global_aws_config(), bucket, path, filename; kwargs...)
+function s3_get_file(bucket, path, filename; kwargs...)
+    return s3_get_file(global_aws_config(), bucket, path, filename; kwargs...)
+end
 
 function s3_get_file(
     aws::AbstractAWSConfig,
@@ -257,7 +259,9 @@ function s3_get_meta(
     return Dict(r.headers)
 end
 
-s3_get_meta(bucket, path; kwargs...) = s3_get_meta(global_aws_config(), bucket, path; kwargs...)
+function s3_get_meta(bucket, path; kwargs...)
+    return s3_get_meta(global_aws_config(), bucket, path; kwargs...)
+end
 
 function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
     q = Dict("prefix" => path, "delimiter" => "/", "max-keys" => 1)
@@ -518,7 +522,9 @@ function s3_put_cors(aws::AbstractAWSConfig, bucket, cors_config; kwargs...)
     return parse(S3.put_bucket_cors(bucket, cors_config; aws_config=aws, kwargs...))
 end
 
-s3_put_cors(bucket, cors_config; kwargs...) = s3_put_cors(AWS.global_aws_config(), bucket, cors_config; kwargs...)
+function s3_put_cors(bucket, cors_config; kwargs...)
+    return s3_put_cors(AWS.global_aws_config(), bucket, cors_config; kwargs...)
+end
 
 """
     s3_enable_versioning([::AbstractAWSConfig], bucket, [status]; kwargs...)
@@ -598,8 +604,12 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
     return s3_put_tags(aws, bucket, "", tags; kwargs...)
 end
 
-s3_put_tags(bucket, path, tags; kwargs...) = s3_put_tags(global_aws_config(), bucket, path, tags; kwargs...)
-s3_put_tags(bucket, tags; kwargs...) = s3_put_tags(global_aws_config(), bucket, tags; kwargs...)
+function s3_put_tags(bucket, path, tags; kwargs...)
+    return s3_put_tags(global_aws_config(), bucket, path, tags; kwargs...)
+end
+function s3_put_tags(bucket, tags; kwargs...)
+    return s3_put_tags(global_aws_config(), bucket, tags; kwargs...)
+end
 
 """
     s3_get_tags([::AbstractAWSConfig], bucket, [path]; kwargs...)
@@ -647,7 +657,9 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     end
 end
 
-s3_get_tags(bucket, path=""; kwargs...) = s3_get_tags(global_aws_config(), bucket, path; kwargs...)
+function s3_get_tags(bucket, path=""; kwargs...)
+    return s3_get_tags(global_aws_config(), bucket, path; kwargs...)
+end
 
 """
     s3_delete_tags([::AbstractAWSConfig], bucket, [path])
@@ -678,7 +690,9 @@ function s3_delete_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     return parse(r)
 end
 
-s3_delete_tags(bucket, path=""; kwargs...) = s3_delete_tags(global_aws_config(), bucket, path; kwargs...)
+function s3_delete_tags(bucket, path=""; kwargs...)
+    return s3_delete_tags(global_aws_config(), bucket, path; kwargs...)
+end
 
 """
     s3_delete_bucket([::AbstractAWSConfig], "bucket"; kwargs...)
@@ -784,7 +798,9 @@ function s3_list_objects(
         end
     end
 end
-s3_list_objects(bucket, path_prefix=""; kw...) = s3_list_objects(global_aws_config(), bucket, path_prefix; kw...)
+function s3_list_objects(bucket, path_prefix=""; kw...)
+    return s3_list_objects(global_aws_config(), bucket, path_prefix; kw...)
+end
 
 """
     s3_directory_stat([::AbstractAWSConfig], bucket, path)
@@ -820,7 +836,9 @@ function s3_list_keys(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs...)
     return (o["Key"] for o in s3_list_objects(aws, bucket, path_prefix; kwargs...))
 end
 
-s3_list_keys(bucket, path_prefix=""; kwargs...) = s3_list_keys(global_aws_config(), bucket, path_prefix; kwargs...)
+function s3_list_keys(bucket, path_prefix=""; kwargs...)
+    return s3_list_keys(global_aws_config(), bucket, path_prefix; kwargs...)
+end
 
 """
     s3_list_versions([::AbstractAWSConfig], bucket, [path_prefix]; kwargs...)
@@ -866,7 +884,9 @@ function s3_list_versions(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs
     return versions
 end
 
-s3_list_versions(bucket, path_prefix=""; kwargs...) = s3_list_versions(global_aws_config(), bucket, path_prefix; kwargs...)
+function s3_list_versions(bucket, path_prefix=""; kwargs...)
+    return s3_list_versions(global_aws_config(), bucket, path_prefix; kwargs...)
+end
 
 """
     s3_purge_versions([::AbstractAWSConfig], bucket, [path_prefix [, pattern]]; kwargs...)
@@ -905,7 +925,9 @@ function s3_purge_versions(
     end
 end
 
-s3_purge_versions(bucket, path_prefix="", pattern=""; kwargs...) = s3_purge_versions(global_aws_config(), bucket, path_prefix, pattern; kwargs...)
+function s3_purge_versions(bucket, path_prefix="", pattern=""; kwargs...)
+    return s3_purge_versions(global_aws_config(), bucket, path_prefix, pattern; kwargs...)
+end
 
 """
     s3_put([::AbstractAWSConfig], bucket, path, data, data_type="", encoding="";
