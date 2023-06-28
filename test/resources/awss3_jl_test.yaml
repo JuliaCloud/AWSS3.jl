@@ -236,6 +236,38 @@ Resources:
               - s3:DeleteObjectVersion
             Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
 
+  DeleteAllVersionsTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-DeleteAllVersionsTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  DeleteAllVersionsTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-DeleteAllVersionsTestset
+      Roles:
+        - !Ref DeleteAllVersionsTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucketVersions
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:DeleteObjectVersion
+              - s3:PutObject
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
   RestrictedPrefixTestsetRole:
     Type: AWS::IAM::Role
     Properties:
