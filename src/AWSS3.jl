@@ -558,7 +558,7 @@ function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; 
     return parse(r)
 end
 
-s3_enable_versioning(a; kwargs...) = s3_enable_versioning(global_aws_config(), a; kwargs...)
+s3_enable_versioning(bucket; kwargs...) = s3_enable_versioning(global_aws_config(), bucket; kwargs...)
 
 """
     s3_put_tags([::AbstractAWSConfig], bucket, [path], tags::Dict; kwargs...)
@@ -798,8 +798,8 @@ function s3_list_objects(
         end
     end
 end
-function s3_list_objects(bucket, path_prefix=""; kw...)
-    return s3_list_objects(global_aws_config(), bucket, path_prefix; kw...)
+function s3_list_objects(bucket, path_prefix=""; kwargs...)
+    return s3_list_objects(global_aws_config(), bucket, path_prefix; kwargs...)
 end
 
 """
