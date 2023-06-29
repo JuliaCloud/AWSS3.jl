@@ -558,7 +558,9 @@ function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; 
     return parse(r)
 end
 
-s3_enable_versioning(bucket; kwargs...) = s3_enable_versioning(global_aws_config(), bucket; kwargs...)
+function s3_enable_versioning(bucket; kwargs...)
+    return s3_enable_versioning(global_aws_config(), bucket; kwargs...)
+end
 
 """
     s3_put_tags([::AbstractAWSConfig], bucket, [path], tags::Dict; kwargs...)
