@@ -371,7 +371,7 @@ function awss3_tests(base_config)
             x["Key"] == key_to_delete
         ]) == 3
 
-        s3_delete_all_versions(config, bucket_name, key_to_delete)
+        s3_nuke_object_versions(config, bucket_name, key_to_delete)
         @test length([
             x for x in s3_list_versions(config, bucket_name, key_to_delete) if
             x["Key"] == key_to_delete

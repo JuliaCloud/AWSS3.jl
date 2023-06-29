@@ -702,7 +702,7 @@ function s3path_tests(base_config)
             fp = S3Path(config, bucket_name, "test_versions_deleteall")
             foreach(_ -> write(fp, "foo"), 1:6)
             @test length(s3_list_versions(fp.config, fp.bucket, fp.key)) == 6
-            s3_delete_all_versions(fp)
+            s3_nuke_object_versions(fp)
             @test length(s3_list_versions(fp.config, fp.bucket, fp.key)) == 0
             @test !exists(fp)
         end

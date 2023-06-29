@@ -469,12 +469,12 @@ end
 s3_delete(fp::S3Path) = s3_delete(get_config(fp), fp.bucket, fp.key; fp.version)
 
 """
-    s3_delete_all_versions(fp::S3Path)
+    s3_nuke_object_versions(fp::S3Path)
 
 Delete all versions of an object `fp`.
 """
-function s3_delete_all_versions(fp::S3Path)
-    return s3_delete_all_versions(get_config(fp), fp.bucket, fp.key)
+function s3_nuke_object_versions(fp::S3Path)
+    return s3_nuke_object_versions(get_config(fp), fp.bucket, fp.key)
 end
 
 # We need to special case sync with S3Paths because of how directories
