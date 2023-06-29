@@ -113,7 +113,10 @@ function awss3_tests(base_config)
             parse_response=false,
         )
         @test result isa AWS.Response
-        @test !isnothing(HTTP.header(result.headers, "x-amz-version-id", nothing))
+
+        if is_aws(base_config)
+            @test !isnothing(HTTP.header(result.headers, "x-amz-version-id", nothing))
+        end
     end
 
     @testset "Object exists" begin
