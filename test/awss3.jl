@@ -106,7 +106,6 @@ function awss3_tests(base_config)
         result = s3_copy(
             config,
             bucket_name,
-            key;
             "key1";
             to_bucket=bucket_name,
             to_path="key1.copy",
