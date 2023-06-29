@@ -558,8 +558,8 @@ function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; 
     return parse(r)
 end
 
-function s3_enable_versioning(bucket; kwargs...)
-    return s3_enable_versioning(global_aws_config(), bucket; kwargs...)
+function s3_enable_versioning(args...; kwargs...)
+    return s3_enable_versioning(global_aws_config(), args...; kwargs...)
 end
 
 """
@@ -793,8 +793,9 @@ function s3_list_objects(
         end
     end
 end
-function s3_list_objects(bucket, path_prefix=""; kwargs...)
-    return s3_list_objects(global_aws_config(), bucket, path_prefix; kwargs...)
+
+function s3_list_objects(args...; kwargs...)
+    return s3_list_objects(global_aws_config(), args...; kwargs...)
 end
 
 """
