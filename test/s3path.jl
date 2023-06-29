@@ -699,7 +699,7 @@ function s3path_tests(base_config)
             @test !exists(versioned_path)
             @test length(s3_list_versions(config, bucket_name, key)) == 1
 
-            fp = S3Path(config, bucket_name, "test_versions_deleteall")
+            fp = S3Path(bucket_name, "test_versions_deleteall"; config)
             foreach(_ -> write(fp, "foo"), 1:6)
             @test length(s3_list_versions(fp.config, fp.bucket, fp.key)) == 6
             s3_nuke_object_versions(fp)
