@@ -454,34 +454,6 @@ end
 s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
 
 """
-    versioned_s3_copy([::AbstractAWSConfig], bucket, path; to_bucket=bucket,
-                      to_path=path, kwargs...)
-
-Return destination `S3Path` from calling [`s3_copy`](@ref), with same input args
-and kwargs. When `to_bucket` has versioning enabled, output includes version of
-destination object.
-"""
-function versioned_s3_copy(
-    aws::AbstractAWSConfig,
-    bucket,
-    path;
-    to_bucket=bucket,
-    to_path=path,
-    metadata::AbstractDict=SSDict(),
-    kwargs...,
-)
-    response = s3_copy(
-        aws, bucket, path;parse_response=false, to_bucket, to_path, metadata,  kwargs...
-    )
-    return S3Path(
-        to_bucket,
-        to_path;
-        version=HTTP.header(response.headers, "x-amz-version-id", nothing),
-        config=aws,
-    )
-end
-
-"""
     s3_create_bucket([::AbstractAWSConfig], bucket; kwargs...)
 
 Creates a new S3 bucket with the globally unique `bucket` name. The bucket will be created
