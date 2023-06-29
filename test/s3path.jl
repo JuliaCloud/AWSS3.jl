@@ -642,7 +642,7 @@ function s3path_tests(base_config)
         path = S3Path("s3://my_bucket/prefix"; config)
 
         # When no kwargs provided, return identity
-        @test S3Path(unversioned) === unversioned
+        @test S3Path(path) === path
 
         # version kwarg overrides path.version
         version = String('A':'Z') * String('0':'5')
