@@ -438,7 +438,9 @@ function s3_delete_all_versions(aws::AbstractAWSConfig, bucket, path; kwargs...)
         try
             s3_delete(aws, bucket, path; version, kwargs...)
         catch e
-            @error "Error deleting version $(version) of $(path)" exception=(e, catch_backtrace())
+            @error "Error deleting version $(version) of $(path)" exception = (
+                e, catch_backtrace()
+            )
         end
     end
     return nothing
