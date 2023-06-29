@@ -47,11 +47,10 @@ end
 """
     S3Path()
     S3Path(str::AbstractString; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
-    S3Path(path::S3Path; isdirectory=missing, version=missing, config=missing)
+    S3Path(path::S3Path; isdirectory=path.isdirectory, version=path.version, config=path.config)
 
 Construct a new AWS S3 path type which should be of the form
-`"s3://<bucket>/prefix/to/my/object"`. When first argument is an `path::S3Path`,
-the corresponding field for any `missing` kwarg `k` will have the same value as `path.k`.
+`"s3://<bucket>/prefix/to/my/object"`.
 
 NOTES:
 
@@ -107,14 +106,10 @@ function S3Path(
     )
 end
 
-function S3Path(path::S3Path; isdirectory=missing, version=missing, config=missing)
-    return S3Path(
-        path.bucket,
-        path.key;
-        isdirectory=ismissing(isdirectory) ? path.isdirectory : isdirectory,
-        config=ismissing(config) ? path.config : config,
-        version=ismissing(version) ? path.version : version,
-    )
+function S3Path(
+    path::S3Path; isdirectory=path.isdirectory, version=path.version, config=path.config
+)
+    return S3Path(path.bucket, path.key; isdirectory, config, version)
 end
 
 # To avoid a breaking change.
