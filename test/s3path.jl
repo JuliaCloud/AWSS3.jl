@@ -641,7 +641,7 @@ function s3path_tests(base_config)
         config = AWSConfig(; region="bogus")
         path = S3Path("s3://my_bucket/prefix"; config)
 
-         # When no kwargs provided, return identity
+        # When no kwargs provided, return identity
         @test S3Path(unversioned) === unversioned
 
         # version kwarg overrides path.version
@@ -652,7 +652,7 @@ function s3path_tests(base_config)
         @test path_versioned.config == path.config == config
 
         # ...if version already exists, overwrite silently
-        version2 = String('0':'5')* String('A':'Z')
+        version2 = String('0':'5') * String('A':'Z')
         @test S3Path(path_versioned; version=version2).version == version2 != version
 
         # config kwarg overrides path.config
