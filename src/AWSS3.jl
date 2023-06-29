@@ -602,10 +602,6 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs.
     return parse(r)
 end
 
-function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
-    return s3_put_tags(aws, bucket, "", tags; kwargs...)
-end
-
 s3_put_tags(args...; kwargs...) = s3_put_tags(global_aws_config(), args...; kwargs...)
 
 """
