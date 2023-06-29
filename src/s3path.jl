@@ -46,11 +46,12 @@ end
 
 """
     S3Path()
-    S3Path(str; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
-    S3Path(path::S3Path; version::$(AbstractS3Version))
+    S3Path(str::AbstractString; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
+    S3Path(path::S3Path; isdirectory=missing, version=missing, config=missing)
 
 Construct a new AWS S3 path type which should be of the form
-`"s3://<bucket>/prefix/to/my/object"`.
+`"s3://<bucket>/prefix/to/my/object"`. When first argument is an `path::S3Path`,
+the corresponding field for any `missing` kwarg `k` will have the same value as `path.k`.
 
 NOTES:
 
@@ -73,8 +74,6 @@ NOTES:
   `AbstractAWSConfig` to the `config` keyword argument.
 """
 S3Path() = S3Path((), "/", "", true, nothing, nothing)
-
-S3Path(path::S3Path) = path
 
 # below definition needed by FilePathsBase
 S3Path{A}() where {A<:AbstractS3PathConfig} = S3Path()
@@ -108,15 +107,14 @@ function S3Path(
     )
 end
 
-function S3Path(path::S3Path; version::AbstractS3Version)
-    if !isnothing(path.version)
-        throw(
-            ArgumentError(
-                "Can't construct versioned path, input already specifies version: $path"
-            ),
-        )
-    end
-    return S3Path(path.bucket, path.key; path.isdirectory, path.config, version)
+function S3Path(path::S3Path; isdirectory=missing, version=missing, config=missing)
+    return S3Path(
+        path.bucket,
+        path.key;
+        isdirectory=ismissing(isdirectory) ? path.isdirectory : isdirectory,
+        config=ismissing(config) ? path.config : config,
+        version=ismissing(version) ? path.version : version,
+    )
 end
 
 # To avoid a breaking change.
