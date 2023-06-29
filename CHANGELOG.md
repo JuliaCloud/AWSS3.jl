@@ -8,7 +8,7 @@
 
 - v0.11.0: The `s3_exists` and `isdir(::S3Path)` calls no longer encounter HTTP 403 (Access Denied) errors when attempting to list resources which requiring an `s3:prefix` to be specified ([#289]).
 - v0.11.1: The new keyword argument `returns` for `Base.write(fp::S3Path, ...)` determines the output returned from `write`, which can now be the raw `AWS.Response` (`returns=:response`) or the `S3Path` (`returns=:path`); this latter option returns an `S3Path` populated with the version ID of the written object (when versioning is enabled on the bucket) ([#293]).
-- v0.11.2: The new keyword argument `parse_response` for `s3_copy` enables, e.g., accessing the version ID of a copied object (when versioning is enabled on the bucket) ([#300]).
+- v0.11.2: `s3_copy` supports the `parse_response` keyword allowing for access to the unparsed AWS API response ([#300]).
 
 [#289]: https://github.com/JuliaCloud/AWSS3.jl/pull/289
 [#293]: https://github.com/JuliaCloud/AWSS3.jl/pull/293
