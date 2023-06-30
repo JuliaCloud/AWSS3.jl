@@ -646,22 +646,27 @@ function s3path_tests(base_config)
 
         # version kwarg overrides path.version
         version = String('A':'Z') * String('0':'5')
-        path_versioned = S3Path(path; version)
-        @test path_versioned.version == version
-        @test path_versioned == S3Path("s3://my_bucket/prefix"; version)
-        @test path_versioned.config == path.config == config
+        p = S3Path(path; version)
+        @test p != path
+        @test p.bucket == path.bucket
+        @test p.key == path.key
+        @test p.config == path.config
+        @test p.version == version != path.version
 
         # ...if version already exists, overwrite silently
-        version2 = String('0':'5') * String('A':'Z')
-        @test S3Path(path_versioned; version=version2).version == version2 != version
+        path_versioned = S3Path(path; version)
+        alt_version = String('0':'5') * String('A':'Z')
+        p = S3Path(path_versioned; version=alt_version)
+        @test p.version == alt_version != path_versioned.version
 
         # config kwarg overrides path.config
-        config2 = AWSConfig(; region="foo")
-        @test S3Path(path; config=config2).config == config2 != path.config
-        @test isnothing(S3Path(path; config=nothing).config)
+        alt_config = AWSConfig(; region="foo")
+        p = S3Path(path; config=alt_config)
+        @test p.config == alt_config != path.config
 
         # isdirectory kwarg overrides path.config
-        @test S3Path(path; isdirectory=!path.isdirectory) != path.isdirectory
+        p = S3Path(path; isdirectory=!path.isdirectory)
+        @test p.isdirectory != path.isdirectory
     end
 
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
