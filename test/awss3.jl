@@ -100,7 +100,7 @@ function awss3_tests(base_config)
         result = s3_copy(
             config, bucket_name, "key1"; to_bucket=bucket_name, to_path="key1.copy"
         )
-        @test isa(result, LittleDict)
+        @test result isa AbstractDict
         @test s3_get(config, bucket_name, "key1.copy") == b"data1.v1"
 
         result = s3_copy(
