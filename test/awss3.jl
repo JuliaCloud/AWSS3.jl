@@ -371,6 +371,33 @@ function awss3_tests(base_config)
         @test s3_get(config, bucket_name, "key3") == b"data3.v3"
     end
 
+    is_aws(base_config) && @testset "Delete All Versions" begin
+        config = assume_testset_role("NukeObjectTestset"; base_config)
+        key_to_delete = "NukeObjectTestset_key"
+        # Test that object that starts with the same prefix as `key_to_delete` is
+        # not _also_ deleted
+        key_not_to_delete = "NukeObjectTestset_key/rad"
+
+        function _s3_object_versions(config, bucket, key)
+            return filter!(x -> x["Key"] == key, s3_list_versions(config, bucket, key))
+        end
+
+        s3_put(config, bucket_name, key_to_delete, "foo.v1")
+        s3_put(config, bucket_name, key_to_delete, "foo.v2")
+        s3_put(config, bucket_name, key_to_delete, "foo.v3")
+        s3_put(config, bucket_name, key_not_to_delete, "rad.v1")
+        s3_put(config, bucket_name, key_not_to_delete, "rad.v2")
+
+        @test length(_s3_object_versions(config, bucket_name, key_to_delete)) == 3
+        @test length(_s3_object_versions(config, bucket_name, key_not_to_delete)) == 2
+
+        s3_nuke_object(config, bucket_name, key_to_delete)
+        @test length(_s3_object_versions(config, bucket_name, key_to_delete)) == 0
+
+        # Test that _only_ specific path was deleted---not paths at the same prefix
+        @test length(_s3_object_versions(config, bucket_name, key_not_to_delete)) == 2
+    end
+
     if is_aws(base_config)
         @testset "Empty and Delete Bucket" begin
             config = assume_testset_role("EmptyAndDeleteBucketTestset"; base_config)

@@ -24,6 +24,7 @@ export S3Path,
     s3_list_objects,
     s3_list_keys,
     s3_list_versions,
+    s3_nuke_object,
     s3_get_meta,
     s3_directory_stat,
     s3_purge_versions,
@@ -409,6 +410,47 @@ function s3_delete(
 end
 
 s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
+
+"""
+    s3_nuke_object([::AbstractAWSConfig], bucket, path; kwargs...)
+
+Deletes all versions of object `path` from `bucket`. All provided `kwargs` are forwarded to
+[`s3_delete`](@ref). In the event an error occurs any object versions already deleted by
+`s3_nuke_object` will be lost.
+
+To only delete one specific version, use [`s3_delete`](@ref); to delete all versions
+EXCEPT the latest version, use [`s3_purge_versions`](@ref); to delete all versions
+in an entire bucket, use [`AWSS3.s3_nuke_bucket`](@ref).
+
+# API Calls
+
+- [`DeleteObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+- [`ListObjectVersions`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectVersions.html)
+
+# Permissions
+
+- [`s3:DeleteObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObject)
+- [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
+"""
+function s3_nuke_object(aws::AbstractAWSConfig, bucket, path; kwargs...)
+    # Because list_versions returns ALL keys with the given _prefix_, we need to
+    # restrict the results to ones with the _exact same_ key.
+    for object in s3_list_versions(aws, bucket, path)
+        object["Key"] == path || continue
+        version = object["VersionId"]
+        try
+            s3_delete(aws, bucket, path; version, kwargs...)
+        catch e
+            @warn "Failed to delete version $(version) of $(path)"
+            rethrow(e)
+        end
+    end
+    return nothing
+end
+
+function s3_nuke_object(bucket, path; kwargs...)
+    return s3_nuke_object(global_aws_config(), bucket, path; kwargs...)
+end
 
 """
     s3_copy([::AbstractAWSConfig], bucket, path; acl::AbstractString="",
