@@ -414,9 +414,9 @@ s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
 """
     s3_nuke_object_versions([::AbstractAWSConfig], bucket, path; kwargs...)
 
-Deletes all versions of object `path` from `bucket`, forwarding all `kwargs` to the
-internal per-version [`s3_delete`](@ref) call. In the case of an error, any versions
-already deleted will be lost.
+Deletes all versions of object `path` from `bucket`. All provided `kwargs` are forwarded to
+[`s3_delete`](@ref). In the event an error occurs any object versions already deleted by
+`s3_nuke_object_versions` will be lost.
 
 To only delete one specific version, see [`s3_delete`](@ref); to delete all versions
 EXCEPT the latest version, see [`s3_purge_versions`](@ref); to delete all versions
