@@ -236,6 +236,38 @@ Resources:
               - s3:DeleteObjectVersion
             Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
 
+  NukeObjectTestsetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${GitHubRepo}-NukeObjectTestset
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PublicCIRole.Arn
+            Action: sts:AssumeRole
+
+  NukeObjectTestsetPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub ${GitHubRepo}-NukeObjectTestset
+      Roles:
+        - !Ref NukeObjectTestsetRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucketVersions
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:DeleteObjectVersion
+              - s3:PutObject
+            Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
+
   RestrictedPrefixTestsetRole:
     Type: AWS::IAM::Role
     Properties:
