@@ -97,8 +97,25 @@ function awss3_tests(base_config)
 
     @testset "Object Copy" begin
         config = assume_testset_role("ReadWriteObject"; base_config)
-        s3_copy(bucket_name, "key1"; to_bucket=bucket_name, to_path="key1.copy")
+        result = s3_copy(
+            config, bucket_name, "key1"; to_bucket=bucket_name, to_path="key1.copy"
+        )
+        @test result isa AbstractDict
         @test s3_get(config, bucket_name, "key1.copy") == b"data1.v1"
+
+        result = s3_copy(
+            config,
+            bucket_name,
+            "key1";
+            to_bucket=bucket_name,
+            to_path="key1.copy",
+            parse_response=false,
+        )
+        @test result isa AWS.Response
+
+        if is_aws(base_config)
+            @test !isnothing(HTTP.header(result.headers, "x-amz-version-id", nothing))
+        end
     end
 
     @testset "Object exists" begin
