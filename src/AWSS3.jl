@@ -180,7 +180,7 @@ function s3_get(
     end
 end
 
-s3_get(a...; b...) = s3_get(global_aws_config(), a...; b...)
+s3_get(bucket, path; kwargs...) = s3_get(global_aws_config(), bucket, path; kwargs...)
 
 """
     s3_get_file([::AbstractAWSConfig], bucket, path, filename; [version=], kwargs...)
@@ -205,7 +205,9 @@ function s3_get_file(
     end
 end
 
-s3_get_file(a...; b...) = s3_get_file(global_aws_config(), a...; b...)
+function s3_get_file(bucket, path, filename; kwargs...)
+    return s3_get_file(global_aws_config(), bucket, path, filename; kwargs...)
+end
 
 function s3_get_file(
     aws::AbstractAWSConfig,
@@ -258,7 +260,9 @@ function s3_get_meta(
     return Dict(r.headers)
 end
 
-s3_get_meta(a...; b...) = s3_get_meta(global_aws_config(), a...; b...)
+function s3_get_meta(bucket, path; kwargs...)
+    return s3_get_meta(global_aws_config(), bucket, path; kwargs...)
+end
 
 function _s3_exists_file(aws::AbstractAWSConfig, bucket, path)
     q = Dict("prefix" => path, "delimiter" => "/", "max-keys" => 1)
@@ -382,7 +386,7 @@ function s3_exists(aws::AbstractAWSConfig, bucket, path; version::AbstractS3Vers
         s3_exists_unversioned(aws, bucket, path)
     end
 end
-s3_exists(a...; b...) = s3_exists(global_aws_config(), a...; b...)
+s3_exists(bucket, path; kwargs...) = s3_exists(global_aws_config(), bucket, path; kwargs...)
 
 """
     s3_delete([::AbstractAWSConfig], bucket, path; [version], kwargs...)
@@ -409,7 +413,7 @@ function s3_delete(
     return parse(S3.delete_object(bucket, path, params; aws_config=aws, kwargs...))
 end
 
-s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
+s3_delete(bucket, path; kwargs...) = s3_delete(global_aws_config(), bucket, path; kwargs...)
 
 """
     s3_nuke_object([::AbstractAWSConfig], bucket, path; kwargs...)
@@ -506,7 +510,7 @@ function s3_copy(
     return parse_response ? parse(response) : response
 end
 
-s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
+s3_copy(bucket, path; kwargs...) = s3_copy(global_aws_config(), bucket, path; kwargs...)
 
 """
     s3_create_bucket([::AbstractAWSConfig], bucket; kwargs...)
@@ -575,7 +579,9 @@ function s3_put_cors(aws::AbstractAWSConfig, bucket, cors_config; kwargs...)
     return parse(S3.put_bucket_cors(bucket, cors_config; aws_config=aws, kwargs...))
 end
 
-s3_put_cors(a...; b...) = s3_put_cors(AWS.global_aws_config(), a...; b...)
+function s3_put_cors(bucket, cors_config; kwargs...)
+    return s3_put_cors(AWS.global_aws_config(), bucket, cors_config; kwargs...)
+end
 
 """
     s3_enable_versioning([::AbstractAWSConfig], bucket, [status]; kwargs...)
@@ -609,7 +615,9 @@ function s3_enable_versioning(aws::AbstractAWSConfig, bucket, status="Enabled"; 
     return parse(r)
 end
 
-s3_enable_versioning(a; b...) = s3_enable_versioning(global_aws_config(), a; b...)
+function s3_enable_versioning(args...; kwargs...)
+    return s3_enable_versioning(global_aws_config(), args...; kwargs...)
+end
 
 """
     s3_put_tags([::AbstractAWSConfig], bucket, [path], tags::Dict; kwargs...)
@@ -651,11 +659,7 @@ function s3_put_tags(aws::AbstractAWSConfig, bucket, path, tags::SSDict; kwargs.
     return parse(r)
 end
 
-function s3_put_tags(aws::AbstractAWSConfig, bucket, tags::SSDict; kwargs...)
-    return s3_put_tags(aws, bucket, "", tags; kwargs...)
-end
-
-s3_put_tags(a...) = s3_put_tags(global_aws_config(), a...)
+s3_put_tags(args...; kwargs...) = s3_put_tags(global_aws_config(), args...; kwargs...)
 
 """
     s3_get_tags([::AbstractAWSConfig], bucket, [path]; kwargs...)
@@ -703,7 +707,7 @@ function s3_get_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     end
 end
 
-s3_get_tags(a...; b...) = s3_get_tags(global_aws_config(), a...; b...)
+s3_get_tags(args...; kwargs...) = s3_get_tags(global_aws_config(), args...; kwargs...)
 
 """
     s3_delete_tags([::AbstractAWSConfig], bucket, [path])
@@ -734,7 +738,7 @@ function s3_delete_tags(aws::AbstractAWSConfig, bucket, path=""; kwargs...)
     return parse(r)
 end
 
-s3_delete_tags(a...; b...) = s3_delete_tags(global_aws_config(), a...; b...)
+s3_delete_tags(args...; kwargs...) = s3_delete_tags(global_aws_config(), args...; kwargs...)
 
 """
     s3_delete_bucket([::AbstractAWSConfig], "bucket"; kwargs...)
@@ -755,7 +759,9 @@ See also [`AWSS3.s3_nuke_bucket`](@ref).
 function s3_delete_bucket(aws::AbstractAWSConfig, bucket; kwargs...)
     return parse(S3.delete_bucket(bucket; aws_config=aws, kwargs...))
 end
-s3_delete_bucket(a; b...) = s3_delete_bucket(global_aws_config(), a; b...)
+function s3_delete_bucket(bucket; kwargs...)
+    return s3_delete_bucket(global_aws_config(), bucket; kwargs...)
+end
 
 """
     s3_list_buckets([::AbstractAWSConfig]; kwargs...)
@@ -840,7 +846,10 @@ function s3_list_objects(
         end
     end
 end
-s3_list_objects(a...; kw...) = s3_list_objects(global_aws_config(), a...; kw...)
+
+function s3_list_objects(args...; kwargs...)
+    return s3_list_objects(global_aws_config(), args...; kwargs...)
+end
 
 """
     s3_directory_stat([::AbstractAWSConfig], bucket, path)
@@ -865,7 +874,7 @@ function s3_directory_stat(
     end
     return s, tmlast
 end
-s3_directory_stat(a...) = s3_directory_stat(global_aws_config(), a...)
+s3_directory_stat(bucket, path) = s3_directory_stat(global_aws_config(), bucket, path)
 
 """
     s3_list_keys([::AbstractAWSConfig], bucket, [path_prefix]; kwargs...)
@@ -876,7 +885,7 @@ function s3_list_keys(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs...)
     return (o["Key"] for o in s3_list_objects(aws, bucket, path_prefix; kwargs...))
 end
 
-s3_list_keys(a...; b...) = s3_list_keys(global_aws_config(), a...; b...)
+s3_list_keys(args...; kwargs...) = s3_list_keys(global_aws_config(), args...; kwargs...)
 
 """
     s3_list_versions([::AbstractAWSConfig], bucket, [path_prefix]; kwargs...)
@@ -922,7 +931,9 @@ function s3_list_versions(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs
     return versions
 end
 
-s3_list_versions(a...; b...) = s3_list_versions(global_aws_config(), a...; b...)
+function s3_list_versions(args...; kwargs...)
+    return s3_list_versions(global_aws_config(), args...; kwargs...)
+end
 
 """
     s3_purge_versions([::AbstractAWSConfig], bucket, [path_prefix [, pattern]]; kwargs...)
@@ -961,7 +972,9 @@ function s3_purge_versions(
     end
 end
 
-s3_purge_versions(a...; b...) = s3_purge_versions(global_aws_config(), a...; b...)
+function s3_purge_versions(args...; kwargs...)
+    return s3_purge_versions(global_aws_config(), args...; kwargs...)
+end
 
 """
     s3_put([::AbstractAWSConfig], bucket, path, data, data_type="", encoding="";
@@ -1038,7 +1051,7 @@ function s3_put(
     return parse_response ? parse(response) : response
 end
 
-s3_put(a...; b...) = s3_put(global_aws_config(), a...; b...)
+s3_put(args...; kwargs...) = s3_put(global_aws_config(), args...; kwargs...)
 
 function s3_begin_multipart_upload(
     aws::AbstractAWSConfig,
@@ -1316,7 +1329,7 @@ function s3_sign_url(
     end
 end
 
-s3_sign_url(a...; b...) = s3_sign_url(global_aws_config(), a...; b...)
+s3_sign_url(args...; kwargs...) = s3_sign_url(global_aws_config(), args...; kwargs...)
 
 """
     s3_nuke_bucket([::AbstractAWSConfig], bucket_name)
