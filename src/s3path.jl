@@ -46,7 +46,8 @@ end
 
 """
     S3Path()
-    S3Path(str; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
+    S3Path(str::AbstractString; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
+    S3Path(path::S3Path; isdirectory=path.isdirectory, version=path.version, config=path.config)
 
 Construct a new AWS S3 path type which should be of the form
 `"s3://<bucket>/prefix/to/my/object"`.
@@ -72,8 +73,6 @@ NOTES:
   `AbstractAWSConfig` to the `config` keyword argument.
 """
 S3Path() = S3Path((), "/", "", true, nothing, nothing)
-
-S3Path(path::S3Path) = path
 
 # below definition needed by FilePathsBase
 S3Path{A}() where {A<:AbstractS3PathConfig} = S3Path()
@@ -105,6 +104,12 @@ function S3Path(
     return S3Path(
         key.segments, "/", normalize_bucket_name(bucket), isdirectory, version, config
     )
+end
+
+function S3Path(
+    path::S3Path; isdirectory=path.isdirectory, version=path.version, config=path.config
+)
+    return S3Path(path.bucket, path.key; isdirectory, config, version)
 end
 
 # To avoid a breaking change.

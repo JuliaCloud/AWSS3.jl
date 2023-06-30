@@ -636,6 +636,39 @@ function s3path_tests(base_config)
         @test_throws ArgumentError S3Path("s3://my_bucket/"; version="")
     end
 
+    @testset "construct S3Path from S3Path" begin
+        # Use custom config to test that config is preserved in construction
+        config = AWSConfig(; region="bogus")
+        path = S3Path("s3://my_bucket/prefix"; config)
+
+        # When no kwargs provided, return identity
+        @test S3Path(path) === path
+
+        # version kwarg overrides path.version
+        version = String('A':'Z') * String('0':'5')
+        p = S3Path(path; version)
+        @test p != path
+        @test p.bucket == path.bucket
+        @test p.key == path.key
+        @test p.config == path.config
+        @test p.version == version != path.version
+
+        # ...if version already exists, overwrite silently
+        path_versioned = S3Path(path; version)
+        alt_version = String('0':'5') * String('A':'Z')
+        p = S3Path(path_versioned; version=alt_version)
+        @test p.version == alt_version != path_versioned.version
+
+        # config kwarg overrides path.config
+        alt_config = AWSConfig(; region="foo")
+        p = S3Path(path; config=alt_config)
+        @test p.config == alt_config != path.config
+
+        # isdirectory kwarg overrides path.config
+        p = S3Path(path; isdirectory=!path.isdirectory)
+        @test p.isdirectory != path.isdirectory
+    end
+
     # `s3_list_versions` gives `SignatureDoesNotMatch` exceptions on Minio
     if is_aws(base_config)
         @testset "S3Path versioning" begin
