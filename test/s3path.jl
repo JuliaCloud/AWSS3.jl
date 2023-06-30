@@ -636,7 +636,7 @@ function s3path_tests(base_config)
         @test_throws ArgumentError S3Path("s3://my_bucket/"; version="")
     end
 
-    @testset "construct s3path from s3path" begin
+    @testset "construct S3Path from S3Path" begin
         # Use custom config to test that config is preserved in construction
         config = AWSConfig(; region="bogus")
         path = S3Path("s3://my_bucket/prefix"; config)
