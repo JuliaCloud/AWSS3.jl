@@ -24,7 +24,7 @@ export S3Path,
     s3_list_objects,
     s3_list_keys,
     s3_list_versions,
-    s3_nuke_object_versions,
+    s3_nuke_object,
     s3_get_meta,
     s3_directory_stat,
     s3_purge_versions,
@@ -412,11 +412,11 @@ end
 s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
 
 """
-    s3_nuke_object_versions([::AbstractAWSConfig], bucket, path; kwargs...)
+    s3_nuke_object([::AbstractAWSConfig], bucket, path; kwargs...)
 
 Deletes all versions of object `path` from `bucket`. All provided `kwargs` are forwarded to
 [`s3_delete`](@ref). In the event an error occurs any object versions already deleted by
-`s3_nuke_object_versions` will be lost.
+`s3_nuke_object` will be lost.
 
 To only delete one specific version, use [`s3_delete`](@ref); to delete all versions
 EXCEPT the latest version, use [`s3_purge_versions`](@ref); to delete all versions
@@ -432,7 +432,7 @@ in an entire bucket, use [`AWSS3.s3_nuke_bucket`](@ref).
 - [`s3:DeleteObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-DeleteObject)
 - [`s3:ListBucketVersions`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-ListBucketVersions)
 """
-function s3_nuke_object_versions(aws::AbstractAWSConfig, bucket, path; kwargs...)
+function s3_nuke_object(aws::AbstractAWSConfig, bucket, path; kwargs...)
     # Because list_versions returns ALL keys with the given _prefix_, we need to
     # restrict the results to ones with the _exact same_ key.
     for object in s3_list_versions(aws, bucket, path)
@@ -448,8 +448,8 @@ function s3_nuke_object_versions(aws::AbstractAWSConfig, bucket, path; kwargs...
     return nothing
 end
 
-function s3_nuke_object_versions(bucket, path; kwargs...)
-    return s3_nuke_object_versions(global_aws_config(), bucket, path; kwargs...)
+function s3_nuke_object(bucket, path; kwargs...)
+    return s3_nuke_object(global_aws_config(), bucket, path; kwargs...)
 end
 
 """

@@ -374,7 +374,7 @@ function awss3_tests(base_config)
         @test length(_s3_object_versions(config, bucket_name, key_to_delete)) == 3
         @test length(_s3_object_versions(config, bucket_name, key_not_to_delete)) == 2
 
-        s3_nuke_object_versions(config, bucket_name, key_to_delete)
+        s3_nuke_object(config, bucket_name, key_to_delete)
         @test length(_s3_object_versions(config, bucket_name, key_to_delete)) == 0
 
         # Test that _only_ specific path was deleted---not paths at the same prefix
