@@ -418,9 +418,9 @@ Deletes all versions of object `path` from `bucket`. All provided `kwargs` are f
 [`s3_delete`](@ref). In the event an error occurs any object versions already deleted by
 `s3_nuke_object_versions` will be lost.
 
-To only delete one specific version, see [`s3_delete`](@ref); to delete all versions
-EXCEPT the latest version, see [`s3_purge_versions`](@ref); to delete all versions
-in an entire bucket, see [`AWSS3.s3_nuke_bucket`](@ref).
+To only delete one specific version, use [`s3_delete`](@ref); to delete all versions
+EXCEPT the latest version, use [`s3_purge_versions`](@ref); to delete all versions
+in an entire bucket, use [`AWSS3.s3_nuke_bucket`](@ref).
 
 # API Calls
 
