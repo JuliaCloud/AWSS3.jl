@@ -411,12 +411,27 @@ end
 s3_delete(a...; b...) = s3_delete(global_aws_config(), a...; b...)
 
 """
-    s3_copy([::AbstractAWSConfig], bucket, path; to_bucket=bucket, to_path=path, kwargs...)
+    s3_copy([::AbstractAWSConfig], bucket, path; acl::AbstractString="",
+            to_bucket=bucket, to_path=path, metadata::AbstractDict=SSDict(),
+            parse_response::Bool=true, kwargs...)
 
-[PUT Object - Copy](http://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectCOPY.html)
+Copy the object at `path` in `bucket` to `to_path` in `to_bucket`.
 
 # Optional Arguments
-- `metadata::Dict=`; optional `x-amz-meta-` headers.
+- `acl=`; `x-amz-acl` header for setting access permissions with canned config.
+    See [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl).
+- `metadata::Dict=`; `x-amz-meta-` headers.
+- `parse_response::Bool=`; when `false`, return raw `AWS.Response`
+- `kwargs`; additional kwargs passed through into `S3.copy_object`
+
+# API Calls
+
+- [`CopyObject`](http://https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
+
+# Permissions
+
+- [`s3:PutObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutObject)
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
 """
 function s3_copy(
     aws::AbstractAWSConfig,
@@ -426,6 +441,7 @@ function s3_copy(
     to_bucket=bucket,
     to_path=path,
     metadata::AbstractDict=SSDict(),
+    parse_response::Bool=true,
     kwargs...,
 )
     headers = SSDict(
@@ -437,16 +453,15 @@ function s3_copy(
         headers["x-amz-acl"] = acl
     end
 
-    return parse(
-        S3.copy_object(
-            to_bucket,
-            to_path,
-            "$bucket/$path",
-            Dict("headers" => headers);
-            aws_config=aws,
-            kwargs...,
-        ),
+    response = S3.copy_object(
+        to_bucket,
+        to_path,
+        "$bucket/$path",
+        Dict("headers" => headers);
+        aws_config=aws,
+        kwargs...,
     )
+    return parse_response ? parse(response) : response
 end
 
 s3_copy(a...; b...) = s3_copy(global_aws_config(), a...; b...)
