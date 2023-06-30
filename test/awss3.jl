@@ -355,11 +355,11 @@ function awss3_tests(base_config)
     end
 
     is_aws(base_config) && @testset "Delete All Versions" begin
-        config = assume_testset_role("DeleteAllVersionsTestset"; base_config)
-        key_to_delete = "DeleteAllVersionsTestset_key"
+        config = assume_testset_role("NukeObjectTestset"; base_config)
+        key_to_delete = "NukeObjectTestset_key"
         # Test that object that starts with the same prefix as `key_to_delete` is
         # not _also_ deleted
-        key_not_to_delete = "DeleteAllVersionsTestset_key/rad"
+        key_not_to_delete = "NukeObjectTestset_key/rad"
 
         function _s3_object_versions(config, bucket, key)
             return filter!(x -> x["Key"] == key, s3_list_versions(config, bucket, key))

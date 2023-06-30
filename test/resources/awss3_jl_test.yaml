@@ -236,10 +236,10 @@ Resources:
               - s3:DeleteObjectVersion
             Resource: !Sub arn:aws:s3:::${BucketPrefix}*/*
 
-  DeleteAllVersionsTestsetRole:
+  NukeObjectTestsetRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${GitHubRepo}-DeleteAllVersionsTestset
+      RoleName: !Sub ${GitHubRepo}-NukeObjectTestset
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -248,12 +248,12 @@ Resources:
               AWS: !GetAtt PublicCIRole.Arn
             Action: sts:AssumeRole
 
-  DeleteAllVersionsTestsetPolicy:
+  NukeObjectTestsetPolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: !Sub ${GitHubRepo}-DeleteAllVersionsTestset
+      PolicyName: !Sub ${GitHubRepo}-NukeObjectTestset
       Roles:
-        - !Ref DeleteAllVersionsTestsetRole
+        - !Ref NukeObjectTestsetRole
       PolicyDocument:
         Version: 2012-10-17
         Statement:
