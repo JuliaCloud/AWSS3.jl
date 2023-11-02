@@ -2,7 +2,7 @@
 
 AWS S3 Interface for Julia
 
-![CI](https://github.com/JuliaCloud/AWSS3.jl/workflows/CI/badge.svg)
+[![CI](https://github.com/JuliaCloud/AWSS3.jl/workflows/CI/badge.svg)](https://github.com/JuliaCloud/AWSS3.jl/actions/workflows/CI.yml)
 [![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/invenia/BlueStyle)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 
@@ -32,5 +32,9 @@ p = S3Path("s3://my.bucket/test1.txt")  # provides an filesystem-like interface
 write(p, "some data")
 
 read(p, byte_range=1:4)  # returns b"some"
+
+response = write(p, "other data"; returns=:response) # returns the raw `AWS.Response` on writing to S3
+parsed_response = write(p, "other data"; returns=:parsed) # returns the parsed `AWS.Response` (default)
+versioned_path = write(p, "other data"; returns=:path) # returns the `S3Path` written to S3, including the version ID
 ```
 

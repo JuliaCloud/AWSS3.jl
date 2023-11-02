@@ -12,6 +12,11 @@ on:
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    permissions:
+      # Required for interacting with GitHub's OIDC Token endpoint:
+      # https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services#adding-permissions-settings
+      id-token: write
+      contents: read  # Required for `actions/checkout
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.version == 'nightly' }}
     strategy:
@@ -33,6 +38,11 @@ jobs:
             os: macOS-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Assume AWS role
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/AWSS3.jl
+          aws-region: us-east-1
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
@@ -48,25 +58,7 @@ jobs:
             ${{ runner.os }}-test-
             ${{ runner.os }}-
       - uses: julia-actions/julia-buildpkg@latest
-      - env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        uses: julia-actions/julia-runtest@latest
-  slack:
-    name: Notify Slack Failure
-    needs: test
-    runs-on: ubuntu-latest
-    if: always() && github.event_name == 'schedule'
-    steps:
-      - uses: technote-space/workflow-conclusion-action@v2
-      - uses: voxmedia/github-action-slack-notify-build@v1
-        if: env.WORKFLOW_CONCLUSION == 'failure'
-        with:
-          channel: nightly-dev
-          status: FAILED
-          color: danger
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      - uses: julia-actions/julia-runtest@latest
   docs:
     name: Documentation
     runs-on: ubuntu-latest

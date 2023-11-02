@@ -46,7 +46,8 @@ end
 
 """
     S3Path()
-    S3Path(str; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
+    S3Path(str::AbstractString; version::$(AbstractS3Version)=nothing, config::$(AbstractS3PathConfig)=nothing)
+    S3Path(path::S3Path; isdirectory=path.isdirectory, version=path.version, config=path.config)
 
 Construct a new AWS S3 path type which should be of the form
 `"s3://<bucket>/prefix/to/my/object"`.
@@ -72,8 +73,6 @@ NOTES:
   `AbstractAWSConfig` to the `config` keyword argument.
 """
 S3Path() = S3Path((), "/", "", true, nothing, nothing)
-
-S3Path(path::S3Path) = path
 
 # below definition needed by FilePathsBase
 S3Path{A}() where {A<:AbstractS3PathConfig} = S3Path()
@@ -107,6 +106,12 @@ function S3Path(
     )
 end
 
+function S3Path(
+    path::S3Path; isdirectory=path.isdirectory, version=path.version, config=path.config
+)
+    return S3Path(path.bucket, path.key; isdirectory, config, version)
+end
+
 # To avoid a breaking change.
 function S3Path(
     str::AbstractString;
@@ -114,7 +119,7 @@ function S3Path(
     version::AbstractS3Version=nothing,
     config::AbstractS3PathConfig=nothing,
 )
-    result = tryparse(S3Path, str; config=config)
+    result = tryparse(S3Path, str; config)
     result !== nothing || throw(ArgumentError("Invalid s3 path string: $str"))
     ver = if version !== nothing
         if result.version !== nothing && result.version != version
@@ -236,7 +241,7 @@ it will be fetched with `AWS.global_aws_config()`.
 get_config(fp::S3Path) = @something(fp.config, global_aws_config())
 
 function FilePathsBase.exists(fp::S3Path)
-    return s3_exists(get_config(fp), fp.bucket, fp.key; version=fp.version)
+    return s3_exists(get_config(fp), fp.bucket, fp.key; fp.version)
 end
 
 Base.isfile(fp::S3Path) = !fp.isdirectory && exists(fp)
@@ -244,9 +249,8 @@ function Base.isdir(fp::S3Path)
     fp.isdirectory || return false
     if isempty(fp.segments)  # special handling of buckets themselves
         try
-            @mock S3.list_objects_v2(
-                fp.bucket, Dict("max-keys" => "0"); aws_config=get_config(fp)
-            )
+            params = Dict("prefix" => "", "delimiter" => "/", "max-keys" => "0")
+            @mock S3.list_objects_v2(fp.bucket, params; aws_config=get_config(fp))
             return true
         catch e
             if ecode(e) == "NoSuchBucket"
@@ -418,12 +422,13 @@ Base.ismount(fp::S3Path) = false
 """
     mkdir(fp::S3Path; recursive=false, exist_ok=false)
 
-Create an empty directory at the S3 path `fp`.  If `recursive`, this will create any previously non-existent
-directories which would contain `fp`.  An error will be thrown if an object exists at `fp` unless `exist_ok`.
+Create an empty directory within an existing bucket for the S3 path `fp`. If `recursive`,
+this will create any previously non-existent directories which would contain `fp`. An error
+will be thrown if an object exists at `fp` unless `exist_ok`.
 
-Note that empty directories in S3 are actually 0-byte objects with the naming convention of a directory.
-
-This will *not* create a bucket.
+!!! note
+    Creating a directory in [S3 creates a 0-byte object](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html)
+    with a key set to the provided directory name.
 """
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
     fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
@@ -434,8 +439,7 @@ function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
         if hasparent(fp) && !exists(parent(fp))
             if recursive
                 # don't try to create buckets this way, minio at least really doesn't like it
-                isempty(parent(fp).segments) ||
-                    mkdir(parent(fp); recursive=recursive, exist_ok=exist_ok)
+                isempty(parent(fp).segments) || mkdir(parent(fp); recursive, exist_ok)
             else
                 error(
                     "The parent of $fp does not exist. " *
@@ -456,7 +460,7 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
 
         if recursive
             for f in files
-                rm(f; recursive=recursive, kwargs...)
+                rm(f; recursive, kwargs...)
             end
         elseif length(files) > 0
             error("S3 path $fp is not empty. Use `recursive=true` to delete.")
@@ -464,7 +468,18 @@ function Base.rm(fp::S3Path; recursive=false, kwargs...)
     end
 
     @debug "delete: $fp"
-    return s3_delete(get_config(fp), fp.bucket, fp.key; version=fp.version)
+    return s3_delete(fp)
+end
+
+s3_delete(fp::S3Path) = s3_delete(get_config(fp), fp.bucket, fp.key; fp.version)
+
+"""
+    s3_nuke_object(fp::S3Path)
+
+Delete all versions of an object `fp`.
+"""
+function s3_nuke_object(fp::S3Path)
+    return s3_nuke_object(get_config(fp), fp.bucket, fp.key)
 end
 
 # We need to special case sync with S3Paths because of how directories
@@ -635,6 +650,23 @@ function Base.read(fp::S3Path; byte_range=nothing)
     )
 end
 
+"""
+    Base.write(fp::S3Path, content::String; kwargs...)
+    Base.write(fp::S3Path, content::Vector{UInt8}; part_size_mb=50, multipart::Bool=true,
+               returns::Symbol=:parsed, other_kwargs...,)
+
+Write `content` to S3Path `fp`.
+
+# Optional Arguments
+- `multipart`: when `true`, uploads data via [`s3_multipart_upload`](@ref) for `content`
+  greater than `part_size_mb` bytes; when false, or when `content` is shorter
+  than `part_size_mb`, uploads data via [`s3_put`](@ref).
+- `part_size_mb`: when `multipart=true`, sets maximum length of partitioned data (in bytes).
+- `returns`: determines the result returned by the function: `:response` (the AWS API
+  response), :parsed` (default; the parsed AWS API response), or `:path` (the newly created
+  [`S3Path`](@ref), including its `version` when versioning is enabled for the bucket).
+- `other_kwargs`: additional kwargs passed through into [`s3_multipart_upload`](@ref).
+"""
 function Base.write(fp::S3Path, content::String; kwargs...)
     return Base.write(fp, Vector{UInt8}(content); kwargs...)
 end
@@ -644,6 +676,7 @@ function Base.write(
     content::Vector{UInt8};
     part_size_mb=50,
     multipart::Bool=true,
+    returns::Symbol=:parsed,
     other_kwargs...,
 )
     # avoid HTTPClientError('An HTTP Client raised an unhandled exception: string longer than 2147483647 bytes')
@@ -652,13 +685,40 @@ function Base.write(
         throw(ArgumentError("Can't write to a specific object version ($(fp.version))"))
     end
 
-    if !multipart || length(content) < MAX_HTTP_BYTES
-        return s3_put(get_config(fp), fp.bucket, fp.key, content)
+    supported_return_values = (:parsed, :response, :path)
+    if !(returns in supported_return_values)
+        err = "Unsupported `returns` value `$returns`; supported options are `$(supported_return_values)`"
+        throw(ArgumentError(err))
+    end
+
+    config = get_config(fp)
+    response = if !multipart || length(content) < MAX_HTTP_BYTES
+        s3_put(config, fp.bucket, fp.key, content; parse_response=false)
     else
         io = IOBuffer(content)
-        return s3_multipart_upload(
-            get_config(fp), fp.bucket, fp.key, io, part_size_mb; other_kwargs...
+        s3_multipart_upload(
+            config,
+            fp.bucket,
+            fp.key,
+            io,
+            part_size_mb;
+            parse_response=false,
+            other_kwargs...,
         )
+    end
+
+    if returns == :path
+        return S3Path(
+            fp.bucket,
+            fp.key;
+            isdirectory=fp.isdirectory,
+            version=HTTP.header(response.headers, "x-amz-version-id", nothing),
+            config=fp.config,
+        )
+    elseif returns == :parsed
+        return parse(response)
+    else
+        return response
     end
 end
 
