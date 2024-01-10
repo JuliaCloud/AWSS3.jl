@@ -431,7 +431,7 @@ will be thrown if an object exists at `fp` unless `exist_ok`.
     with a key set to the provided directory name.
 """
 function Base.mkdir(fp::S3Path; recursive=false, exist_ok=false)
-    fp.isdirectory || throw(ArgumentError("S3Path folders must end with '/': $fp"))
+    fp = fp.isdirectory ? fp : S3Path(fp.segments, fp.root, fp.drive, true, fp.config)
 
     if exists(fp)
         !exist_ok && error("$fp already exists.")
