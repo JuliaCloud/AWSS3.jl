@@ -1190,8 +1190,13 @@ function _s3_sign_url_v4(
     path,
     seconds=3600;
     verb="GET",
-    content_type="application/octet-stream",
     protocol="http",
+    content_type::Union{AbstractString,Nothing}=nothing,
+    content_language::Union{AbstractString,Nothing}=nothing,
+    expires::Union{AbstractString,Nothing}=nothing,
+    cache_control::Union{AbstractString,Nothing}=nothing,
+    content_disposition::Union{AbstractString,Nothing}=nothing,
+    content_encoding::Union{AbstractString,Nothing}=nothing
 )
     path = URIs.escapepath("/$bucket/$path")
 
@@ -1236,6 +1241,29 @@ function _s3_sign_url_v4(
             collect(headers),
         ),
     )
+
+    # Response header override parameters. It seems like these have to
+    # be a part of the query parameters, but they are not canonical headers.
+    #
+    # We only add them to the query parameters if the corresponding
+    # keyword argument has been set by the user.
+    override_query = OrderedDict{String,String}()
+    for (parameter, value) in (
+        "response-content-type" => content_type,
+        "response-content-language" => content_language,
+        "response-expires" => expires,
+        "response-cache-control" => cache_control,
+        "response-content-disposition" => content_disposition,
+        "response-content-encoding" => content_encoding
+    )
+        if !isnothing(value)
+            override_query[parameter] = value
+        end
+    end
+    # It also seems like they have to come after standard query parameters,
+    # but will need to be alphabetically sorted amongst themselves.
+    sort!(override_query)
+    merge!(query, override_query)
 
     canonical_request = string(
         "$verb\n",
@@ -1303,14 +1331,33 @@ function s3_sign_url(
     path,
     seconds=3600;
     verb="GET",
-    content_type="application/octet-stream",
     protocol="http",
     signature_version="v4",
+    content_type::Union{AbstractString,Nothing}=nothing,
+    content_language::Union{AbstractString,Nothing}=nothing,
+    expires::Union{AbstractString,Nothing}=nothing,
+    cache_control::Union{AbstractString,Nothing}=nothing,
+    content_disposition::Union{AbstractString,Nothing}=nothing,
+    content_encoding::Union{AbstractString,Nothing}=nothing
 )
     if signature_version == "v2"
-        _s3_sign_url_v2(aws, bucket, path, seconds; verb, content_type, protocol)
+        _s3_sign_url_v2(
+            aws, bucket, path, seconds;
+            verb=verb,
+            # previously, v2 version set Request-Content-Type to 'application/octet-stream'
+            # but in v4 it was unset. Hence, to keep backwards compatibility, we still set
+            # content_type for v2 even if the user is not providing their own value (unlike
+            # in the v4 case).
+            content_type=isnothing(content_type) ? "application/octet-stream" : content_type,
+            protocol=protocol
+        )
     elseif signature_version == "v4"
-        _s3_sign_url_v4(aws, bucket, path, seconds; verb, content_type, protocol)
+        _s3_sign_url_v4(
+            aws, bucket, path, seconds;
+            verb, protocol,
+            content_type, content_language, expires, cache_control, content_disposition,
+            content_encoding
+        )
     else
         throw(ArgumentError("Unknown signature version $signature_version"))
     end
