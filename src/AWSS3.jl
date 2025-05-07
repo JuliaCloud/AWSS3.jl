@@ -898,7 +898,7 @@ function s3_list_versions(aws::AbstractAWSConfig, bucket, path_prefix=""; kwargs
     marker = ""
 
     while more
-        query = Dict{String,Any}("versions" => "", "prefix" => path_prefix)
+        query = Dict{String,Any}("prefix" => path_prefix)
 
         if !isempty(marker)
             query["key-marker"] = marker
