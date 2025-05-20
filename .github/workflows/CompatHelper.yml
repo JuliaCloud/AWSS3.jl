@@ -1,16 +1,14 @@
 name: CompatHelper
-
 on:
   schedule:
-    - cron: '00 00 * * *'
-
+    - cron: "0 0 * * *"
 jobs:
   CompatHelper:
     runs-on: ubuntu-latest
     steps:
       - uses: julia-actions/setup-julia@v2
         with:
-          version: "1.6"
+          version: "lts"
       - uses: julia-actions/cache@v2
       - name: Install CompatHelper
         shell: julia --project=@compat --color=yes {0}
