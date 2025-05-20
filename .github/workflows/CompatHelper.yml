@@ -12,9 +12,15 @@ jobs:
         with:
           version: "1.6"
       - uses: julia-actions/cache@v2
-      - name: Pkg.add("CompatHelper")
-        run: julia -e 'using Pkg; Pkg.add("CompatHelper")'
-      - name: CompatHelper.main()
+      - name: Install CompatHelper
+        shell: julia --project=@compat --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.add(PackageSpec(; name="CompatHelper", version="1"))
+      - name: Run CompatHelper
+        shell: julia --project=@compat --color=yes {0}
+        run: |
+          using CompatHelper
+          CompatHelper.main()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: julia -e 'using CompatHelper; CompatHelper.main()'
