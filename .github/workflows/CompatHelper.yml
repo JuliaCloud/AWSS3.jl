@@ -1,7 +1,11 @@
 name: CompatHelper
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/CompatHelper.yml"
   schedule:
     - cron: "0 0 * * *"
+  workflow_dispatch:
 jobs:
   CompatHelper:
     runs-on: ubuntu-latest
