@@ -2,15 +2,22 @@ name: Format suggestions
 
 on:
   pull_request:
-
+# These permissions are needed to:
+# - Delete old caches: https://github.com/julia-actions/cache#usage
+# - Post formatting suggestions: https://github.com/reviewdog/action-suggester#required-permissions
+permissions:
+  actions: write
+  contents: read
+  pull-requests: write
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@latest
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: 1
+      - uses: julia-actions/cache@v2
       - run: |
           julia  -e 'using Pkg; Pkg.add("JuliaFormatter")'
           julia  -e 'using JuliaFormatter; format(".", BlueStyle(); verbose=true)'
