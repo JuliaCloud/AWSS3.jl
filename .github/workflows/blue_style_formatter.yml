@@ -18,9 +18,17 @@ jobs:
         with:
           version: 1
       - uses: julia-actions/cache@v2
-      - run: |
-          julia  -e 'using Pkg; Pkg.add("JuliaFormatter")'
-          julia  -e 'using JuliaFormatter; format(".", BlueStyle(); verbose=true)'
+      - name: Install JuliaFormatter
+        shell: julia --project=@format --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.add(PackageSpec(; name="JuliaFormatter", version="1"))
+      - name: Check formatting
+        shell: julia --project=@format --color=yes {0}
+        run: |
+          using JuliaFormatter
+          format("."; verbose=true) || exit(1)
+      # Add formatting suggestions to non-draft PRs even if when "Check formatting" fails
       - uses: reviewdog/action-suggester@v1
         with:
           tool_name: JuliaFormatter
