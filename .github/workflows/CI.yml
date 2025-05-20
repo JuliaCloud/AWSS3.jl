@@ -27,19 +27,13 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - "1.6"  # Earliest supported version / Invenia version used
+          - "min"  # Earliest supported version
+          - "lts"  # Long Term Stable
           - "1"    # Latest release
         os:
           - ubuntu-latest
-          - macOS-latest
         arch:
           - x64
-        exclude:
-          # Only testing a single version of macOS to make CI faster.
-          # Note: Ideally this would be the latest version of Julia but lately
-          # Julia 1.7.1 is generating segmentation faults only on CI.
-          - version: "1"
-            os: macOS-latest
     steps:
       - uses: actions/checkout@v4
       - name: Assume AWS role
