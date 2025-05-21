@@ -38,6 +38,10 @@ jobs:
             os: macOS-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Debug OIDC Claims
+        uses: github/actions-oidc-debugger@main
+        with:
+          audience: sts.amazonaws.com
       - name: Assume AWS role
         uses: aws-actions/configure-aws-credentials@v2
         with:
