@@ -1,3 +1,4 @@
+---
 name: JuliaFormatter
 on:
   merge_group:

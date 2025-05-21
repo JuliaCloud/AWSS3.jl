@@ -1,3 +1,4 @@
+---
 name: Documenter
 on:
   merge_group:
