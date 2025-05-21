@@ -39,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Debug OIDC Claims
+        if: ${{ runner.os == 'Linux' }}
         uses: github/actions-oidc-debugger@main
         with:
           audience: sts.amazonaws.com
