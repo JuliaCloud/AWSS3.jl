@@ -80,7 +80,7 @@ jobs:
 
   # Merge queues only wait for the required status checks to pass which are defined in the
   # repository settings under the branch protection rules. Unfortunately, the required
-  # status checks for PRs and merge queues must be the identical even though the workflows
+  # status checks for PRs and merge queues must be identical even though the workflows
   # themselves are triggered separately (i.e `pull_request` vs. `merge_group`).
   #
   # In order to have a status check which allows CI jobs to be skipped in PRs but must pass
