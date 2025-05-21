@@ -1,4 +1,4 @@
-# `aws cloudformation create-stack --stack-name AWSS3-jl-test --template-body file://awss3_jl_test.yaml --capabilities CAPABILITY_NAMED_IAM`
+# `aws cloudformation update-stack --stack-name AWSS3-jl-test --template-body file://awss3_jl_test.yaml --capabilities CAPABILITY_NAMED_IAM --region us-east-1`
 ---
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
@@ -42,11 +42,13 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
+                # Allow merge queues, the master branch, and any tag to assume this role
                 token.actions.githubusercontent.com:sub:
-                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/trying
-                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/staging
-                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master
-                    - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/tags/*
+                  # - !Sub repo:${GitHubOrg}/${GitHubRepo}:pull_request
+                  # e.g. repo:JuliaCloud/AWS.jl:ref:refs/heads/gh-readonly-queue/main/pr-712-9dd56bded63ab593bd2843d0758ede40039ac943
+                  - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/gh-readonly-queue/*
+                  - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/master
+                  - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/tags/*
           # - Effect: Allow
           #   Principal:
           #     AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
