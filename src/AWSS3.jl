@@ -455,7 +455,7 @@ end
 """
     s3_copy([::AbstractAWSConfig], bucket, path; acl::AbstractString="",
             to_bucket=bucket, to_path=path, metadata::AbstractDict=SSDict(),
-            parse_response::Bool=true, kwargs...)
+            parse_response::Bool=true, version=nothing, kwargs...)
 
 Copy the object at `path` in `bucket` to `to_path` in `to_bucket`.
 
@@ -464,6 +464,8 @@ Copy the object at `path` in `bucket` to `to_path` in `to_bucket`.
     See [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl).
 - `metadata::Dict=`; `x-amz-meta-` headers.
 - `parse_response::Bool=`; when `false`, return raw `AWS.Response`
+- `version=`; when not `nothing`, the specific `versionId` of the source object to copy,
+  otherwise the latest version is copied.
 - `kwargs`; additional kwargs passed through into `S3.copy_object`
 
 # API Calls
@@ -483,6 +485,7 @@ function s3_copy(
     to_bucket=bucket,
     to_path=path,
     metadata::AbstractDict=SSDict(),
+    version::AbstractS3Version=nothing,
     parse_response::Bool=true,
     kwargs...,
 )
@@ -495,10 +498,15 @@ function s3_copy(
         headers["x-amz-acl"] = acl
     end
 
+    source = "$bucket/$path"
+    if version !== nothing
+        source *= "&versionId=" * escapeuri(version)
+    end
+
     response = S3.copy_object(
         to_bucket,
         to_path,
-        "$bucket/$path",
+        source,
         Dict("headers" => headers);
         aws_config=aws,
         kwargs...,
@@ -1075,6 +1083,36 @@ function s3_upload_part(
     return get_robust_case(Dict(response.headers), "ETag")
 end
 
+function s3_upload_part_copy(
+    aws::AbstractAWSConfig,
+    source,
+    upload,
+    part_number,
+    byte_range;
+    args=Dict{String,Any}(),
+    kwargs...,
+)
+    headers = Dict(
+        "x-amz-copy-source-range" => string(
+            "bytes=", first(byte_range), '-', last(byte_range)
+        )
+    )
+    mergewith!(_merge, args, Dict("headers" => headers))
+
+    response = S3.upload_part_copy(
+        upload["Bucket"],
+        upload["Key"],
+        part_number,
+        upload["UploadId"],
+        source,
+        args;
+        aws_config=aws,
+        kwargs...,
+    )
+
+    return get_robust_case(Dict(response.headers), "ETag")
+end
+
 function s3_complete_multipart_upload(
     aws::AbstractAWSConfig,
     upload,
@@ -1140,6 +1178,70 @@ function s3_multipart_upload(
         end
 
         push!(tags, s3_upload_part(aws, upload, (i += 1), buf; kwargs...))
+    end
+
+    return s3_complete_multipart_upload(aws, upload, tags; parse_response, kwargs...)
+end
+
+"""
+    s3_multipart_copy(aws::AbstractAWSConfig, bucket, path; to_bucket=bucket, to_path=path,
+                      part_size_mb=50, version=nothing, parse_response::Bool=true,
+                      kwargs...)
+
+Copy the object at `path` in `bucket` to `to_path` in `to_bucket` using a
+[multipart copy](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html).
+
+# Optional Arguments
+- `part_size_mb`: maximum size per uploaded part, in mebibytes (MiB).
+- `file_size_mb`: size in mebibytes of the object to copy. If `nothing`, the size is
+  determined using `s3_get_meta`.
+- `version`: when not `nothing`, the specific `versionId` of the source object to copy,
+  otherwise the latest version is copied.
+- `parse_response`: when `false`, return raw `AWS.Response`
+- `kwargs`: additional kwargs passed through to `s3_upload_part_copy` and `s3_complete_multipart_upload`
+
+# API Calls
+
+- [`HeadObject`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html) (if `file_size_mb` is not provided)
+- [`CreateMultipartUpload`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
+- [`UploadPartCopy`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)
+- [`CompleteMultipartUpload`](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
+
+# Permissions
+
+- [`s3:PutObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-PutObject)
+- [`s3:GetObject`](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html#amazons3-GetObject)
+"""
+function s3_multipart_copy(
+    aws::AbstractAWSConfig,
+    bucket,
+    path;
+    to_bucket=bucket,
+    to_path=path,
+    part_size_mb::Integer=50,
+    file_size_mb::Union{Integer,Nothing}=nothing,
+    version::AbstractS3Version=nothing,
+    parse_response::Bool=true,
+    kwargs...,
+)
+    if file_size_mb === nothing
+        file_meta = s3_get_meta(aws, bucket, path; version)
+        file_size = parse(Int, get_robust_case(file_meta, "Content-Length"))
+    else
+        file_size = file_size_mb * 1024 * 1024
+    end
+
+    part_size = part_size_mb * 1024 * 1024
+
+    source = bucket * '/' * path
+    if version !== nothing
+        source *= "&versionId=" * version
+    end
+
+    upload = s3_begin_multipart_upload(aws, bucket, path)
+    tags = map(enumerate(0:part_size:file_size)) do (part, byte_offset)
+        byte_range = byte_offset:(min(byte_offset + part_size, file_size) - 1)
+        return s3_upload_part_copy(aws, source, upload, part, byte_range; kwargs...)
     end
 
     return s3_complete_multipart_upload(aws, upload, tags; parse_response, kwargs...)
