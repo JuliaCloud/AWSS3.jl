@@ -1,7 +1,5 @@
 using Test: @test, @test_throws, contains_warn
 
-const BUCKET_DATE_FORMAT = dateformat"yyyymmdd\THHMMSS\Z"
-
 is_aws(config) = config isa AWSConfig
 AWS.aws_account_number(::Minio.MinioConfig) = "123"
 
@@ -23,8 +21,8 @@ function minio_server(body, dirs=[mktempdir()]; address="localhost:9005")
 end
 
 function gen_bucket_name(prefix="awss3.jl.test.")
-    # # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
-    return lowercase(prefix * Dates.format(now(Dates.UTC), BUCKET_DATE_FORMAT))
+    # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
+    return lowercase(string(prefix, uuid4()))
 end
 
 function assume_role(aws_config::AbstractAWSConfig, role; duration=nothing)
@@ -42,11 +40,7 @@ function assume_role(aws_config::AbstractAWSConfig, role; duration=nothing)
         role_arn = "arn:aws:iam::$account_id:role/$role_name"
     end
 
-    role_session = AWS._role_session_name(
-        "AWS.jl-role-",
-        role_name,
-        "-" * Dates.format(now(UTC), dateformat"yyyymmdd\THHMMSS\Z"),
-    )
+    role_session = AWS._role_session_name("AWS.jl-role-", role_name, string("-", uuid4()))
     params = Dict{String,Any}("RoleArn" => role_arn, "RoleSessionName" => role_session)
     if duration !== nothing
         params["DurationSeconds"] = duration
