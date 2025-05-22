@@ -43,7 +43,7 @@ function assume_role(aws_config::AbstractAWSConfig, role; duration=nothing)
     role_session = AWS._role_session_name(
         "AWS.jl-role-",
         role_name,
-        "-" * Dates.format(now(UTC), dateformat"yyyymmdd\THHMMSS\Z"),
+        "-" * string(uuid4()),
     )
     params = Dict{String,Any}("RoleArn" => role_arn, "RoleSessionName" => role_session)
     if duration !== nothing
