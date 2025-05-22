@@ -1,0 +1,41 @@
+---
+name: JuliaFormatter
+on:
+  merge_group:
+  pull_request:
+# These permissions are needed to:
+# - Delete old caches: https://github.com/julia-actions/cache#usage
+# - Post formatting suggestions: https://github.com/reviewdog/action-suggester#required-permissions
+permissions:
+  actions: write
+  contents: read
+  pull-requests: write
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+      - uses: julia-actions/cache@v2
+      - name: Install JuliaFormatter
+        shell: julia --project=@format --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.add(PackageSpec(; name="JuliaFormatter", version="1"))
+      - name: Check formatting
+        shell: julia --project=@format --color=yes {0}
+        run: |
+          using JuliaFormatter
+          format("."; verbose=true) || exit(1)
+      # Add formatting suggestions to non-draft PRs even if when "Check formatting" fails
+      - uses: reviewdog/action-suggester@v1
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        with:
+          tool_name: JuliaFormatter
+          # Post results on all results and not just changed files:
+          # https://github.com/reviewdog/reviewdog#filter-mode
+          filter_mode: nofilter
+

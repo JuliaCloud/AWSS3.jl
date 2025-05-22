@@ -1,3 +1,4 @@
+---
 name: CI
 on:
   merge_group:
@@ -7,37 +8,35 @@ on:
       - master
     tags: '*'
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC (8 PM CST)
+    - cron: "0 2 * * *"  # Daily at 2 AM UTC (8 PM CST)
+  workflow_dispatch:
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     if: ${{ github.event_name != 'pull_request' }}  # Avoid running on PRs as OIDC will fail when running on a fork
+    # These permissions are needed to:
+    # - Checking out the repository (`contents: read`)
+    # - Interact with GitHub's OIDC Token endpoint: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services#adding-permissions-settings
+    # - Delete old caches: https://github.com/julia-actions/cache#usage
     permissions:
-      # Required for interacting with GitHub's OIDC Token endpoint:
-      # https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services#adding-permissions-settings
+      actions: write
+      contents: read
       id-token: write
-      contents: read  # Required for `actions/checkout
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.version == 'nightly' }}
     strategy:
       fail-fast: false
       matrix:
         version:
-          - "1.6"  # Earliest supported version / Invenia version used
+          - "min"  # Earliest supported version
+          - "lts"  # Long Term Stable
           - "1"    # Latest release
         os:
           - ubuntu-latest
-          - macOS-latest
         arch:
           - x64
-        exclude:
-          # Only testing a single version of macOS to make CI faster.
-          # Note: Ideally this would be the latest version of Julia but lately
-          # Julia 1.7.1 is generating segmentation faults only on CI.
-          - version: "1"
-            os: macOS-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Debug OIDC Claims
         if: ${{ runner.os == 'Linux' }}
         uses: github/actions-oidc-debugger@main
@@ -48,27 +47,13 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/AWSS3.jl
           aws-region: us-east-1
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v2
-      - uses: julia-actions/julia-buildpkg@latest
-      - uses: julia-actions/julia-runtest@latest
-
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: '1'
-      - uses: julia-actions/julia-buildpkg@latest
-      - uses: julia-actions/julia-docdeploy@latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
 
   # Merge queues only wait for the required status checks to pass which are defined in the
   # repository settings under the branch protection rules. Unfortunately, the required
