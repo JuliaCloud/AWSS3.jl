@@ -209,6 +209,26 @@ function awss3_tests(base_config)
         @test isa(result, AWS.Response)
     end
 
+    @testset "Multi-Part Copy" begin
+        config = assume_testset_role("MultipartUploadTestset"; base_config)
+        MIN_S3_CHUNK_SIZE = 5 * 1024 * 1024 # 5 MiB
+        src_key_name = "multi-part-key"
+        dest_key_name = "multi-part-key-copy"
+        result = s3_multipart_copy(
+            config,
+            bucket_name,
+            src_key_name;
+            to_bucket=bucket_name,
+            to_path=dest_key_name,
+            part_size_mb=MIN_S3_CHUNK_SIZE,
+        )
+        @test s3_exists(config, bucket_name, dest_key_name)
+        @test isa(result, LittleDict)
+        src_bytes = s3_get(config, bucket_name, src_key_name; raw=true)
+        dest_bytes = s3_get(config, bucket_name, dest_key_name; raw=true)
+        @test src_bytes == dest_bytes
+    end
+
     # these tests are needed because lack of functionality of the underlying AWS API makes certain
     # seemingly inane tasks incredibly tricky: for example checking if an "object" (file or
     # directory) exists is very subtle

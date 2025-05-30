@@ -722,6 +722,60 @@ function Base.write(
     end
 end
 
+const MiB = 1024 * 1024
+const GiB = MiB * 1024
+
+"""
+    Base.cp(src::S3Path, dest::S3Path; multipart::Bool=true, part_size_mb=50)
+
+Copy the object at `src` to `dest`.
+
+A multipart copy is used when `src` is 5 GiB or larger. A multipart copy can also be
+requested for objects larger than `part_size_mb` MiB by setting `multipart=true`.
+When `multipart=true` and `src` is larger than
+`part_size_mb` MiB, or when `src` is larger than 5 GiB, copying is performed using
+[`s3_multipart_copy`](@ref). Otherwise, [`s3_copy`](@ref) is used.
+"""
+function Base.cp(src::S3Path, dest::S3Path; multipart::Bool=true, part_size_mb=50)
+    if src.config !== nothing && dest.config !== nothing && src.config != dest.config
+        # Avoid breaking the case where the source and destination use different credentials
+        # by directly invoking the method that used to be called before this more specific
+        # method was added
+        return invoke(cp, Tuple{AbstractPath,AbstractPath}, src, dest)
+    end
+    config = @something(src.config, dest.config, global_aws_config())
+    head = s3_get_meta(config, src.bucket, src.key; src.version)
+    size = parse(Int, get_robust_case(head, "Content-Length"))
+    if (multipart && size > part_size * MiB) || size >= 5 * GiB
+        response = s3_multipart_copy(
+            config,
+            src.bucket,
+            src.key;
+            to_bucket=dest.bucket,
+            to_path=dest.key,
+            version=src.version,
+            part_size_mb,
+            file_size_mb=div(size, MiB),
+        )
+    else
+        response = s3_copy(
+            config,
+            src.bucket,
+            src.key;
+            to_bucket=dest.bucket,
+            to_path=dest.key,
+            version=src.version,
+        )
+    end
+    return S3Path(
+        dest.bucket,
+        dest.key;
+        dest.isdirectory,
+        dest.config,
+        version=HTTP.header(response.headers, "x-amz-version-id", nothing),
+    )
+end
+
 function FilePathsBase.mktmpdir(parent::S3Path)
     fp = parent / string(uuid4(), "/")
     return mkdir(fp)
