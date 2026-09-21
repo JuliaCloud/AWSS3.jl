@@ -1158,7 +1158,13 @@ function s3_multipart_upload(
     return s3_complete_multipart_upload(aws, upload, tags; parse_response, kwargs...)
 end
 
-using MbedTLS
+using SHA: sha256, hmac_sha256, hmac_sha1
+
+# `SHA.hmac_*` take the key as a byte vector; the first step of the AWS key
+# derivation uses the secret as a `String`.
+_hmac_sha1(key::AbstractString, data) = hmac_sha1(Vector{UInt8}(codeunits(key)), data)
+_hmac_sha256(key::AbstractString, data) = hmac_sha256(Vector{UInt8}(codeunits(key)), data)
+_hmac_sha256(key::Vector{UInt8}, data) = hmac_sha256(key, data)
 
 function _s3_sign_url_v2(
     aws::AbstractAWSConfig,
@@ -1171,7 +1177,7 @@ function _s3_sign_url_v2(
 )
     path = URIs.escapepath(path)
 
-    expires = round(Int, Dates.datetime2unix(now(Dates.UTC)) + seconds)
+    expires = round(Int, Dates.datetime2unix(@mock(now(Dates.UTC))) + seconds)
 
     query = SSDict(
         "AWSAccessKeyId" => aws.credentials.access_key_id,
@@ -1191,7 +1197,7 @@ function _s3_sign_url_v2(
         "response-content-disposition=attachment"
 
     key = aws.credentials.secret_key
-    query["Signature"] = strip(base64encode(digest(MD_SHA1, to_sign, key)))
+    query["Signature"] = strip(base64encode(_hmac_sha1(key, to_sign)))
 
     endpoint = string(protocol, "://", bucket, ".s3.", aws.region, ".amazonaws.com")
     return "$endpoint/$path?$(URIs.escapeuri(query))"
@@ -1208,7 +1214,7 @@ function _s3_sign_url_v4(
 )
     path = URIs.escapepath("/$bucket/$path")
 
-    now_datetime = now(Dates.UTC)
+    now_datetime = @mock now(Dates.UTC)
     datetime_stamp = Dates.format(now_datetime, "YYYYmmddTHHMMSS\\Z")
     date_stamp = Dates.format(now_datetime, "YYYYmmdd")
 
@@ -1263,15 +1269,15 @@ function _s3_sign_url_v4(
         "$scheme-$algorithm\n",
         "$datetime_stamp\n",
         "$scope\n",
-        bytes2hex(digest(MD_SHA256, canonical_request)),
+        bytes2hex(sha256(canonical_request)),
     )
 
     key_secret = string(scheme, aws.credentials.secret_key)
-    key_date = digest(MD_SHA256, date_stamp, key_secret)
-    key_region = digest(MD_SHA256, aws.region, key_date)
-    key_service = digest(MD_SHA256, service, key_region)
-    key_signing = digest(MD_SHA256, terminator, key_service)
-    signature = digest(MD_SHA256, string_to_sign, key_signing)
+    key_date = _hmac_sha256(key_secret, date_stamp)
+    key_region = _hmac_sha256(key_date, aws.region)
+    key_service = _hmac_sha256(key_region, service)
+    key_signing = _hmac_sha256(key_service, terminator)
+    signature = _hmac_sha256(key_signing, string_to_sign)
 
     query["X-Amz-Signature"] = bytes2hex(signature)
 
