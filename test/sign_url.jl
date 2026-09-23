@@ -1,6 +1,16 @@
 # Offline tests for `s3_sign_url`. These pin the clock with Mocking so the
 # generated URLs are deterministic and can be compared byte for byte.
 
+using URIs: URI, queryparams
+
+# The v2 query string is built from a `Dict`, whose iteration order is not
+# stable across Julia versions, so v2 URLs are compared with the query
+# parameters treated as an unordered set.
+function url_parts(url)
+    uri = URI(url)
+    return (uri.scheme, uri.host, uri.path, queryparams(uri))
+end
+
 @testset "sign_url" begin
     creds = AWSCredentials(
         "AKIAIOSFODNN7EXAMPLE", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", ""
@@ -72,39 +82,51 @@
     @testset "v2" begin
         apply(patch) do
             config = AWSConfig(; creds, region="us-east-1")
-            @test s3_sign_url(
-                config, "examplebucket", "dir/test file.txt"; signature_version="v2"
-            ) ==
-                "http://examplebucket.s3.us-east-1.amazonaws.com/dir/test%20file.txt?Expires=1369357200&response-content-disposition=attachment&Signature=IzwhOB%2BYDj4mZ4tBzwyKgT8gI%2FE%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token="
-            @test s3_sign_url(
-                config,
-                "examplebucket",
-                "dir/test file.txt",
-                600;
-                verb="PUT",
-                protocol="https",
-                signature_version="v2",
-            ) ==
-                "https://examplebucket.s3.us-east-1.amazonaws.com/dir/test%20file.txt?Expires=1369354200&response-content-disposition=attachment&Signature=7YxZsJ2bNttk6qLYrX0Ua%2BzSFUs%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token="
+            @test url_parts(
+                s3_sign_url(
+                    config, "examplebucket", "dir/test file.txt"; signature_version="v2"
+                ),
+            ) == url_parts(
+                "http://examplebucket.s3.us-east-1.amazonaws.com/dir/test%20file.txt?Expires=1369357200&response-content-disposition=attachment&Signature=IzwhOB%2BYDj4mZ4tBzwyKgT8gI%2FE%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token=",
+            )
+            @test url_parts(
+                s3_sign_url(
+                    config,
+                    "examplebucket",
+                    "dir/test file.txt",
+                    600;
+                    verb="PUT",
+                    protocol="https",
+                    signature_version="v2",
+                ),
+            ) == url_parts(
+                "https://examplebucket.s3.us-east-1.amazonaws.com/dir/test%20file.txt?Expires=1369354200&response-content-disposition=attachment&Signature=7YxZsJ2bNttk6qLYrX0Ua%2BzSFUs%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token=",
+            )
 
             config_tok = AWSConfig(;
                 creds=AWSCredentials(creds.access_key_id, creds.secret_key, "TOKEN123"),
                 region="eu-west-1",
             )
-            @test s3_sign_url(
-                config_tok, "examplebucket", "dir/test file.txt"; signature_version="v2"
-            ) ==
-                "http://examplebucket.s3.eu-west-1.amazonaws.com/dir/test%20file.txt?Expires=1369357200&response-content-disposition=attachment&Signature=RQszMIU%2BaN6FLg6TqZbPKEWtJtE%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token=TOKEN123"
-            @test s3_sign_url(
-                config_tok,
-                "examplebucket",
-                "dir/test file.txt",
-                600;
-                verb="PUT",
-                protocol="https",
-                signature_version="v2",
-            ) ==
-                "https://examplebucket.s3.eu-west-1.amazonaws.com/dir/test%20file.txt?Expires=1369354200&response-content-disposition=attachment&Signature=k%2FdQaeCBc%2BsCkH2O9f8Ux520xRs%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token=TOKEN123"
+            @test url_parts(
+                s3_sign_url(
+                    config_tok, "examplebucket", "dir/test file.txt"; signature_version="v2"
+                ),
+            ) == url_parts(
+                "http://examplebucket.s3.eu-west-1.amazonaws.com/dir/test%20file.txt?Expires=1369357200&response-content-disposition=attachment&Signature=RQszMIU%2BaN6FLg6TqZbPKEWtJtE%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token=TOKEN123",
+            )
+            @test url_parts(
+                s3_sign_url(
+                    config_tok,
+                    "examplebucket",
+                    "dir/test file.txt",
+                    600;
+                    verb="PUT",
+                    protocol="https",
+                    signature_version="v2",
+                ),
+            ) == url_parts(
+                "https://examplebucket.s3.eu-west-1.amazonaws.com/dir/test%20file.txt?Expires=1369354200&response-content-disposition=attachment&Signature=k%2FdQaeCBc%2BsCkH2O9f8Ux520xRs%3D&AWSAccessKeyId=AKIAIOSFODNN7EXAMPLE&x-amz-security-token=TOKEN123",
+            )
         end
     end
 end
