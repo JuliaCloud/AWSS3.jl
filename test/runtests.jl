@@ -27,6 +27,9 @@ include("s3path.jl") # creates `awss3_tests(config)`
 include("awss3.jl") # creates `s3path_tests(config)`
 
 @testset "AWSS3.jl" begin
+    # Offline tests, no S3 or MinIO required
+    include("sign_url.jl")
+
     # We can run most tests locally under MinIO without requring AWS credentials
     @testset "Minio" begin
         minio_server() do config
